@@ -23,15 +23,16 @@ data Grammar = Grammar { gN  :: [NonTerminal]
                        , gM  :: [Mutator]
                        }
   deriving (Show, Eq)
-data NodeType = Entry | Final | Intermediate
-type NodeLabel = String
-type Marked = Bool
-data Node  = Node NodeType NodeLabel Marked
+type StateLabel = String
+data State = EntryState NodeLabel [Edge]
+           | MidState NodeLabel [Edge]
+           | FinalState NodeLabel
 data EdgeLabel = NTLabel NonTerminal
            | TLabel  Terminal
            | PLabel  Predicate
            | MLabel  Mutator
-type Edge = (NodeLabel, EdgeLabel, NodeLabel)
+           | Epsilon
+type Transition = (State, EdgeLabel, State)
 
 -- ATN M_G = (Q, Sigma, Delta, E, F)
 -- Q is the set of states (atnQ). ATN states are represented as nodes.
@@ -40,9 +41,11 @@ type Edge = (NodeLabel, EdgeLabel, NodeLabel)
 --       Transitions are represented as edges.
 -- E is the set of submachine entry states (stored in NodeType as Entry)
 -- F is the set of submachine final states (stored in NodeType as Final)
-data ATN     = ATN { atnQ     :: [Node]
+data ATN    = ATN { atnQ     :: [State]
                    , atnSigma :: [EdgeLabel]
-                   , atnDelta :: [Edge]
+                   , atnDelta :: [Transition]
+                   , atnE     :: [Node]
+                   , atnF     :: [Node]
                    }
 
 -- getNodeByName :: ATN -> String -> Node
@@ -60,10 +63,8 @@ data ATN     = ATN { atnQ     :: [Node]
   -- optimization could do this when mapping over the productions
 toAtn :: Grammar -> ATN
 toAtn g =
-  let parseQ :: [Node]
-      parseSigma :: [Label]
-      parseDelta :: [Edge]
-      parseQ = 
-      parseSigma =
-      parseDelta =
-  in ATN parseQ parseSigma parseDelta
+  let sigma = gN ++ gT ++ gPi ++ gM
+      parseP [] (q, d, e, f) = (q, d, e, f)
+           | (prods:_) (q, d, e, f) = 
+      (q, delta, e, f) = parseP g.get_productions [] [] [] []
+  in  ATN q sigma delta e f
