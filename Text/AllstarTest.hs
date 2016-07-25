@@ -48,7 +48,6 @@ data ATN    = ATN { atnQ     :: [State]
                    , atnF     :: [Node]
                    }
 
--- getNodeByName :: ATN -> String -> Node
 -- q notes
 -- for each nonterminal we have 1 start node and 1 end node
 -- for each production we have 1 dummy start node
@@ -61,10 +60,18 @@ data ATN    = ATN { atnQ     :: [State]
 -- delta
 -- for each production make edges between the nodes named in q
   -- optimization could do this when mapping over the productions
+
+-- INPUT: Grammar g
+-- OUTPUT: ATN corresponding to g
 toAtn :: Grammar -> ATN
 toAtn g =
-  let sigma = gN ++ gT ++ gPi ++ gM
-      parseP [] (q, d, e, f) = (q, d, e, f)
-           | (prods:_) (q, d, e, f) = 
-      (q, delta, e, f) = parseP g.get_productions [] [] [] []
-  in  ATN q sigma delta e f
+  let parseP []        (q, d, e, f) = (q, d, e, f)
+           | (prod:_)  (q, d, e, f) = 
+                case prod of 
+                    ContextFree nt (prodElem:_)          ->
+                    Predicated  nt (pred:_) (prodElem:_) ->
+                    Mutated     nt (mut:_)               ->
+                    Epsilon     nt                       ->
+                           
+      (q, d, e, f) = parseP (gP g) ([], [], [], [])
+  in  ATN q sigma d e f
