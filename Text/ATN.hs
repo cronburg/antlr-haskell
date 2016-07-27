@@ -1,30 +1,12 @@
-module Text.AllstarTest where
+module Text.ATN where
 
---Need to define full token class
-type Token       = String
-type NonTerminal = String
-type Terminal    = Token
-data ProdElement = Nonterminal | Terminal
--- ContextFree: A -> alpha_i is the i-th context-free production of A
---              alpha is a a sequence of production elements.
-data Production  = ContextFree NonTerminal [[ProdElement]]
-                 | Predicated  NonTerminal [(Maybe Predicate)] [[ProdElement]]
-                 | Mutated     NonTerminal [Mutator]
-                 | Epsilon     NonTerminal
-type Predicate   = (State -> Bool)
-type Mutator     = (State -> State)
-type State       = undefined
-
-data Grammar = Grammar { gN  :: [NonTerminal]
-                       , gT  :: [Terminal]
-                       , gP  :: [Production]
-                       , gS  :: NonTerminal
-                       , gPi :: [Predicate]
-                       , gM  :: [Mutator]
-                       }
-  deriving (Show, Eq)
 type StateLabel = String
-data State = Final | NonFinal StateLabel [Transition]
+
+-- State: Node in the ATN graph. StateLabel - name of state. 
+-- [Transition] - list of edges to next states in ATN
+-- Invariant: A final state will have an empty transition list. 
+--            A non-final state wil have a non-empty transition list.
+data State = StateLabel [Transition]
 data EdgeLabel = NTLabel NonTerminal
            | TLabel  Terminal
            | PLabel  Predicate
