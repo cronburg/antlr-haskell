@@ -4,11 +4,12 @@ module Text.Grammar where
 type Token       = String
 type NonTerminal = String
 type Terminal    = Token
-data ProdElement = Nonterminal | Terminal
-data Production  = ContextFree NonTerminal [[ProdElement]]
-                 | Predicated  NonTerminal [(Maybe Predicate)] [[ProdElement]]
-                 | Mutated     NonTerminal [Mutator]
-                 | Epsilon     NonTerminal
+data GrammarSymbol = Nonterminal | Terminal
+data ProdElem    = ContextFree [GrammarSymbol]
+                 | Predicated (Maybe Predicate) [GrammarSymbol]
+                 | Mutated    Mutator
+                 | Epsilon
+data Production  = NonTerminal [ProdElem]
 type Predicate   = (State -> Bool)
 type Mutator     = (State -> State)
 type State       = undefined
