@@ -1,0 +1,8 @@
+-- ATN M_G = (Q, Sigma, Delta, E, F)
+-- Q is the set of states (atnQ). ATN states are represented as nodes.
+-- Sigma is the edge alphabet N U T U Pi U M (atnSigma)
+-- Delta is the transition relation mapping Q x (Sigma U e) -> Q (atnDelta)
+--       Transitions are represented as edges.
+-- E is the set of submachine entry states (stored in NodeType as Entry)
+-- F is the set of submachine final states (stored in NodeType as Final)
+

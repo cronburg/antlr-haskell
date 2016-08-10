@@ -1,62 +1,32 @@
 module Text.ATN where
 
-type StateLabel = String
+-- ATN        - graph represented by type Transition and datatype State
+-- Transition - represents ContextFree, Predicated, Mutated, Epsilon transitions
+--              using ProdElem datatype used in Grammar
+-- State      - Start, Branch, and Final states all contain name of submachine
+--              nonterminal (the production rule name). Start has list of 
+--              branches represented as transitions. Each branch contains all
+--              states in submachine until Final, since by invariant of ATN
+--              construction, branching only happens from start node.
 
--- State: Node in the ATN graph. StateLabel - name of state. 
--- [Transition] - list of edges to next states in ATN
--- Invariant: A final state will have an empty transition list. 
---            A non-final state wil have a non-empty transition list.
-data State = StateLabel [Transition]
-data EdgeLabel = NTLabel NonTerminal
-           | TLabel  Terminal
-           | PLabel  Predicate
-           | MLabel  Mutator
-           | Epsilon
-type Transition = (State, EdgeLabel, State)
+type Transition = ProdElem
+data State = Start  (NonTerminal, [Transition])
+           | Branch (NonTerminal, Transition
+           | Final  NonTerminal
 
--- ATN M_G = (Q, Sigma, Delta, E, F)
--- Q is the set of states (atnQ). ATN states are represented as nodes.
--- Sigma is the edge alphabet N U T U Pi U M (atnSigma)
--- Delta is the transition relation mapping Q x (Sigma U e) -> Q (atnDelta)
---       Transitions are represented as edges.
--- E is the set of submachine entry states (stored in NodeType as Entry)
--- F is the set of submachine final states (stored in NodeType as Final)
-data ATN    = ATN { atnQ     :: [State]
-                   , atnSigma :: [EdgeLabel]
-                   , atnDelta :: [Transition]
-                   , atnE     :: [Node]
-                   , atnF     :: [Node]
-                   }
+type atnE = [(NonTerminal, [Transition])]
 
--- q notes
--- for each nonterminal we have 1 start node and 1 end node
--- for each production we have 1 dummy start node
--- for each context free production we have 1 node for each grammar element in the grammar string
--- for each predicated production we have 1 node for the predicate and 1 node for each grammar element
--- for each mutated production we have 0 extra nodes
--- for each episilon production we have - extra nodes
--- sigma notes
--- iterate over N T Pi and M to grab all the labels
--- delta
--- for each production make edges between the nodes named in q
-  -- optimization could do this when mapping over the productions
-
+-- !!! Find a better way to deal with this!!! I don't think we even need index
+-- Return to this with SLLPredict
+-- !!! Include checks for edge cases !!!!!!
+getBranch       (Start (nt, branches)) i = (Branch nt (branches!!i))
+getName state = case of (Start (nt, branches))  -> nt
+                        (Branch (nt, trans))    -> nt
+                        (Final nt)              -> nt
+mapBranches     (Start (nt, branches)) f = map f branches
+existsBranches  (Start (nt, branches)) f = exists f branches
 -- INPUT: Grammar g
--- OUTPUT: ATN corresponding to g
-toAtn :: Grammar -> ATN
-toAtn g =
-  let makeStartEnd name(q, d, e, f) =
-            let beg = "p" ++ name
-                end = "p" ++ "'" ++ name
-            in  (beg:(end:q), d, beg:e, end:f)
-      parseP  []        (q, d, e, f) = (q, d, e, f)
-            | (prod:_)  (q, d, e, f) = 
-                case prod of 
-                    ContextFree nt prodElem          ->
-                        
-                    Predicated  nt (pred:_) (prodElem:_) ->
-                    Mutated     nt (mut:_)               ->
-                    Epsilon     nt                       ->
-                           
-      (q, d, e, f) = parseP (gP g) ([], [], [], [])
-  in  ATN q sigma d e f
+-- OUTPUT: ATN corresponding to g. Internally, we only need set of starting 
+--         nodes E, represented as [(NonTerminal, [Transition])]
+toAtn :: Grammar -> atnE
+toAtn g = (gP g)
