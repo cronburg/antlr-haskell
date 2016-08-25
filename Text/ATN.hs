@@ -10,11 +10,10 @@ module Text.ATN where
 --              construction, branching only happens from start node.
 
 type Transition = ProdElem
-data State = Start  (NonTerminal, [Transition])
-           | Branch (NonTerminal, Transition
-           | Final  NonTerminal
 
-type atnE = [(NonTerminal, [Transition])]
+type AtnE = [(NonTerminal, [Transition])]
+
+data ATN =
 
 -- !!! Find a better way to deal with this!!! I don't think we even need index
 -- Return to this with SLLPredict
@@ -30,3 +29,5 @@ existsBranches  (Start (nt, branches)) f = exists f branches
 --         nodes E, represented as [(NonTerminal, [Transition])]
 toAtn :: Grammar -> atnE
 toAtn g = (gP g)
+
+getTransitions :: ATN -> NonTerminal -> [Transition]

@@ -1,10 +1,6 @@
 module Text.AllStar where
 
-ATN
-State
--- dictionary of nonterminals to corresponding dfa
-type dfa = [(NonTerminal, DFA)]
-input
+import Data.Set
 
 -- 1) Parse 
 -- INPUT: start symbol S in set of non-terminals
@@ -97,5 +93,13 @@ startState (state, gamma) =
 -- 5) target
 -- 6) LLpredict
 -- 7) closure
+closure :: Set Closure -> Closure -> Set Closure
+closure busy (c @ (p, i, gamma)) = 
+    if Set.member c busy
+    then Set.empty
+    else final_c (Set.insert c busy) (Set.in
+    where
+        final_c busy' = 
+                    
 -- 8) getConflictSetsPerLoc
 -- 9) getProdSetsPerState
