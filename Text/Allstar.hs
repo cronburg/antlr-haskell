@@ -93,13 +93,25 @@ startState (state, gamma) =
 -- 5) target
 -- 6) LLpredict
 -- 7) closure
-closure :: Set Closure -> Closure -> Set Closure
-closure busy (c @ (p, i, gamma)) = 
-    if Set.member c busy
-    then Set.empty
-    else final_c (Set.insert c busy) (Set.in
+closure :: ATN -> Set Closure -> Closure -> Set Closure
+closure atn busy (c @ (p, i, gamma)) = 
+    | Set.member c busy = Set.empty
+    | otherwise         =  final_c (Set.insert c busy) (Set.insert c Set.empty)
     where
-        final_c busy' = 
-                    
+        final_c busy' c' = 
+            case p of 
+                Final nt            -> 
+                    if isWildCard gamma
+                    then foldr 
+                    else 
+                _ (nt, transitions) ->
+                    foldr (\x a -> 
+                        case x of
+                          ContextFree (NT start):symbs ->
+                            let p_B = getStartState atn start
+                            in  (Set.insert (closure busy' (p_B, i, q)) a)
+                          _ -> 
+                            (Set.insert (closure busy' (q, i, gamma)) a)
+                        where q = getNextState atn x) c' transitions
 -- 8) getConflictSetsPerLoc
 -- 9) getProdSetsPerState

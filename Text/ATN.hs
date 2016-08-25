@@ -10,6 +10,7 @@ module Text.ATN where
 --              construction, branching only happens from start node.
 
 type Transition = ProdElem
+type Edge = (NonTerminal, State, State)
 
 type AtnE = [(NonTerminal, [Transition])]
 
@@ -30,4 +31,11 @@ existsBranches  (Start (nt, branches)) f = exists f branches
 toAtn :: Grammar -> atnE
 toAtn g = (gP g)
 
-getTransitions :: ATN -> NonTerminal -> [Transition]
+getTransitions :: ATN -> NonTerminal -> [Edge]
+getTransitions = undefined
+
+getStartState :: ATN -> NonTerminal -> State
+getStartState = undefined
+
+getNextState :: ATN -> State -> State
+getNextState = undefined

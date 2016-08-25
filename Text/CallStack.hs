@@ -13,5 +13,5 @@ isWildCard _        = False
 pop :: CallStack -> (State, CallStack)
 pop = undefined
 
-push :: State -> CallStack -> CallStack
+push :: CallStack -> State -> CallStack
 push = undefined
