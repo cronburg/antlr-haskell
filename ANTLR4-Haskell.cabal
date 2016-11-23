@@ -48,8 +48,10 @@ cabal-version:       >=1.10
 
 library
   -- Modules exported by the library.
-   exposed-modules:  Text.Allstar
-                  ,  Text.Allstar.Types
+   exposed-modules: Text.Allstar
+                  , Text.Allstar.Grammar
+                  , Text.Allstar.GSS
+                  , Text.Allstar.ATN
 
   -- Modules included in this library but not exported.
   -- other-modules:

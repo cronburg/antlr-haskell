@@ -1,13 +1,19 @@
 module Text.Allstar where
+import Text.Allstar.Grammar
+import Text.Allstar.GSS
+import Text.Allstar.ATN
+
 -- Set
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Control.Monad.State
 
 -- parser
-data Parser = Parser { g :: Grammar
+data Parser = Parser
+  -- Parser is the mutator state, i.e. current state of the parse
+  { g :: Grammar Parser
+  }
 
-                     }
 type ParserS a = State Parser a
 
 -- configuration

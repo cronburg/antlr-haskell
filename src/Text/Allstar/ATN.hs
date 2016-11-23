@@ -1,30 +1,41 @@
 module Text.Allstar.ATN where
 -- Augmented Transition Network
 import Text.Allstar.Grammar
+import Text.Allstar.GSS
+
+import Data.Set (Set(..), empty)
 
 -- ATN State
-data ATNState = ATNState {isS :: Bool, isF :: Bool, atnId :: Int}
-type ATN = (ATNState,Edge) -> Maybe ATNState
+data ATNState = ATNState
+  { isS   :: Bool
+  , isF   :: Bool
+  , atnId :: Int
+  }
 
-q :: ATN -> Set ATNState
+type Gamma = GSS ATNState
+
+type ATN s = (ATNState, Edge s) -> Maybe ATNState
+
+q :: ATN s-> Set ATNState
 q = undefined
 
-sigma :: ATN -> [Edge]
+sigma :: ATN s -> [Edge s]
 sigma = undefined
 
-e :: ATN -> Set ATNState
+e :: ATN s -> Set ATNState
 e = undefined
 
-f :: ATN -> Set ATNState
+f :: ATN s -> Set ATNState
 f = undefined
 
-data Edge = NTE NonTerminal
-          | TE  Terminal
-          | PE  Predicate
-          | ME  Mutator
-          | Epsilon
+data Edge s = NTE NonTerminal
+            | TE  Terminal
+            | PE  (Predicate s)
+            | ME  (Mutator   s)
+            | Epsilon
+
 -- atnOf :: Grammar -> (ATNState,Edge) -> Maybe ATNState
-atnOf :: Grammar -> ATN
+atnOf :: Grammar s -> ATN s
 atnOf g (ATNState{isS = s, isF = f, atnId = i}, NTE nte) = undefined
 
 atnOf g (ATNState{isS = s, isF = f, atnId = i}, TE te  ) = undefined

@@ -16,16 +16,17 @@ data Production  = Prod
   NonTerminal
   [Either NonTerminal Terminal]
 
-type Predicate   = Parser -> Bool
-type Mutator     = Parser -> Parser
+-- Predicates and Mutators act over some state
+type Predicate s = s -> Bool
+type Mutator   s = s -> s
 
-data Grammar = G 
+data Grammar s = G
   { n  :: Set NonTerminal
   , t  :: Set Terminal
   , p  :: [Production]
   , s  :: NonTerminal
-  , pi :: [Predicate]
-  , m  :: [Mutator]
+  , pi :: [Predicate s]
+  , m  :: [Mutator   s]
   }
 
 defaultGrammar = G
