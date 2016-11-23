@@ -15,26 +15,27 @@ type Terminal    = String
 data Production  = Prod
   NonTerminal
   [Either NonTerminal Terminal]
+  deriving (Eq, Show)
 
 -- Predicates and Mutators act over some state
 type Predicate s = s -> Bool
 type Mutator   s = s -> s
 
 data Grammar s = G
-  { n  :: Set NonTerminal
-  , t  :: Set Terminal
-  , p  :: [Production]
-  , s  :: NonTerminal
-  , pi :: [Predicate s]
-  , m  :: [Mutator   s]
+  { ns  :: Set NonTerminal
+  , ts  :: Set Terminal
+  , ps  :: Set Production
+  , s0  :: NonTerminal
+  , pis :: [Predicate s]
+  , ms  :: [Mutator   s]
   }
 
 defaultGrammar = G
-  { n  = empty
-  , t  = empty
-  , p  = []
-  , s  = ""
-  , pi = []
-  , m  = []
+  { ns  = empty
+  , ts  = empty
+  , ps  = empty
+  , s0  = ""
+  , pis = []
+  , ms  = []
   }
 
