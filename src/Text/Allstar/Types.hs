@@ -39,9 +39,16 @@ data ATNState = ATNState {isS :: Bool, isF :: Bool, atnId :: Int}
 type ATN = (ATNState,Edge) -> Maybe ATNState
 
 q :: ATN -> Set ATNState
+q = undefined
+
 sigma :: ATN -> [Edge]
+sigma = undefined
+
 e :: ATN -> Set ATNState
+e = undefined
+
 f :: ATN -> Set ATNState
+f = undefined
 
 data Edge = NTE NonTerminal
           | TE  Terminal
@@ -50,12 +57,12 @@ data Edge = NTE NonTerminal
           | Epsilon
 -- atnOf :: Grammar -> (ATNState,Edge) -> Maybe ATNState
 atnOf :: Grammar -> ATN
-atnOf g (ATNState{isS = s, isF = f, atnId = i}, NTE nte) =
+atnOf g (ATNState{isS = s, isF = f, atnId = i}, NTE nte) = undefined
 
-atnOf g (ATNState{isS = s, isF = f, atnId = i}, TE te  ) =
-atnOf g (ATNState{isS = s, isF = f, atnId = i}, PE pe  ) =
-atnOf g (ATNState{isS = s, isF = f, atnId = i}, ME me  ) =
-atnOf g (ATNState{isS = s, isF = f, atnId = isF = True i, _} = , Epsilon) =
+atnOf g (ATNState{isS = s, isF = f, atnId = i}, TE te  ) = undefined
+atnOf g (ATNState{isS = s, isF = f, atnId = i}, PE pe  ) = undefined
+atnOf g (ATNState{isS = s, isF = f, atnId = i}, ME me  ) = undefined
+atnOf g (ATNState{isS = s, isF = f, atnId = i}, Epsilon) = undefined
 
 
 -- configuration
