@@ -1,3 +1,4 @@
+/stack.yaml
 .stack-work/
 dist
 cabal-dev
