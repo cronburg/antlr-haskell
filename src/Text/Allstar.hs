@@ -2,9 +2,16 @@ module Text.Allstar where
 -- Set
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Control.Monad.State
 
-import Text.Allstar.Types
+-- parser
+data Parser = Parser { g :: Grammar
 
+                     }
+type ParserS a = State Parser a
+
+-- configuration
+type Configuration = (ATNState, Int, Gamma)
 
 -- data types
 
@@ -61,3 +68,4 @@ getConflictSetsPerLoc = undefined
 -- for each p return set of alts i from (p,-,-) in D Confs
 --getProdSetsPerState ::
 getProdSetsPerState = undefined
+
