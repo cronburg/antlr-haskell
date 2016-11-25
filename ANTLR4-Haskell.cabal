@@ -93,5 +93,6 @@ Test-Suite test-ATN
                 , test-framework
                 , test-framework-hunit
                 , test-framework-quickcheck2
+                , containers
   default-language: Haskell2010
 

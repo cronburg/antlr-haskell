@@ -1,15 +1,16 @@
 module Test.Text.Allstar.Grammar where
+import Data.Set (fromList)
 import Text.Allstar.Grammar
 
 mattToolG = defaultGrammar
-  { n  = fromList "ABC"
-  , t  = fromList "abc"
-  , p  = [ Prod "A" [Right "a", Right "b"]
-         , Prod "A" [Right "a"]
-         , Prod "B" [Left "A", Right "b"]
-         , Prod "B" [Right "b"]
-         , Prod "C" [Left "A", Left "B", Left "C"]
+  { ns = fromList "ABC"
+  , ts = fromList "abc"
+  , s0 = "C"
+  , ps = [ Prod "A" [T "a", T "b"]
+         , Prod "A" [T "a"]
+         , Prod "B" [NT "A", T "b"]
+         , Prod "B" [T "b"]
+         , Prod "C" [NT "A", NT "B", NT "C"]
          ]
-  , s  = "C"
   }
 
