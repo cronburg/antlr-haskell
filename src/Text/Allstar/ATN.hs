@@ -12,8 +12,8 @@ data ATN s = ATN
   -- Σ is an alphabet consisting of distinct elements which are comparable for
   -- equality.
   -- _Σ :: Set (Edge s)
-  { _Δ :: [Transition s]
-  }
+  { _Δ :: Set (Transition s)
+  } deriving (Eq, Ord, Show)
 
 -- Tuple corresponding to a distinct transition in the ATN:
 type Transition s = (ATNState, Edge s, ATNState)
@@ -38,30 +38,37 @@ data Edge s = NTE NonTerminal
             | PE  (Predicate s)
             | ME  (Mutator   s)
             | Epsilon
+  deriving (Eq, Ord, Show)
 
 -- atnOf :: Grammar -> (ATNState,Edge) -> Maybe ATNState
 atnOf :: Grammar s -> ATN s
 atnOf g = let
+  
+  _Δ :: Int -> Production s -> [Transition s]
+  _Δ i (Production lhs (Prod _α)) = let
     
-    _Δ :: Int -> Production s -> [Transition s]
-    _Δ i (Production lhs (Prod _α)) = let
-      
-      -- Construct an internal production state from the given ATN identifier
-      st :: NonTerminal -> Int -> Int -> ATNState
-      st = Middle
-      
-      _Δ' :: Int -> ProdElem -> Transition s
-      _Δ' k (NT nt) = (st lhs i (k - 1), NTE nt, st lhs i k)
-      _Δ' k (T  t)  = (st lhs i (k - 1), TE  t,  st lhs i k)
+    -- The epsilon transitions for accept and final:
+    sϵ = (Start lhs, Epsilon, Middle lhs i 0)
+    fϵ = (Middle lhs i (length _α), Epsilon, Accept lhs)
 
-      in zipWith _Δ' [1..(-) 1 (length _α)] _α
-
-    _Δ i (Production lhs (Sem predicate _α)) = undefined
-    _Δ i (Production lhs mutatorFncn) = undefined
+    -- Construct an internal production state from the given ATN identifier
+    st :: NonTerminal -> Int -> Int -> ATNState
+    st = Middle
     
-    in ATN
-      { _Δ = concat $ zipWith _Δ [0..length (ps g)] $ ps g
-      }
+    -- Create the transition for the k^th production element in the i^th
+    -- production:
+    _Δ' :: Int -> ProdElem -> Transition s
+    _Δ' k (NT nt) = (st lhs i (k - 1), NTE nt, st lhs i k)
+    _Δ' k (T  t)  = (st lhs i (k - 1), TE  t,  st lhs i k)
+
+    in [sϵ,fϵ] ++ zipWith _Δ' [1..(length _α)] _α
+
+  _Δ i (Production lhs (Sem predicate _α)) = undefined
+  _Δ i (Production lhs mutatorFncn) = undefined
+  
+  in ATN
+    { _Δ = fromList $ concat $ zipWith _Δ [0..length (ps g)] $ ps g
+    }
 
 --atnOf (ATNState{isS = s, isF = f, stId = i}, NTE nte) = undefined
 --atnOf g (ATNState{isS = s, isF = f, stId = i}, TE te  ) = undefined

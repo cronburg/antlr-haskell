@@ -9,15 +9,18 @@ import Data.Set (fromList)
 -- paper, namely the expected transitions based on Figures
 -- 5 through 8:
 paperATNGrammar = defaultGrammar
-  { ns = fromList "SA"
-  , ts = fromList "abcd"
+  { ns = fromList ["S", "A"]
+  , ts = fromList ["a", "b", "c", "d"]
   , s0 = "C"
-  , ps = [ Prod "S" [NT "A", T "c"]
-        , Prod "S" [NT "A", T "d"]
-        , Prod "A" [T "a", NT "A"]
-        , Prod "A" [T "b"]
-        ]
+  , ps =
+          [ Production "S" $ Prod [NT "A", T "c"]
+          , Production "S" $ Prod [NT "A", T "d"]
+          , Production "A" $ Prod [T "a", NT "A"]
+          , Production "A" $ Prod [T "b"]
+          ]
   }
+
+s i = ("S", i)
 
 -- Names as shown in paper:
 pS  = Start  "S"
@@ -30,17 +33,17 @@ p4  = Middle "S" 1 2
 pS' = Accept "S"
 
 pA  = Start  "A"
-pA1 = Middle "A" 0 0
-p5  = Middle "A" 0 1
-p6  = Middle "A" 0 2
-pA2 = Middle "A" 1 0
-p7  = Middle "A" 1 1
+pA1 = Middle "A" 2 0
+p5  = Middle "A" 2 1
+p6  = Middle "A" 2 2
+pA2 = Middle "A" 3 0
+p7  = Middle "A" 3 1
 pA' = Accept "A"
 
 exp_paperATN = ATN
-  { _Δ =
+  { _Δ = fromList
     -- Submachine for S:
-    [ (pS,  Epislon, pS1)
+    [ (pS,  Epsilon, pS1)
     , (pS1, NTE "A", p1)
     , (p1,  TE  "c", p2)
     , (p2,  Epsilon, pS')

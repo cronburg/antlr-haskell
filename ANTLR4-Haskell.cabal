@@ -71,7 +71,7 @@ library
 -- Copy and paste this template when making new test cases:
 Test-Suite test-Template
   Type:           exitcode-stdio-1.0
-  Main-Is:        Test/ATN.hs
+  Main-Is:        Test/TestTemplate.hs
   build-depends:  base
                 , ANTLR4-Haskell
                 , QuickCheck

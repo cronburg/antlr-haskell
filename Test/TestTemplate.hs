@@ -13,6 +13,6 @@ import qualified Test.QuickCheck.Monadic as TQM
 
 main :: IO ()
 main = defaultMainWithOpts
-	[
-	] mempty
+  [
+  ] mempty
 
