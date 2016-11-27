@@ -85,6 +85,8 @@ Test-Suite test-Template
 Test-Suite test-ATN
   Type:           exitcode-stdio-1.0
   Main-Is:        Test/ATN.hs
+  other-modules:  Test.Text.Allstar.ATN
+                , Test.Text.Allstar.Grammar
   build-depends:  base
                 , ANTLR4-Haskell
                 , QuickCheck

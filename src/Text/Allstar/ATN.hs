@@ -13,7 +13,10 @@ data ATN s = ATN
   -- equality.
   -- _Σ :: Set (Edge s)
   { _Δ :: Set (Transition s)
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Ord)
+
+instance Show (ATN s) where
+  show ATN {_Δ = _Δ} = "\n[" ++ (concatMap (\s -> "\n, " ++ show s) (toList _Δ)) ++ "\n]"
 
 -- Tuple corresponding to a distinct transition in the ATN:
 type Transition s = (ATNState, Edge s, ATNState)
@@ -43,36 +46,39 @@ data Edge s = NTE NonTerminal
 -- atnOf :: Grammar -> (ATNState,Edge) -> Maybe ATNState
 atnOf :: Grammar s -> ATN s
 atnOf g = let
-  
-  _Δ :: Int -> Production s -> [Transition s]
-  _Δ i (Production lhs (Prod _α)) = let
     
-    -- The epsilon transitions for accept and final:
-    sϵ = (Start lhs, Epsilon, Middle lhs i 0)
-    fϵ = (Middle lhs i (length _α), Epsilon, Accept lhs)
-
+  _Δ :: Int -> Production s -> [Transition s]
+  _Δ i (Production lhs rhs) = let
+  --(Prod _α)) = let
+    
     -- Construct an internal production state from the given ATN identifier
     st :: NonTerminal -> Int -> Int -> ATNState
     st = Middle
-    
+      
     -- Create the transition for the k^th production element in the i^th
     -- production:
     _Δ' :: Int -> ProdElem -> Transition s
     _Δ' k (NT nt) = (st lhs i (k - 1), NTE nt, st lhs i k)
     _Δ' k (T  t)  = (st lhs i (k - 1), TE  t,  st lhs i k)
+  
+    -- The epsilon (or mu) transition for the accepting / final state:
+    sϵ    = (Start lhs, Epsilon, Middle lhs i 0)
+    fϵ _α = (Middle lhs i (length _α), Epsilon, Accept lhs)
+    
+    sem_state _α = Middle lhs i (length _α + 1)
+    sϵ_sem _π _α = [(Start lhs, Epsilon, sem_state _α), (sem_state _α, PE _π, Middle lhs i 0)]
+    fϵ_sem       = fϵ
 
-    in [sϵ,fϵ] ++ zipWith _Δ' [1..(length _α)] _α
+    sϵ_mut    = sϵ
+    fϵ_mut _μ = (Middle lhs i 0, ME _μ, Accept lhs)
 
-  _Δ i (Production lhs (Sem predicate _α)) = undefined
-  _Δ i (Production lhs mutatorFncn) = undefined
+    in  (case rhs of
+          (Prod _α)   -> [sϵ, fϵ _α]                 ++ zipWith _Δ' [1..(length _α)] _α
+          (Sem _π _α) -> sϵ_sem _π _α ++ [fϵ_sem _α] ++ zipWith _Δ' [1..(length _α)] _α
+          (Action _μ) -> [sϵ_mut, fϵ_mut _μ]
+        )
   
   in ATN
     { _Δ = fromList $ concat $ zipWith _Δ [0..length (ps g)] $ ps g
     }
-
---atnOf (ATNState{isS = s, isF = f, stId = i}, NTE nte) = undefined
---atnOf g (ATNState{isS = s, isF = f, stId = i}, TE te  ) = undefined
---atnOf g (ATNState{isS = s, isF = f, stId = i}, PE pe  ) = undefined
---atnOf g (ATNState{isS = s, isF = f, stId = i}, ME me  ) = undefined
---atnOf g (ATNState{isS = s, isF = f, stId = i}, Epsilon) = undefined
 

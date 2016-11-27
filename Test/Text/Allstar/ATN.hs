@@ -2,7 +2,7 @@ module Test.Text.Allstar.ATN where
 import Text.Allstar.Grammar
 import Text.Allstar.ATN
 import Test.Text.Allstar.Grammar
-import Data.Set (fromList)
+import Data.Set (fromList, union)
 
 -- This is the Grammar from page 6 of the
 -- 'Adaptive LL(*) Parsing: The Power of Dynamic Analysis'
@@ -59,6 +59,53 @@ exp_paperATN = ATN
     , (pA,  Epsilon, pA2)
     , (pA2, TE  "b", p7)
     , (p7,  Epsilon, pA')
+    ]
+  }
+
+always _ = True
+never  _ = False
+
+addPredicates = paperATNGrammar
+  { ps =
+    (ps paperATNGrammar) ++
+    [ Production "A" $ Sem (Predicate "always" always) [T "a"]
+    , Production "A" $ Sem (Predicate "never"  never)  []
+    , Production "A" $ Sem (Predicate "always2" always)   [NT "A", T "a"]
+    ]
+  }
+
+(pX,pY,pZ) = (Start "A", Start "A", Start "A")
+pX1 = Middle "A" 4 2
+pX2 = Middle "A" 4 0
+pX3 = Middle "A" 4 1
+pX4 = Accept "A"
+
+pY1 = Middle "A" 5 1
+pY2 = Middle "A" 5 0
+pY3 = Accept "A"
+
+pZ1 = Middle "A" 6 3
+pZ2 = Middle "A" 6 0
+pZ3 = Middle "A" 6 1
+pZ4 = Middle "A" 6 2
+pZ5 = Accept "A"
+
+exp_addPredicates = ATN
+  { _Δ = union (_Δ exp_paperATN) $ fromList
+    [ (pX,  Epsilon, pX1)
+    , (pX1, PE $ Predicate "always" always, pX2)
+    , (pX2, TE "a", pX3)
+    , (pX3, Epsilon, pX4)
+
+    , (pY, Epsilon, pY1)
+    , (pY1, PE $ Predicate "never" never, pY2)
+    , (pY2, Epsilon, pY3)
+
+    , (pZ, Epsilon, pZ1)
+    , (pZ1, PE $ Predicate "always2" always, pZ2)
+    , (pZ2, NTE "A", pZ3)
+    , (pZ3, TE "a", pZ4)
+    , (pZ4, Epsilon, pZ5)
     ]
   }
 

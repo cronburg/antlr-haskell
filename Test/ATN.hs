@@ -24,9 +24,21 @@ test_paperATNGrammar2 =
   @?=
   fromList []
 
+test_addPredicates =
+  atnOf addPredicates
+  @?=
+  exp_addPredicates
+
+test_addPredicates2 =
+  ((_Δ . atnOf) addPredicates \\ _Δ exp_addPredicates)
+  @?=
+  fromList []
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "paper_ATN_Grammar"  test_paperATNGrammar
   , testCase "paper_ATN_Grammar2" test_paperATNGrammar2
+  , testCase "paper_ATN_Predicates2" test_addPredicates2
+  , testCase "paper_ATN_Predicates" test_addPredicates
   ] mempty
 

@@ -5,8 +5,8 @@ module Text.Allstar.Grammar
   , Symbols
   , Production(..)
   , ProdRHS(..)
-  , Predicate
-  , Mutator
+  , Predicate(..)
+  , Mutator(..)
   , Grammar(..)
   , defaultGrammar
   ) where
