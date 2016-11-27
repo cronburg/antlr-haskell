@@ -3,6 +3,7 @@ import Text.Allstar.Grammar
 import Text.Allstar.ATN
 import Test.Text.Allstar.Grammar
 import Data.Set (fromList, union)
+import System.IO.Unsafe (unsafePerformIO)
 
 -- This is the Grammar from page 6 of the
 -- 'Adaptive LL(*) Parsing: The Power of Dynamic Analysis'
@@ -67,7 +68,7 @@ never  _ = False
 
 addPredicates = paperATNGrammar
   { ps =
-    (ps paperATNGrammar) ++
+    ps paperATNGrammar ++
     [ Production "A" $ Sem (Predicate "always" always) [T "a"]
     , Production "A" $ Sem (Predicate "never"  never)  []
     , Production "A" $ Sem (Predicate "always2" always)   [NT "A", T "a"]
@@ -108,4 +109,25 @@ exp_addPredicates = ATN
     , (pZ4, Epsilon, pZ5)
     ]
   }
+
+fireZeMissiles state = seq
+  (unsafePerformIO $ putStrLn "Missiles fired.")
+  undefined
+
+addMutators = addPredicates
+  { ps = ps addPredicates ++
+    [ Production "A" $ Action $ Mutator "fireZeMissiles" fireZeMissiles
+    , Production "S" $ Action $ Mutator "identity" id
+    ]
+  }
+
+exp_addMutators = ATN
+  { _Δ = union (_Δ exp_addPredicates) $ fromList
+    [ (Start "A", Epsilon, Middle "A" 7 0)
+    , (Middle "A" 7 0, ME $ Mutator "fireZeMissiles" fireZeMissiles, Accept "A")
+    , (Start "S", Epsilon, Middle "S" 8 0)
+    , (Middle "S" 8 0, ME $ Mutator "identity" id, Accept "S")
+    ]
+  }
+
 

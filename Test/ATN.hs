@@ -34,11 +34,17 @@ test_addPredicates2 =
   @?=
   fromList []
 
+test_addMutators =
+  atnOf addMutators
+  @?=
+  exp_addMutators
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "paper_ATN_Grammar"  test_paperATNGrammar
   , testCase "paper_ATN_Grammar2" test_paperATNGrammar2
   , testCase "paper_ATN_Predicates2" test_addPredicates2
   , testCase "paper_ATN_Predicates" test_addPredicates
+  , testCase "paper_ATN_Mutators" test_addMutators
   ] mempty
 
