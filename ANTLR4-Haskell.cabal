@@ -53,14 +53,19 @@ library
                   , Text.Allstar.GSS
                   , Text.Allstar.ATN
 
+                  , Language.ANTLR4
+                  , Language.ANTLR4.Parser
+
   -- Modules included in this library but not exported.
   -- other-modules:
 
   -- LANGUAGE extensions used by modules in this package.
-  -- other-extensions:
+  other-extensions:    QuasiQuotes
+                     , TemplateHaskell
 
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.8 && <4.9, containers, mtl
+  build-depends:       base >=4.8 && <4.9, containers, mtl, parsec
+                     , parsec, template-haskell, haskell-src-meta >= 0.4
 
   -- Directories containing source files.
   hs-source-dirs:      src
@@ -98,3 +103,19 @@ Test-Suite test-ATN
                 , containers
   default-language: Haskell2010
 
+Test-Suite test-G4
+  Type:             exitcode-stdio-1.0
+  Main-Is:          Test/G4.hs
+  other-modules:    Test.Language.ANTLR4.G4
+  build-depends:    base
+                  , ANTLR4-Haskell
+                  , QuickCheck
+                  , HUnit
+                  , Cabal
+                  , test-framework
+                  , test-framework-hunit
+                  , test-framework-quickcheck2
+                  , containers
+  other-extensions:  QuasiQuotes
+                   , TemplateHaskell
+  default-language:  Haskell2010
