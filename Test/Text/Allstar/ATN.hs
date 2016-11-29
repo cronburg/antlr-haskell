@@ -117,7 +117,7 @@ fireZeMissiles state = seq
 addMutators = addPredicates
   { ps = ps addPredicates ++
     [ Production "A" $ Action $ Mutator "fireZeMissiles" fireZeMissiles
-    , Production "S" $ Action $ Mutator "identity" id
+    , Production "S" $ Action $ Mutator "identity"       id
     ]
   }
 
