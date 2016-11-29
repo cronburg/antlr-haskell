@@ -2,7 +2,7 @@
 module Text.Allstar.GSS where
 import Prelude hiding (map, foldr, null)
 import Data.Set ( Set, union, empty, foldr, map, filter
-                , partition, insert, delete, null)
+                , partition, insert, delete, null, fromList)
 -- Graph Structured Stack
 
 --newtype Edge a = Edge (Node a, Node a)
@@ -21,8 +21,9 @@ pop gss = let
 --  pop' :: [a] -> Set (a, GSS a) -> Set (a, GSS a)
   pop' [] gss' = gss'
   pop' (a:as) gss'
-    | (null . fst . partition ((a ==) . fst)) gss' = gss'
+    | (not . null . fst . partition ((a ==) . fst)) gss' = gss'
     | otherwise = insert (a, insert as $ delete (a:as) gss) gss'
+
   in foldr pop' empty gss
 
 -- Merge:
