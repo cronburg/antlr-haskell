@@ -61,9 +61,23 @@ move = undefined
 --            getConflictSetsPerLoc
 llPredict = undefined
 
+--getATN = return $ ATN { _Δ = Set.empty }
+
 --no fn dependencies
 closure :: Set Configuration -> Configuration -> ParserS (Set Configuration)
-closure = undefined
+closure cfgs cfg = undefined {-do
+  _Δ <- getATN
+  let
+    closure' (Accept pb', i, Wildcard) =
+      foldr merge [ closure busy (p2, i, Wildcard)
+                  | p2 <- fL _Δ
+                  , (NTE nt, p2) `member` map (\(_,e,s) -> (e,s)) _Δ
+                  ]
+-}
+
+-- TODO: first class patterns to functions, e.g. member takes in the pattern
+-- over the tuple / type of thing that is in the set.
+--                  , Pattern (p1, Captured (NTE ^nt), p2) `member` set
 
 -- no dependencies
 -- for each p,Gamma: get set of alts {i} from (p,-,Gamma) in D Confs
