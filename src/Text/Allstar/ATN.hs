@@ -1,7 +1,7 @@
 module Text.Allstar.ATN where
 -- Augmented Transition Network
 import Text.Allstar.Grammar
-import Text.Allstar.GSS
+import Text.Allstar.GSS hiding (Edge, Node)
 
 import Data.Set (Set(..), empty, fromList, toList)
 

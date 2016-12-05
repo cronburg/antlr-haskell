@@ -51,6 +51,7 @@ library
    exposed-modules: Text.Allstar
                   , Text.Allstar.Grammar
                   , Text.Allstar.GSS
+                  , Text.Allstar.Stacks
                   , Text.Allstar.ATN
 
                   , Language.ANTLR4
@@ -122,10 +123,10 @@ Test-Suite test-G4
                    , TemplateHaskell
   default-language:  Haskell2010
 
-Test-Suite GSS
+Test-Suite Stacks
   Type:           exitcode-stdio-1.0
-  Main-Is:        Test/GSS.hs
-  other-modules:  Test.Text.Allstar.GSS
+  Main-Is:        Test/Stacks.hs
+  other-modules:  Test.Text.Allstar.Stacks
   build-depends:  base
                 , ANTLR4
                 , QuickCheck
