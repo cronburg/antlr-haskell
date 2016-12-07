@@ -21,10 +21,10 @@ dragonBook428 = defaultGrammar
   , s0 = "E"
   , ps = [ ("E",  Prod [NT "T", NT "E'"])
          , ("E'", Prod [T "+", NT "T", NT "E'"])
-         , ("E'", Prod []) -- Implicitly epsilon
+         , ("E'", Prod [Eps]) -- Implicitly epsilon
          , ("T",  Prod [NT "F", NT "T'"])
          , ("T'", Prod [T "*", NT "F", NT "T'"])
-         , ("T'", Prod [])
+         , ("T'", Prod [Eps])
          , ("F",  Prod [T "(", NT "E", T ")"])
          , ("F",  Prod [T "id"])
          ]

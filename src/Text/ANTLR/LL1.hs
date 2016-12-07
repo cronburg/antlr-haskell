@@ -6,7 +6,9 @@ module Text.ANTLR.LL1
   ) where
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.ATN
-import Data.Set (Set(..), singleton, fromList, union, empty, member, size, toList)
+import Data.Set ( Set(..), singleton, fromList, union, empty, member, size, toList
+                , insert
+                )
 
 -- An LL1 token (as used in first and follow sets) is either a
 -- terminal in the grammar's alphabet, or an epsilon
@@ -40,16 +42,27 @@ foldWhileEpsilon fncn b0 (a:as)
 
 first :: Grammar () -> ProdElem -> Set Token
 first g = let
-    first' :: ProdElem -> Set Token
-    first' t@(T x) = singleton $ Term x
-    first' Eps     = singleton Eps'
-    first' (NT x)  =
-      foldWhileEpsilon union empty
-        [ first' y
-        | (nt, rhs) <- prodsFor g x
-        , isProd rhs
-        --, (y, i) <- zipWith (\(Prod ss) i -> (ss,i)) prod [1..]
-        , y <- (\(Prod ss) -> ss) rhs
-        ]
-  in first'
+    first' :: Set ProdElem -> ProdElem -> Set Token
+    first' _ t@(T x) = singleton $ Term x
+    first' _ Eps     = singleton Eps'
+    first' busy nt@(NT x)
+      | nt `member` busy = empty
+      | otherwise = foldr union empty
+            [ foldWhileEpsilon union empty
+              [ first' (insert nt busy) y
+              | y <- (\(Prod ss) -> ss) rhs
+              ]
+            | (_, rhs) <- prodsFor g x
+            , isProd rhs
+            ]
+
+{-
+              [ first' (insert y busy) y
+              | (_, rhs) <- prodsFor g x
+              , isProd rhs
+              --, (y, i) <- zipWith (\(Prod ss) i -> (ss,i)) prod [1..]
+              , y <- (\(Prod ss) -> ss) rhs
+              ]
+-}
+  in first' empty
 
