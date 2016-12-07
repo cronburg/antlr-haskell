@@ -1,7 +1,7 @@
-module Text.Allstar.ATN where
+module Text.ANTLR.Allstar.ATN where
 -- Augmented Transition Network
-import Text.Allstar.Grammar
-import Text.Allstar.GSS hiding (Edge, Node)
+import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Allstar.GSS hiding (Edge, Node)
 
 import Data.Set (Set(..), empty, fromList, toList)
 
@@ -48,7 +48,7 @@ atnOf :: Grammar s -> ATN s
 atnOf g = let
     
   _Δ :: Int -> Production s -> [Transition s]
-  _Δ i (Production lhs rhs) = let
+  _Δ i (lhs, rhs) = let
   --(Prod _α)) = let
     
     -- Construct an internal production state from the given ATN identifier

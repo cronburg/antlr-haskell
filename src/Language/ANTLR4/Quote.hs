@@ -11,7 +11,7 @@ import Language.Haskell.TH.Quote (QuasiQuoter(..))
 
 import Control.Monad (mapM)
 import qualified Language.ANTLR4.Parser as G4P
-import qualified Text.Allstar.Grammar as AG
+import qualified Text.ANTLR.Allstar.Grammar as AG
 
 import Data.Set (Set(..))
 import qualified Data.Set as Set
@@ -58,7 +58,7 @@ toAllstarGrammar grammarMems =
         let fn' (G4P.PRHS alphas Nothing Nothing) (g',c') =
               (g' { AG.ns = (AG.ns g') `Set.union` (Set.singleton pName)
                   , AG.ts = (AG.ts g') `Set.union` (Set.fromList $ toNonTerms alphas)
-                  , AG.ps = (AG.Production pName (AG.Prod $ toElems alphas) : (AG.ps g'))
+                  , AG.ps = (pName, AG.Prod $ toElems alphas) : (AG.ps g')
                   }, c)
             fn' (G4P.PRHS alphas (Just pre) Nothing) (g',c') = (g',c')    -- TODO
             fn' (G4P.PRHS alphas Nothing (Just mut)) (g',c') = (g',c')    -- TODO

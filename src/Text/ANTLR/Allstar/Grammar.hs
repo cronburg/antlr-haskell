@@ -1,4 +1,4 @@
-module Text.Allstar.Grammar
+module Text.ANTLR.Allstar.Grammar
   ( NonTerminal
   , Terminal
   , ProdElem(..)
@@ -9,7 +9,10 @@ module Text.Allstar.Grammar
   , Mutator(..)
   , Grammar(..)
   , defaultGrammar
-  ) where
+  , isProd, isSem, isAction
+  , isNT, isT, isEps, getNTs, getTs, getEps
+  , prodsFor, getProds
+) where
 import Prelude hiding (pi)
 import Data.Set (Set(..), empty)
 
@@ -24,7 +27,21 @@ type Terminal    = String
 data ProdElem    =
     NT NonTerminal
   | T  Terminal
+  | Eps
   deriving (Eq, Ord, Show)
+
+isNT (NT _) = True
+isNT _      = False
+
+isT (T _) = True
+isT _     = False
+
+isEps Eps = True
+isEps _   = False
+
+getNTs = map (\(NT nt) -> nt) . filter isNT
+getTs  = map (\(T t) -> t) . filter isT
+getEps = map (\Eps -> Eps) . filter isEps -- no
 
 type Symbols     = [ProdElem]
 
@@ -34,8 +51,25 @@ data ProdRHS s =
   | Action  (Mutator s)
   deriving (Eq, Ord, Show)
 
-data Production s = Production NonTerminal (ProdRHS s)
-  deriving (Eq, Ord, Show)
+isProd (Prod _) = True
+isProd _ = False
+
+isSem (Sem _ _) = True
+isSem _ = False
+
+isAction (Action _) = True
+isAction _ = False
+
+getProds = map (\(Prod ss) -> ss) . filter isProd
+
+type Production s = (NonTerminal, ProdRHS s)
+
+-- Get only the productions for the given nonterminal nt:
+prodsFor :: Grammar a -> NonTerminal -> [Production a]
+prodsFor g nt = let
+    matchesNT :: Production a -> Bool
+    matchesNT (nt', _) = nt' == nt
+  in filter matchesNT (ps g)
 
 -- Predicates and Mutators act over some state. The String
 -- identifiers should eventually correspond to source-level
@@ -77,3 +111,4 @@ defaultGrammar = G
   , _πs = empty
   , _μs = empty
   }
+

@@ -1,7 +1,7 @@
-module Test.Text.Allstar.Stacks where
-import qualified Text.Allstar.GSS as GSS
+module Test.Text.ANTLR.Allstar.Stacks where
+import qualified Text.ANTLR.Allstar.GSS as GSS
 import Data.Set (fromList)
-import Text.Allstar.Stacks
+import Text.ANTLR.Allstar.Stacks
 
 stacks = fromList
   [ [0, 1, 3, 7]

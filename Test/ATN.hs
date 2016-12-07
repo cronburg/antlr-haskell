@@ -1,6 +1,6 @@
 module Main where
-import Text.Allstar.ATN
-import Test.Text.Allstar.ATN
+import Text.ANTLR.Allstar.ATN
+import Test.Text.ANTLR.Allstar.ATN
 import Data.Set (fromList, (\\))
 
 import System.IO.Unsafe (unsafePerformIO)           

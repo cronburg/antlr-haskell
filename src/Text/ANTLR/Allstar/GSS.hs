@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-module Text.Allstar.GSS
+module Text.ANTLR.Allstar.GSS
   ( GSS, Edge
   , pop, push, topPartition, merge
   , toStacks, fromStacks

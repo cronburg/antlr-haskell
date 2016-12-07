@@ -1,8 +1,8 @@
 module Main where
 -- Allstar imports go here, e.g.:
 -- import Text.Allstar.ATN (..)
-import Text.Allstar.GSS
-import Test.Text.Allstar.Stacks
+import Text.ANTLR.Allstar.GSS
+import Test.Text.ANTLR.Allstar.Stacks
 import Data.Set (size, empty, fromList, (\\), Set)
 import Data.List(nub)
 

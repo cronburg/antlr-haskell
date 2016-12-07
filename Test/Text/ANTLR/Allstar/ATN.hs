@@ -1,7 +1,7 @@
-module Test.Text.Allstar.ATN where
-import Text.Allstar.Grammar
-import Text.Allstar.ATN
-import Test.Text.Allstar.Grammar
+module Test.Text.ANTLR.Allstar.ATN where
+import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Allstar.ATN
+import Test.Text.ANTLR.Allstar.Grammar
 import Data.Set (fromList, union)
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -14,10 +14,10 @@ paperATNGrammar = defaultGrammar
   , ts = fromList ["a", "b", "c", "d"]
   , s0 = "C"
   , ps =
-          [ Production "S" $ Prod [NT "A", T "c"]
-          , Production "S" $ Prod [NT "A", T "d"]
-          , Production "A" $ Prod [T "a", NT "A"]
-          , Production "A" $ Prod [T "b"]
+          [ ("S", Prod [NT "A", T "c"])
+          , ("S", Prod [NT "A", T "d"])
+          , ("A", Prod [T "a", NT "A"])
+          , ("A", Prod [T "b"])
           ]
   }
 
@@ -69,9 +69,9 @@ never  _ = False
 addPredicates = paperATNGrammar
   { ps =
     ps paperATNGrammar ++
-    [ Production "A" $ Sem (Predicate "always" always) [T "a"]
-    , Production "A" $ Sem (Predicate "never"  never)  []
-    , Production "A" $ Sem (Predicate "always2" always)   [NT "A", T "a"]
+    [ ("A", Sem (Predicate "always" always) [T "a"])
+    , ("A", Sem (Predicate "never"  never)  [])
+    , ("A", Sem (Predicate "always2" always)   [NT "A", T "a"])
     ]
   }
 
@@ -116,8 +116,8 @@ fireZeMissiles state = seq
 
 addMutators = addPredicates
   { ps = ps addPredicates ++
-    [ Production "A" $ Action $ Mutator "fireZeMissiles" fireZeMissiles
-    , Production "S" $ Action $ Mutator "identity"       id
+    [ ("A", Action $ Mutator "fireZeMissiles" fireZeMissiles)
+    , ("S", Action $ Mutator "identity"       id)
     ]
   }
 

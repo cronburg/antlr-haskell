@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-module Text.Allstar.Stacks
+module Text.ANTLR.Allstar.Stacks
   ( Stacks(..)
   ) where
 import qualified Prelude as P

@@ -1,7 +1,7 @@
-module Text.Allstar where
-import Text.Allstar.Grammar
-import Text.Allstar.GSS
-import Text.Allstar.ATN
+module Text.ANTLR.Allstar where
+import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Allstar.GSS
+import Text.ANTLR.Allstar.ATN
 
 -- Set
 import Data.Set (Set)
