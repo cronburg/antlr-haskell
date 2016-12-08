@@ -21,8 +21,9 @@ module Main where
   test_closure_01 = actual @?= expected
     where
       (actual,_) =
-        runState
-          (closure Set.empty (Start "C", 0, Empty))
+        runState (do
+          ATN {_Δ = d} <-  getATN
+          return $ closure d Set.empty (Start "C", 0, Empty))
           ( Parser { g = mattToolG})
       expected :: Set Configuration
       expected   =
@@ -37,7 +38,8 @@ module Main where
       (actual,_) =
         runState
           (do
-            epsilon_closure <- closure Set.empty (Start "C",0,Empty)
+            ATN {_Δ = d} <-  getATN
+            let epsilon_closure = closure d Set.empty (Start "C",0,Empty)
             move epsilon_closure "a"
           )
           ( Parser { g = mattToolG})
