@@ -74,5 +74,11 @@ main = defaultMainWithOpts
   , testCase "firstT'" firstT'
   , testCase "firstAll" firstAll
   , testCase "followAll" followAll
+  , testCase "dragonHasAllNonTerms" $ hasAllNonTerms grm @?= True
+  , testCase "dragonHasAllTerms" $ hasAllTerms grm @?= True
+  , testCase "dragonStartIsNonTerm" $ startIsNonTerm grm @?= True
+  , testCase "dragonDistinctTermsNonTerms" $ distinctTermsNonTerms grm @?= True
+  , testCase "dragonIsValid" $ validGrammar grm @?= True
+  , testCase "dragonIsLL1" $ isLL1 grm @?= True
   ] mempty
 

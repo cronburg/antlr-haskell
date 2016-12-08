@@ -3,11 +3,12 @@ module Text.ANTLR.LL1
   , first, follow
   , Token(..)
   , foldWhileEpsilon
+  , isLL1
   ) where
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.ATN
 import Data.Set ( Set(..), singleton, fromList, union, empty, member, size, toList
-                , insert, delete
+                , insert, delete, intersection
                 )
 
 -- An LL1 token (as used in first and follow sets) is either a
@@ -103,13 +104,20 @@ follow g = let
                             | (lhs_nt, Prod ss) <- filter (isProd . snd) . ps $ g
                             ]
   in follow' empty
-{-
--- A -> α | β for all distinct α and β, first(α) `intersect` first(β) == empty
--- and first(α) `intersect` follow(β) == empty
+
+-- A -> α | β for all distinct ordered pairs of α and β,
+--      first(α) `intersection` first(β) == empty
+-- and if epsilon is in α, then
+--      first(α) `intersection` follow(A) == empty
 isLL1 :: Grammar () -> Bool
-isLL1 g = all
-  [  first α `intersect` first β  == empty
-  && first α `intersect` follow β == empty
-  | (α, β) <-
-    [ i
-    -}
+isLL1 g =
+  validGrammar g && and
+      [  (first g α `intersection` first  g β  == empty)
+      && (not (Eps' `member` first g α)
+         || ((first g α `intersection` follow g nt) == empty))
+      | nt       <- toList $ ns g
+      , (Prod α) <- map snd $ prodsFor g nt
+      , (Prod β) <- map snd $ prodsFor g nt
+      , α /= β
+      ]
+

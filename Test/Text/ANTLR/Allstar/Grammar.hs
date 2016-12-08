@@ -30,22 +30,3 @@ dragonBook428 = defaultGrammar
          ]
   }
 
-validGrammar g =
-     hasAllNonTerms g
-  && hasAllTerms g
-  && startIsNonTerm g
-  && distinctTermsNonTerms g
-
-hasAllNonTerms :: Grammar a -> Bool
-hasAllNonTerms g =
-  ns g == (fromList . getNTs . concat . getProds . map snd $ ps g)
-
-hasAllTerms :: Grammar a -> Bool
-hasAllTerms g =
-  ts g == (fromList . getTs . concat . getProds . map snd $ ps g)
-
-startIsNonTerm :: Grammar a -> Bool
-startIsNonTerm g = s0 g `member` ns g
-
-distinctTermsNonTerms g =
-  (ns g \\ ts g) == empty
