@@ -6,25 +6,25 @@ import Text.ANTLR.LL1
 import Data.Set (fromList, union, empty)
 import qualified Data.Set as S
 
-import System.IO.Unsafe (unsafePerformIO)           
-import Data.Monoid                                  
-import Test.Framework                               
-import Test.Framework.Providers.HUnit               
-import Test.Framework.Providers.QuickCheck2         
-import Test.HUnit                                   
+import System.IO.Unsafe (unsafePerformIO)
+import Data.Monoid
+import Test.Framework
+import Test.Framework.Providers.HUnit
+import Test.Framework.Providers.QuickCheck2
+import Test.HUnit
 import Test.QuickCheck (Property, quickCheck, (==>))
-import qualified Test.QuickCheck.Monadic as TQM     
+import qualified Test.QuickCheck.Monadic as TQM
 
 grm = dragonBook428
 
-termination = first grm (NT "E") @?= first grm (NT "E")
+termination = first grm [NT "E"] @?= first grm [NT "E"]
 
-firstF = first grm (NT "F") @?= fromList [Term "(", Term "id"]
+firstF = first grm [NT "F"] @?= fromList [Term "(", Term "id"]
 
-noEps = first grm (NT "E") @?= fromList [Term "(", Term "id"]
+noEps = first grm [NT "E"] @?= fromList [Term "(", Term "id"]
 
 firstT' =
-  first grm (NT "T'")
+  first grm [NT "T'"]
   @?=
   fromList [Term "*", Eps']
 
@@ -36,9 +36,9 @@ foldEpsTest = foldWhileEpsilon union empty
   fromList [Term "(", Term "id"]
 
 firstAll =
-  ( S.map ((\nt -> (nt, first grm nt)) . NT) (ns grm)
+  ( S.map ((\nt -> (nt, first grm [nt])) . NT) (ns grm)
     `union`
-    S.map ((\t  -> (t,  first grm t))  . T)  (ts grm)
+    S.map ((\t  -> (t,  first grm [t]))  . T)  (ts grm)
   )
   @?=
   fromList
@@ -52,8 +52,18 @@ firstAll =
     , (T "*",   fromList [Term "*"])
     , (T "+",   fromList [Term "+"])
     , (T "id",  fromList [Term "id"])
-    ]       
-                                                                                         
+    ]
+
+followAll =
+  S.map (\nt -> (NT nt, follow grm nt)) (ns grm)
+  @?=
+  fromList
+    [ (NT "E",  fromList [Term ")", EOF])
+    , (NT "E'", fromList [Term ")", EOF])
+    , (NT "T",  fromList [Term ")", Term "+", EOF])
+    , (NT "T'", fromList [Term ")", Term "+", EOF])
+    , (NT "F",  fromList [Term ")", Term "*", Term "+", EOF])
+    ]
 
 main :: IO ()
 main = defaultMainWithOpts
@@ -63,5 +73,6 @@ main = defaultMainWithOpts
   , testCase "firstF" firstF
   , testCase "firstT'" firstT'
   , testCase "firstAll" firstAll
+  , testCase "followAll" followAll
   ] mempty
 
