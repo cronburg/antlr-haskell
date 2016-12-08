@@ -8,6 +8,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Control.Monad.State
 import Control.Monad (mapM)
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 -- parser
 data Parser = Parser
@@ -51,6 +53,7 @@ sllPredict = undefined
 --            getProdSetsPerState
 --target ::
 target = undefined
+
 -- no dependencies
 -- set of all (q,i,Gamma) s.t. p -a> q and (p,i,Gamma) in State d
 move :: Set Configuration -> Terminal -> ParserS (Set Configuration)
@@ -143,7 +146,17 @@ closure busy (cfg@(p,i,gamma))
 -- no dependencies
 -- for each p,Gamma: get set of alts {i} from (p,-,Gamma) in D Confs
 --getConflictSetsPerLoc ::
-getConflictSetsPerLoc = undefined
+getConflictSetsPerLoc :: Set Configuration -> Set (Set Int)
+getConflictSetsPerLoc d =
+  let m = Set.foldr updateEntry (Map.empty) d
+      updateEntry :: Configuration -> (Map (ATNState,Gamma) (Set Int)) -> (Map (ATNState,Gamma) (Set Int))
+      updateEntry (p,i,g) i_map = Map.alter (updateSet i) (p,g) i_map
+      updateSet :: Int -> Maybe (Set Int) -> Maybe (Set Int)
+      updateSet i Nothing           = Just $ Set.singleton i
+      updateSet i (Just i_set)      = Just $ Set.insert i i_set
+  in  Set.fromList (Map.elems m)
+
+
 
 -- no dependencies
 -- for each p return set of alts i from (p,-,-) in D Confs

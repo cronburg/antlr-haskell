@@ -48,8 +48,19 @@ module Main where
                           ,(Middle "A" 1 1,0,Stacks (fromList [[Middle "C" 4 1]]))
                           ]
 
+  test_conflict_01 = actual @?= expected
+    where
+      actual = getConflictSetsPerLoc $
+                 fromList [(Middle "A" 0 1,2,Empty)
+                          ,(Middle "A" 0 1,5,Empty)
+                          ,(Start  "S"    ,0,Empty)
+                          ]
+      expected =
+        fromList [ fromList [2,5]
+                 , fromList [0] ]
   main :: IO ()
   main = defaultMainWithOpts
-    [ testCase "closure_01" test_closure_01
-    , testCase "move_01" test_move_01
+    [ testCase "closure_01"  test_closure_01
+    , testCase "move_01"     test_move_01
+    , testCase "conflict_01" test_conflict_01
     ] mempty
