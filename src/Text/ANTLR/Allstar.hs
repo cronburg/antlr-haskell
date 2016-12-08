@@ -53,8 +53,18 @@ sllPredict = undefined
 target = undefined
 -- no dependencies
 -- set of all (q,i,Gamma) s.t. p -a> q and (p,i,Gamma) in State d
---move ::
-move = undefined
+move :: Set Configuration -> Terminal -> ParserS (Set Configuration)
+move d a = do
+  ATN {_Δ = delta} <- getATN
+  return $ Set.foldr (fltr delta) Set.empty d
+  where
+    fltr :: Set (Transition Parser) -> Configuration -> Set Configuration -> Set Configuration
+    fltr delta (p0,i,gamma) d' = fromP (p0,i,gamma) (Set.toList delta) d'
+    fromP :: Configuration -> [Transition Parser] -> Set Configuration -> Set Configuration
+    fromP _ [] d' = d'
+    fromP (p0,i,gamma) ((p1,e,q1) : rest) d'
+      | (e == TE a)  = fromP (p0,i,gamma) rest $ Set.insert (q1,i,gamma) d'
+      | otherwise = fromP (p0,i,gamma) rest d'
 
 
 --depends on: move
