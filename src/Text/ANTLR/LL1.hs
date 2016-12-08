@@ -103,4 +103,13 @@ follow g = let
                             | (lhs_nt, Prod ss) <- filter (isProd . snd) . ps $ g
                             ]
   in follow' empty
-
+{-
+-- A -> α | β for all distinct α and β, first(α) `intersect` first(β) == empty
+-- and first(α) `intersect` follow(β) == empty
+isLL1 :: Grammar () -> Bool
+isLL1 g = all
+  [  first α `intersect` first β  == empty
+  && first α `intersect` follow β == empty
+  | (α, β) <-
+    [ i
+    -}
