@@ -49,4 +49,3 @@ startIsNonTerm g = s0 g `member` ns g
 
 distinctTermsNonTerms g =
   (ns g \\ ts g) == empty
-

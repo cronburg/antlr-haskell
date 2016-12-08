@@ -1,6 +1,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Text.ANTLR.Allstar.Stacks
   ( Stacks(..)
+  , (#)
+  , merge
+  , push
+  , pop
   ) where
 import qualified Prelude as P
 import Prelude hiding (map, foldr, filter)
@@ -12,7 +16,7 @@ data Stacks a =
     Empty
   | Wildcard
   | Stacks (Set [a])
-
+  deriving (Eq, Ord, Show)
 (#) = Wildcard
 
 merge :: Ord a => Stacks a -> Stacks a -> Stacks a
@@ -44,4 +48,3 @@ pop (Stacks _Γ) = let
 --    ss :: a -> Stacks a
     ss a = Stacks $ map tail $ filter (\as -> (not . null) as && ((== a) . head) as) _Γ
   in P.map (\a -> (a, ss a)) (nub . heads $ _Γ)
-

@@ -1,12 +1,13 @@
 module Text.ANTLR.Allstar where
 import Text.ANTLR.Allstar.Grammar
-import Text.ANTLR.Allstar.GSS
+--import Text.ANTLR.Allstar.GSS
 import Text.ANTLR.Allstar.ATN
-
+import Text.ANTLR.Allstar.Stacks
 -- Set
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Control.Monad.State
+import Control.Monad (mapM)
 
 -- parser
 data Parser = Parser
@@ -62,10 +63,60 @@ move = undefined
 llPredict = undefined
 
 --getATN = return $ ATN { _Δ = Set.empty }
+getATN :: ParserS (ATN Parser)
+getATN = do
+  Parser { g = grammar} <- get
+  return $ atnOf grammar
+
 
 --no fn dependencies
 closure :: Set Configuration -> Configuration -> ParserS (Set Configuration)
-closure cfgs cfg = undefined {-do
+closure busy (cfg@(p,i,gamma))
+  | Set.member cfg busy = return Set.empty
+  | otherwise = do
+      let busy' = busy `Set.union` Set.singleton cfg
+      ATN {_Δ = d} <- getATN
+      let edges    = (Set.toList d)
+      let cfg_set  = Set.singleton cfg
+      cfgSubRoutine edges cfg_set
+  where
+    isWildcard :: Stacks a -> Bool
+    isWildcard Wildcard = True
+    isWildcard _        = False
+    cfgsAfterNTEdge :: [Transition s] -> [Configuration]
+    cfgsAfterNTEdge [] = []
+    cfgsAfterNTEdge ((p0, (NTE nt), q0):rest) = (q0,i,Wildcard) : cfgsAfterNTEdge rest
+    cfgsAfterNTEdge (_:rest) = cfgsAfterNTEdge rest
+    cfgsNonEmpty :: [Configuration]
+    cfgsNonEmpty =
+      let toConf :: (ATNState, Gamma) -> Configuration
+          toConf (q,g') = (q,i, g')
+      in map toConf (pop gamma)
+    cfgsNonEnd :: [Transition s] -> ATNState -> [Configuration]
+    cfgsNonEnd [] _ = []
+    cfgsNonEnd ((p0, e, q0):rest) p
+      | p0 == p   = case e of
+                      TE _    -> (cfgsNonEnd rest p)
+                      NTE nt  -> (Start nt, i, push q0 gamma) : (cfgsNonEnd rest p)
+                      _       -> (q0,i,gamma) : (cfgsNonEnd rest p)
+      | otherwise = (cfgsNonEnd rest p)
+    cfgSubRoutine :: [Transition s] -> Set Configuration -> ParserS (Set Configuration)
+    cfgSubRoutine edges cfg_set=
+      case p of
+        Accept nt -> (
+          if isWildcard gamma
+          then do
+            cfgs <- (mapM (closure busy) (cfgsAfterNTEdge edges))
+            return $ foldr Set.union cfg_set cfgs
+          else do
+            cfgs <- (mapM (closure busy) (cfgsNonEmpty))
+            return $ foldr Set.union cfg_set cfgs
+          )
+        p'        -> do
+          cfgs <- (mapM (closure busy) (cfgsNonEnd edges p'))
+          return $ foldr Set.union cfg_set cfgs
+
+ {-do
   _Δ <- getATN
   let
     closure' (Accept pb', i, Wildcard) =
@@ -88,4 +139,3 @@ getConflictSetsPerLoc = undefined
 -- for each p return set of alts i from (p,-,-) in D Confs
 --getProdSetsPerState ::
 getProdSetsPerState = undefined
-
