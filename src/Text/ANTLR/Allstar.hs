@@ -63,8 +63,11 @@ move = undefined
 llPredict = undefined
 
 --getATN = return $ ATN { _Δ = Set.empty }
-getATN :: ParserS (ATN s)
-getATN = undefined
+getATN :: ParserS (ATN Parser)
+getATN = do
+  Parser { g = grammar} <- get
+  return $ atnOf grammar
+
 
 --no fn dependencies
 closure :: Set Configuration -> Configuration -> ParserS (Set Configuration)

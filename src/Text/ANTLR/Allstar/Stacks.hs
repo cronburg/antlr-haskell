@@ -16,7 +16,7 @@ data Stacks a =
     Empty
   | Wildcard
   | Stacks (Set [a])
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 (#) = Wildcard
 
 merge :: Ord a => Stacks a -> Stacks a -> Stacks a
