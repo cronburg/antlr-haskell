@@ -161,4 +161,12 @@ getConflictSetsPerLoc d =
 -- no dependencies
 -- for each p return set of alts i from (p,-,-) in D Confs
 --getProdSetsPerState ::
-getProdSetsPerState = undefined
+getProdSetsPerState :: Set Configuration -> Set (Set Int)
+getProdSetsPerState d =
+  let m = Set.foldr updateEntry (Map.empty) d
+      updateEntry :: Configuration -> (Map ATNState (Set Int)) -> (Map (ATNState) (Set Int))
+      updateEntry (p,i,_) i_map = Map.alter (updateSet i) p i_map
+      updateSet :: Int -> Maybe (Set Int) -> Maybe (Set Int)
+      updateSet i Nothing           = Just $ Set.singleton i
+      updateSet i (Just i_set)      = Just $ Set.insert i i_set
+  in  Set.fromList (Map.elems m)
