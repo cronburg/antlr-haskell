@@ -5,6 +5,7 @@ import Text.ANTLR.LL1
 
 import Data.Set (fromList, union, empty)
 import qualified Data.Set as S
+import qualified Data.Map.Strict as M
 
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Monoid
@@ -65,6 +66,26 @@ followAll =
     , (NT "F",  fromList [Term ")", Term "*", Term "+", EOF])
     ]
 
+parseTableTest =
+  parseTable grm
+  @?=
+  M.fromList (map (\((a,b),c) -> ((a,b), S.singleton c))
+    -- Figure 4.17 of dragon book:
+    [ (("E",  Term "id"), [NT "T", NT "E'"])
+    , (("E",  Term "("),  [NT "T", NT "E'"])
+    , (("E'", Term "+"),  [T "+", NT "T", NT "E'"])
+    , (("E'", Term ")"),  [Eps])
+    , (("E'", EOF),       [Eps])
+    , (("T",  Term "id"), [NT "F", NT "T'"])
+    , (("T",  Term "("),  [NT "F", NT "T'"])
+    , (("T'", Term "+"),  [Eps])
+    , (("T'", Term "*"),  [T "*", NT "F", NT "T'"])
+    , (("T'", Term ")"),  [Eps])
+    , (("T'", EOF),       [Eps])
+    , (("F",  Term "id"), [T "id"])
+    , (("F",  Term "("),  [T "(", NT "E", T ")"])
+    ])
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "fold_epsilon" foldEpsTest
@@ -80,5 +101,6 @@ main = defaultMainWithOpts
   , testCase "dragonDistinctTermsNonTerms" $ distinctTermsNonTerms grm @?= True
   , testCase "dragonIsValid" $ validGrammar grm @?= True
   , testCase "dragonIsLL1" $ isLL1 grm @?= True
+  , testCase "dragonParseTable" parseTableTest
   ] mempty
 

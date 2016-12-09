@@ -3,13 +3,15 @@ module Text.ANTLR.LL1
   , first, follow
   , Token(..)
   , foldWhileEpsilon
-  , isLL1
+  , isLL1, parseTable
   ) where
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.ATN
 import Data.Set ( Set(..), singleton, fromList, union, empty, member, size, toList
                 , insert, delete, intersection
                 )
+
+import qualified Data.Map.Strict as M
 
 -- An LL1 token (as used in first and follow sets) is either a
 -- terminal in the grammar's alphabet, or an epsilon
@@ -120,4 +122,53 @@ isLL1 g =
       , (Prod β) <- map snd $ prodsFor g nt
       , α /= β
       ]
+
+type Key = (NonTerminal, Token)
+
+-- All possible productions we could reduce. Empty implies parse error,
+-- singleton implies unambiguous entry, multiple implies ambiguous:
+type Value = Set Symbols
+
+ambigVal :: Value -> Bool
+ambigVal = (1 >) . size
+
+-- M[A,t] = α for each terminal t `member` FIRST(α)
+type ParseTable = M.Map Key Value
+
+parseTable' :: (Value -> Value -> Value) -> Grammar () -> ParseTable
+parseTable' fncn g = let
+
+    insertMe :: (NonTerminal, Token, Symbols) -> (ParseTable -> ParseTable)
+    insertMe (_A, a, α) = M.insertWith fncn (_A, a) $ singleton α
+
+  in
+    foldr insertMe M.empty
+      -- For each terminal a `member` FIRST(α), add A -> α to M[A,α]
+      [ (_A, Term a, α)
+      | (_A, Prod α) <- ps g
+      , Term a <- toList $ first g α
+      ]
+    `M.union`
+    foldr insertMe M.empty
+      -- If Eps `member` FIRST(α), add A -> α to M[A,b]
+      -- for each b `member` FOLLOW(A)
+      [ (_A, Term b, α)
+      | (_A, Prod α) <- ps g
+      , Eps' `member` first g α
+      , Term b <- toList $ follow g _A
+      ]
+    `M.union`
+    foldr insertMe M.empty
+      -- If Eps `member` FIRST(α)
+      -- , AND EOF `member` FOLLOW(_A)
+      -- add A -> α to M[A,EOF]
+      [ (_A, EOF, α)
+      | (_A, Prod α) <- ps g
+      , Eps' `member` first g α
+      , EOF  `member` follow g _A
+      ]
+
+parseTable = parseTable' union
+
+
 
