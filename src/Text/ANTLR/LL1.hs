@@ -193,6 +193,7 @@ predictiveParse g act w0 = let
     --         intermixed (in proper order) with the Terminals in the production
     --         rule for which we reduced the NonTerminal in question.
 --  parse' :: [Token] -> Symbols -> [Either ast Terminal] -> Maybe [Either ast Terminal]
+    parse' [EOF] [] asts  = uPIO (print ("195:", asts)) `seq` Just asts  -- Success!
     parse' []    [] asts  = uPIO (print ("196:", asts)) `seq` Just asts  -- Success!
     parse' _     [] asts  = uPIO (print ("197:", asts)) `seq` Nothing    -- Parse failure because no end of input found
     parse' (Token a:ws) (T x:xs) asts
@@ -200,15 +201,19 @@ predictiveParse g act w0 = let
       | otherwise = uPIO (print ("200:",a,x)) `seq` Nothing
     parse' ws@(a:_) (NT _X:xs) asts =
         case (_X, a) `M.lookup` _M of
-          Nothing -> uPIO (print ("203:", _X, a, ws, xs, asts)) `seq` Nothing
+          Nothing -> uPIO (print ("203:", ws, xs, _X, a, asts)) `seq` Nothing
           Just ss -> case (size ss, 0 `elemAt` ss) of
               (1,ss') ->
                   do  
-                      _ <- uPIO (print ("207:", ss', xs, asts, a, ws, _X, xs)) `seq` Just ()
+                      _ <- uPIO (print ("207:", ws, (NT _X):xs, ss', asts)) `seq` Just ()
                       asts' <- parse' ws (ss' ++ xs) []
                       -- Everything I want is in scope. This is beautiful.
                       Just [Left $ act (_X, ss') asts]
               _ -> uPIO (print ("211:", xs, asts, a, ws, _X, xs)) `seq` Nothing
-  
+    parse' ws (Eps:xs) asts =
+      uPIO (print ("213:", ws, Eps:xs, asts)) `seq` parse' ws xs asts
+    parse' ws xs asts =
+      uPIO (print (ws,xs,asts)) `seq` undefined
+
   in parse' w0 [NT $ s0 g] []
 

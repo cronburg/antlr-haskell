@@ -88,12 +88,19 @@ parseTableTest =
     , (("F",  Token "("),  [T "(", NT "E", T ")"])
     ])
 
-action0 prod tree = prod
+data UAST =
+  UAST 
+    NonTerminal
+    Symbols
+    [Either UAST Terminal]
+  deriving (Eq, Ord, Show)
 
-action1 prod tree = uPIO (print ("Act:",prod,tree)) `seq` prod
+action0 (nt, ss) = UAST nt ss
+
+action1 prod trees = uPIO (print ("Act:", prod, trees)) `seq` action0 prod trees
 
 dragonPredParse =
-  (predictiveParse grm action1 $ map Token ["id", "+", "id", "*", "id"])
+  (predictiveParse grm action1 $ map Token ["id", "+", "id", "*", "id"] ++ [EOF])
   @?=
   Just []
 
