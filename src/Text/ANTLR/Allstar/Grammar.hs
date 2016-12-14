@@ -22,7 +22,6 @@ import Data.Set (Set(..), empty)
 
 type NonTerminal = String
 type Terminal    = String
-
 -- Grammar Symbols:
 data ProdElem    =
     NT NonTerminal
@@ -111,4 +110,3 @@ defaultGrammar = G
   , _πs = empty
   , _μs = empty
   }
-

@@ -18,12 +18,22 @@ data Parser s = Parser
   , i   :: Int
   , amb :: Map ATNState [Int]
   , s   :: s
+  , dfa :: Set DFAEdge
+  , stackSensitive :: Set DFAState
   }
 
 type ParserS s a = State (Parser s) a
 
+data DFAEdge = DFAE DFAState Terminal DFAState
+  deriving (Eq, Ord)
+data DFAState = ErrorState
+              | ConfState (Set Configuration)
+              | FinalState Int -- production index
+  deriving (Eq, Ord)
+type Error = String
 -- configuration
 type Configuration = (ATNState, Int, Gamma)
+
 
 -- data types
 
@@ -64,7 +74,36 @@ sllPredict = undefined
 --            getConflictSetsPerLoc
 --            getProdSetsPerState
 --target ::
-target = undefined
+target :: Set Configuration -> Terminal -> ParserS s (DFAState)
+target d0 a = do
+  mv <- move d0 a
+  ATN { _Δ = transitions } <- getATN
+  let d' = Set.foldr (\c d -> d `Set.union` (closure transitions Set.empty c)) (Set.empty) mv
+  checkConstraint d'
+    where
+      onlyOneProd confs =
+        Set.size (Set.foldr (\(_,i,_) s -> Set.insert i s) Set.empty confs ) == 1
+      checkConstraint :: Set Configuration -> ParserS s DFAState
+      checkConstraint d'
+        | Set.null d' = do
+            p@ (Parser {dfa=delta}) <- get
+            put $ p {dfa=Set.insert (DFAE (ConfState d0) a (ErrorState)) delta}
+            return ErrorState
+        | onlyOneProd d' = do
+            p@(Parser {dfa=delta}) <- get
+            let ((_,i,_):_) = Set.toList d'
+            put $ p {dfa=Set.insert (DFAE (ConfState d0) a (FinalState i)) delta}
+            return $ FinalState i
+        | otherwise = do
+            let a_conflict = not $ Set.null $ Set.filter (\is -> (Set.size is) > 1) (getConflictSetsPerLoc d')
+            let viable = not $ Set.null $ Set.filter (\is -> (Set.size is) == 1) (getProdSetsPerState d')
+            p@(Parser{stackSensitive=ss, dfa=delta}) <- get
+            let ss' = if a_conflict && (not viable)
+                        then Set.insert (ConfState d') ss
+                        else ss
+            put $ p {stackSensitive=ss',dfa = Set.insert (DFAE (ConfState d0) a (ConfState d')) delta}
+            return $ ConfState d'
+
 
 -- no dependencies
 -- set of all (q,i,Gamma) s.t. p -a> q and (p,i,Gamma) in State d
@@ -86,7 +125,19 @@ move d a = do
 --            closure
 --            getConflictSetsPerLoc
 llPredict :: NonTerminal -> ATNState -> Gamma -> ParserS s (Maybe Int)
-llPredict = undefined
+llPredict a start g0 = undefined
+  -- let
+  --    loop :: Set Configuration -> ParserS s (Maybe Int)
+  --    loop d = do
+  --      Parser {i = i', tokens = ts} <- get
+  --      let curr = ts !! i'
+  --      mv <- move d curr
+  --      let d' = Set.foldr (Set.union . (closure Set.empty)) Set.empty mv
+  --      -- TODO
+  -- in do
+  --      d <- startState a g0
+  --      loop d
+
 
 --getATN = return $ ATN { _Δ = Set.empty }
 getATN :: ParserS s (ATN s)
