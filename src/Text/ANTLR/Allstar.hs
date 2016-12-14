@@ -3,6 +3,7 @@ import Text.ANTLR.Allstar.Grammar
 --import Text.ANTLR.Allstar.GSS
 import Text.ANTLR.Allstar.ATN
 import Text.ANTLR.Allstar.Stacks
+import qualified Text.ANTLR.Allstar.Lex as Lex
 -- Set
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -19,6 +20,7 @@ data Parser s = Parser
   , amb :: Map ATNState [Int]
   , s   :: s
   , dfa :: Set DFAEdge
+  , tokens :: [Lex.Token]
   , stackSensitive :: Set DFAState
   }
 
@@ -67,7 +69,37 @@ startState a gamma = do
 --depends on: target
 --            llPredict
 --sllPredict ::
-sllPredict = undefined
+sllPredict :: NonTerminal -> Set Configuration -> [Lex.Token] -> Gamma -> ParserS s (Maybe Int)
+sllPredict _A d0 start _γ0 = do
+
+  loop d0
+    where
+      findExistingTarget :: [DFAEdge] -> DFAState -> Terminal -> Maybe DFAState
+      findExistingTarget ((DFAE d b d'):rest) d0 a
+        | d == d0 && a == b = Just d'
+        | otherwise         = findExistingTarget rest d0 a
+      findExistingTarget [] _ _ = Nothing
+      loop :: Set Configuration -> ParserS s (Maybe Int)
+      loop d = do
+        p@(Parser {tokens = (a:rest), dfa = _dfa, stackSensitive=ss}) <- get
+        let maybeD' = findExistingTarget (Set.toList _dfa) (ConfState d) a
+        _D' <- case maybeD' of
+                 Just d' -> return d'
+                 _       -> target d (Lex.termOf a)
+        case (_D', Set.member _D' ss)  of
+          (_, True) -> do
+            put $ p {tokens = start}
+            llPredict _A start _γ0
+          (FinalState i,_) -> return $ Just i
+          (ConfState _C,_) -> do
+            put $ p {tokens = rest}
+            loop _C
+          _ -> return Nothing
+
+
+
+
+
 
 --depends on: move
 --            closure
@@ -124,7 +156,7 @@ move d a = do
 --depends on: move
 --            closure
 --            getConflictSetsPerLoc
-llPredict :: NonTerminal -> ATNState -> Gamma -> ParserS s (Maybe Int)
+llPredict :: NonTerminal -> [Lex.Token] -> Gamma -> ParserS s (Maybe Int)
 llPredict a start g0 = undefined
   -- let
   --    loop :: Set Configuration -> ParserS s (Maybe Int)
