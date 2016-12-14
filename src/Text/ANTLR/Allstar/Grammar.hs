@@ -12,9 +12,10 @@ module Text.ANTLR.Allstar.Grammar
   , isProd, isSem, isAction
   , isNT, isT, isEps, getNTs, getTs, getEps
   , prodsFor, getProds
-) where
+  , validGrammar, hasAllNonTerms, hasAllTerms, startIsNonTerm, distinctTermsNonTerms
+  ) where
 import Prelude hiding (pi)
-import Data.Set (Set(..), empty)
+import Data.Set (Set(..), empty, fromList, member, (\\), intersection)
 
 ----------------------------------------------------------------
 -- When we *Show* production elements, they should contain source location
@@ -110,3 +111,23 @@ defaultGrammar = G
   , _πs = empty
   , _μs = empty
   }
+
+validGrammar g =
+     hasAllNonTerms g
+  && hasAllTerms g
+  && startIsNonTerm g
+  && distinctTermsNonTerms g
+
+hasAllNonTerms :: Grammar a -> Bool
+hasAllNonTerms g =
+  ns g == (fromList . getNTs . concat . getProds . map snd $ ps g)
+
+hasAllTerms :: Grammar a -> Bool
+hasAllTerms g =
+  ts g == (fromList . getTs . concat . getProds . map snd $ ps g)
+
+startIsNonTerm :: Grammar a -> Bool
+startIsNonTerm g = s0 g `member` ns g
+
+distinctTermsNonTerms g =
+  (ns g `intersection` ts g) == empty
