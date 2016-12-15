@@ -23,7 +23,6 @@ import Data.Set (Set(..), empty, fromList, member, (\\), intersection)
 
 type NonTerminal = String
 type Terminal    = String
-
 -- Grammar Symbols:
 data ProdElem    =
     NT NonTerminal
@@ -132,4 +131,3 @@ startIsNonTerm g = s0 g `member` ns g
 
 distinctTermsNonTerms g =
   (ns g `intersection` ts g) == empty
-

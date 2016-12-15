@@ -3,6 +3,7 @@ import Text.ANTLR.Allstar.Grammar
 --import Text.ANTLR.Allstar.GSS
 import Text.ANTLR.Allstar.ATN
 import Text.ANTLR.Allstar.Stacks
+import qualified Text.ANTLR.Allstar.Lex as Lex
 -- Set
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -18,12 +19,23 @@ data Parser s = Parser
   , i   :: Int
   , amb :: Map ATNState [Int]
   , s   :: s
+  , dfa :: Set DFAEdge
+  , tokens :: [Lex.Token]
+  , stackSensitive :: Set DFAState
   }
 
 type ParserS s a = State (Parser s) a
 
+data DFAEdge = DFAE DFAState Terminal DFAState
+  deriving (Eq, Ord)
+data DFAState = ErrorState
+              | ConfState (Set Configuration)
+              | FinalState Int -- production index
+  deriving (Eq, Ord)
+type Error = String
 -- configuration
 type Configuration = (ATNState, Int, Gamma)
+
 
 -- data types
 
@@ -57,14 +69,73 @@ startState a gamma = do
 --depends on: target
 --            llPredict
 --sllPredict ::
-sllPredict = undefined
+sllPredict :: NonTerminal -> Set Configuration -> [Lex.Token] -> Gamma -> ParserS s (Maybe Int)
+sllPredict _A d0 start _γ0 = do
+
+  loop d0
+    where
+      findExistingTarget :: [DFAEdge] -> DFAState -> Terminal -> Maybe DFAState
+      findExistingTarget ((DFAE d b d'):rest) d0 a
+        | d == d0 && a == b = Just d'
+        | otherwise         = findExistingTarget rest d0 a
+      findExistingTarget [] _ _ = Nothing
+      loop :: Set Configuration -> ParserS s (Maybe Int)
+      loop d = do
+        p@(Parser {tokens = (a:rest), dfa = _dfa, stackSensitive=ss}) <- get
+        let maybeD' = findExistingTarget (Set.toList _dfa) (ConfState d) a
+        _D' <- case maybeD' of
+                 Just d' -> return d'
+                 _       -> target d (Lex.termOf a)
+        case (_D', Set.member _D' ss)  of
+          (_, True) -> do
+            put $ p {tokens = start}
+            llPredict _A start _γ0
+          (FinalState i,_) -> return $ Just i
+          (ConfState _C,_) -> do
+            put $ p {tokens = rest}
+            loop _C
+          _ -> return Nothing
+
+
+
+
+
 
 --depends on: move
 --            closure
 --            getConflictSetsPerLoc
 --            getProdSetsPerState
 --target ::
-target = undefined
+target :: Set Configuration -> Terminal -> ParserS s (DFAState)
+target d0 a = do
+  mv <- move d0 a
+  ATN { _Δ = transitions } <- getATN
+  let d' = Set.foldr (\c d -> d `Set.union` (closure transitions Set.empty c)) (Set.empty) mv
+  checkConstraint d'
+    where
+      onlyOneProd confs =
+        Set.size (Set.foldr (\(_,i,_) s -> Set.insert i s) Set.empty confs ) == 1
+      checkConstraint :: Set Configuration -> ParserS s DFAState
+      checkConstraint d'
+        | Set.null d' = do
+            p@ (Parser {dfa=delta}) <- get
+            put $ p {dfa=Set.insert (DFAE (ConfState d0) a (ErrorState)) delta}
+            return ErrorState
+        | onlyOneProd d' = do
+            p@(Parser {dfa=delta}) <- get
+            let ((_,i,_):_) = Set.toList d'
+            put $ p {dfa=Set.insert (DFAE (ConfState d0) a (FinalState i)) delta}
+            return $ FinalState i
+        | otherwise = do
+            let a_conflict = not $ Set.null $ Set.filter (\is -> (Set.size is) > 1) (getConflictSetsPerLoc d')
+            let viable = not $ Set.null $ Set.filter (\is -> (Set.size is) == 1) (getProdSetsPerState d')
+            p@(Parser{stackSensitive=ss, dfa=delta}) <- get
+            let ss' = if a_conflict && (not viable)
+                        then Set.insert (ConfState d') ss
+                        else ss
+            put $ p {stackSensitive=ss',dfa = Set.insert (DFAE (ConfState d0) a (ConfState d')) delta}
+            return $ ConfState d'
+
 
 -- no dependencies
 -- set of all (q,i,Gamma) s.t. p -a> q and (p,i,Gamma) in State d
@@ -85,8 +156,20 @@ move d a = do
 --depends on: move
 --            closure
 --            getConflictSetsPerLoc
-llPredict :: NonTerminal -> ATNState -> Gamma -> ParserS s (Maybe Int)
-llPredict = undefined
+llPredict :: NonTerminal -> [Lex.Token] -> Gamma -> ParserS s (Maybe Int)
+llPredict a start g0 = undefined
+  -- let
+  --    loop :: Set Configuration -> ParserS s (Maybe Int)
+  --    loop d = do
+  --      Parser {i = i', tokens = ts} <- get
+  --      let curr = ts !! i'
+  --      mv <- move d curr
+  --      let d' = Set.foldr (Set.union . (closure Set.empty)) Set.empty mv
+  --      -- TODO
+  -- in do
+  --      d <- startState a g0
+  --      loop d
+
 
 --getATN = return $ ATN { _Δ = Set.empty }
 getATN :: ParserS s (ATN s)
