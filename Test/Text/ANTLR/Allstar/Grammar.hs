@@ -30,3 +30,17 @@ dragonBook428 = defaultGrammar
          ]
   }
 
+dragonBook41 = defaultGrammar
+  { ns = fromList ["E'", "E", "T", "F"]
+  , ts = fromList ["+", "*", "(", ")", "id"]
+  , s0 = "E"
+  , ps =  [ ("E'", Prod [NT "E"])
+          , ("E", Prod [NT "E", T "+", NT "T"])
+          , ("E", Prod [NT "T"])
+          , ("T", Prod [NT "T", T "*", NT "F"])
+          , ("T", Prod [NT "F"])
+          , ("F", Prod [T "(", NT "E", T ")"])
+          , ("F", Prod [T "id"])
+          ]
+  }
+

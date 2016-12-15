@@ -27,9 +27,6 @@ data Token =
   | EOF -- End of input really, but EOF is ubiquitous.
   deriving (Eq, Ord, Show)
 
-recognize :: Grammar () -> [Token] -> Bool
-recognize g ts = True
-
 -- Fold while the given pred function is true:
 foldWhile :: (a -> b -> Bool) -> (a -> b -> b) -> b -> [a] -> b
 foldWhile pred fncn = let
@@ -196,6 +193,9 @@ type StackTree ast = [TreeNode ast]
 isComp (Comp _) = True
 isComp _ = False
 isInComp = not . isComp
+
+recognize :: Grammar () -> [Token] -> Bool
+recognize g = (Nothing /=) . predictiveParse g (const ())
 
 predictiveParse :: Show ast => Grammar () -> Action ast -> [Token] ->  Maybe ast
 predictiveParse g act w0 = let
