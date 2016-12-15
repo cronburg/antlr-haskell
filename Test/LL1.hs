@@ -109,7 +109,7 @@ action1 EpsE      = action0 EpsE
 dragonPredParse =
   (predictiveParse grm action1 $ map Token ["id", "+", "id", "*", "id"] ++ [EOF])
   @?=
-  Just [ UAST "E" [NT "T", NT "E'"]
+  (Just $ UAST "E" [NT "T", NT "E'"]
             [ UAST "T" [NT "F", NT "T'"]
                 [ UAST "F"  [T "id"] [ULeaf "id"]
                 , UAST "T'" [Eps]    [ULeafEps]
@@ -124,10 +124,9 @@ dragonPredParse =
                         , UAST "T'" [Eps] [ULeafEps]
                         ]
                     ]
+                , UAST "E'" [Eps] [ULeafEps]
                 ]
-            ]
-        ]
-
+            ])
 
 main :: IO ()
 main = defaultMainWithOpts

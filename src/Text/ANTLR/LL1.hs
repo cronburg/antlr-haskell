@@ -189,6 +189,7 @@ type Action ast = ParseEvent ast -> ast
 data TreeNode ast =
     Comp   ast
   | InComp NonTerminal Symbols [ast] Int
+  deriving (Eq, Ord, Show)
 
 type StackTree ast = [TreeNode ast]
 
@@ -196,11 +197,11 @@ isComp (Comp _) = True
 isComp _ = False
 isInComp = not . isComp
 
-predictiveParse :: Show ast => Grammar () -> Action ast -> [Token] ->  Maybe [ast]
+predictiveParse :: Show ast => Grammar () -> Action ast -> [Token] ->  Maybe ast
 predictiveParse g act w0 = let
 
     --reduce :: StackTree ast -> StackTree ast
-    reduce stree@(InComp nt ss asts 0 : rst) = reduce $ Comp (act $ NonTE (nt, ss, asts)) : rst
+    reduce stree@(InComp nt ss asts 0 : rst) = reduce $ Comp (act $ NonTE (nt, ss, reverse asts)) : rst
     reduce stree@(InComp{}:_) = stree
     reduce stree = let
         
@@ -208,7 +209,9 @@ predictiveParse g act w0 = let
         (InComp nt ss asts i : rst) = dropWhile isComp stree
         -- @(InComp nt ss ast i:rst) = dropWhile isComp stree
         
-      in reduce (InComp nt ss (cmps ++ asts) i : rst)
+      in case dropWhile isComp stree of
+            []                          -> stree
+            (InComp nt ss asts i : rst) -> reduce (InComp nt ss (cmps ++ asts) (i - length cmps) : rst)
       
     -- Push a production element (NT, T, or Eps) onto a possibly incomplete
     -- stack of trees
@@ -227,7 +230,7 @@ predictiveParse g act w0 = let
     -- [ast] - a stack (list) of the asts the user has computed for us
     --         intermixed (in proper order) with the Terminals in the production
     --         rule for which we reduced the NonTerminal in question.
---  parse' :: [Token] -> Symbols -> StackTree ast -> Maybe ast
+--  parse' :: [Token] -> Symbols -> StackTree ast -> Maybe (StackTree ast) --Maybe ast
     parse' [EOF] [] asts  = uPIO (print ("195:", asts)) `seq` Just asts  -- Success!
 --  parse' []    [] asts  = uPIO (print ("196:", asts)) `seq` Just asts  -- Success!
     parse' _     [] asts  = uPIO (print ("197:", asts)) `seq` Nothing    -- Parse failure because no end of input found
@@ -242,16 +245,19 @@ predictiveParse g act w0 = let
               (1,ss') ->
                   do  
                       _ <- uPIO (print ("207:", ws, _X, xs, ss', asts)) `seq` Just ()
-                      asts' <- parse' ws (ss' ++ xs) asts
+                      asts' <- parse' ws (ss' ++ xs) (pushStack (NT _X) ss' asts)
                       _ <- uPIO (print ("210:", ws, _X, xs, ss', asts')) `seq` Just ()
                       -- Everything I want is in scope. This is beautiful.
                       --Just $ (act $ NonTE (_X, ss', take (length ss') asts')):(drop (length ss') asts')
-                      
+                      Just asts'
               _ -> uPIO (print ("211:", xs, asts, a, ws, _X, xs)) `seq` Nothing
     parse' ws (Eps:xs) asts =
-      uPIO (print ("213:", ws, Eps:xs, asts)) `seq` parse' ws xs ((act EpsE):asts)
+      uPIO (print ("213:", ws, Eps:xs, asts)) `seq` parse' ws xs (pushStack Eps [] asts) --((act EpsE):asts)
     parse' ws xs asts =
       uPIO (print (ws,xs,asts)) `seq` undefined
 
-  in parse' w0 [NT $ s0 g] []
+  in do asts <- parse' w0 [NT $ s0 g] []
+        case asts of
+          [Comp ast] -> Just ast
+          _          -> Nothing
 
