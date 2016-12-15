@@ -97,8 +97,6 @@ data UAST =
   deriving (Eq, Ord, Show)
 
 action0 EpsE                    = ULeafEps
---action0 (NonTE (nt, [], _))     = ULeafEps
---action0 (NonTE (nt, [Eps], _))  = ULeafEps
 action0 (TermE t)               = ULeaf t
 action0 (NonTE (nt, ss, us))    = UAST nt ss us
 
@@ -107,7 +105,7 @@ action1 (TermE x) = uPIO (print ("Act:", x)) `seq` action0 $ TermE x
 action1 EpsE      = action0 EpsE
 
 dragonPredParse =
-  (predictiveParse grm action1 $ map Token ["id", "+", "id", "*", "id"] ++ [EOF])
+  (predictiveParse grm action0 $ map Token ["id", "+", "id", "*", "id"] ++ [EOF])
   @?=
   (Just $ UAST "E" [NT "T", NT "E'"]
             [ UAST "T" [NT "F", NT "T'"]

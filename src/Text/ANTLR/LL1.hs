@@ -220,10 +220,6 @@ predictiveParse g act w0 = let
     pushStack (T t)   _  (InComp nt ss asts i:stree) = reduce $ InComp nt ss (act (TermE t) : asts) (i - 1) : stree
     pushStack Eps     _  (InComp nt ss asts i:stree) = reduce $ InComp nt ss (act EpsE : asts) (i - 1) : stree
     
-    --pushStack (NT nt) ss 0 stree = (Comp $ act $ NonTE (nt, ss, [])):stree
-    --pushStack (T t)   _  _ (InComp nt ss asts 1:stree) = reduce $ (Comp $ act $ NonTE (nt, ss, act (TermE t) : asts)) : stree
-    --pushStack Eps     _  _ (InComp nt ss asts 1:stree) = reduce $ (Comp ((act EpsE) : asts)) : stree
-    
     _M = parseTable g
 
     -- input word LL1 symbols -> Stack of symbols -> AST
@@ -231,28 +227,18 @@ predictiveParse g act w0 = let
     --         intermixed (in proper order) with the Terminals in the production
     --         rule for which we reduced the NonTerminal in question.
 --  parse' :: [Token] -> Symbols -> StackTree ast -> Maybe (StackTree ast) --Maybe ast
-    parse' [EOF] [] asts  = uPIO (print ("195:", asts)) `seq` Just asts  -- Success!
---  parse' []    [] asts  = uPIO (print ("196:", asts)) `seq` Just asts  -- Success!
-    parse' _     [] asts  = uPIO (print ("197:", asts)) `seq` Nothing    -- Parse failure because no end of input found
+    parse' [EOF] [] asts  = Just asts  -- Success!
+    parse' _     [] asts  = Nothing    -- Parse failure because no end of input found
     parse' (Token a:ws) (T x:xs) asts
-      -- TODO: turn undefined into Maybe or Either:
-      | x == a    = uPIO (print ("199:", a, ws, x, xs, asts)) `seq` parse' ws xs $ pushStack (T x) [] asts
-      | otherwise = uPIO (print ("200:",a,x)) `seq` Nothing
+      | x == a    = parse' ws xs $ pushStack (T x) [] asts
+      | otherwise = Nothing
     parse' ws@(a:_) (NT _X:xs) asts =
         case (_X, a) `M.lookup` _M of
-          Nothing -> uPIO (print ("203:", ws, xs, _X, a, asts)) `seq` Nothing
+          Nothing -> Nothing
           Just ss -> case (size ss, 0 `elemAt` ss) of
-              (1,ss') ->
-                  do  
-                      _ <- uPIO (print ("207:", ws, _X, xs, ss', asts)) `seq` Just ()
-                      asts' <- parse' ws (ss' ++ xs) (pushStack (NT _X) ss' asts)
-                      _ <- uPIO (print ("210:", ws, _X, xs, ss', asts')) `seq` Just ()
-                      -- Everything I want is in scope. This is beautiful.
-                      --Just $ (act $ NonTE (_X, ss', take (length ss') asts')):(drop (length ss') asts')
-                      Just asts'
-              _ -> uPIO (print ("211:", xs, asts, a, ws, _X, xs)) `seq` Nothing
-    parse' ws (Eps:xs) asts =
-      uPIO (print ("213:", ws, Eps:xs, asts)) `seq` parse' ws xs (pushStack Eps [] asts) --((act EpsE):asts)
+              (1,ss') -> parse' ws (ss' ++ xs) (pushStack (NT _X) ss' asts)
+              _       -> Nothing
+    parse' ws (Eps:xs) asts = parse' ws xs (pushStack Eps [] asts)
     parse' ws xs asts =
       uPIO (print (ws,xs,asts)) `seq` undefined
 
