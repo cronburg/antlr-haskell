@@ -34,8 +34,7 @@ dragonBook41 = defaultGrammar
   { ns = fromList ["E'", "E", "T", "F"]
   , ts = fromList ["+", "*", "(", ")", "id"]
   , s0 = "E"
-  , ps =  [ ("E'", Prod [NT "E"])
-          , ("E", Prod [NT "E", T "+", NT "T"])
+  , ps =  [ ("E", Prod [NT "E", T "+", NT "T"])
           , ("E", Prod [NT "T"])
           , ("T", Prod [NT "T", T "*", NT "F"])
           , ("T", Prod [NT "F"])
