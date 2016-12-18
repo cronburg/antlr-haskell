@@ -13,9 +13,13 @@ module Text.ANTLR.Allstar.Grammar
   , isNT, isT, isEps, getNTs, getTs, getEps
   , prodsFor, getProds
   , validGrammar, hasAllNonTerms, hasAllTerms, startIsNonTerm, distinctTermsNonTerms
+  , symbols
   ) where
 import Prelude hiding (pi)
-import Data.Set (Set(..), empty, fromList, member, (\\), intersection)
+import Data.Set (Set(..), empty, fromList, member, (\\), intersection
+  , union
+  )
+import qualified Data.Set as S
 
 ----------------------------------------------------------------
 -- When we *Show* production elements, they should contain source location
@@ -102,6 +106,9 @@ data Grammar s = G
   , _πs :: Set (Predicate s)
   , _μs :: Set (Mutator   s)
   } deriving (Eq, Ord, Show)
+
+symbols :: Grammar s -> Set ProdElem
+symbols g = S.insert Eps $ S.map NT (ns g) `union` S.map T (ts g)
 
 defaultGrammar = G
   { ns  = empty

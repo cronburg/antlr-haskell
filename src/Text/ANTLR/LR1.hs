@@ -1,13 +1,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Text.ANTLR.LR1
   ( Item(..)
-  , closure
+  , closure, goto
   , ItemLHS(..)
-  , kernel, allItems
+  , kernel, allItems, items
   ) where
 import Text.ANTLR.Allstar.Grammar
 import Data.Set ( Set(..), fromList, empty, member, toList, size
-  , union, (\\), insert, toList
+  , union, (\\), insert, toList, singleton
   )
 import qualified Data.Set as S
 
@@ -41,6 +41,28 @@ closure g is' = let
 
   in closure' is'
 
+goto :: Grammar () -> Set Item -> ProdElem -> Set Item
+goto g is _X = closure g $ fromList
+  [ Item _A (_X : α) β
+  | Item _A α (_X' : β) <- toList is
+  , _X == _X'
+  ]
+
+items :: Grammar () -> Set (Set Item)
+items g = let
+    items' :: Set (Set Item) -> Set (Set Item)
+    items' _C = let
+      add = fromList
+            [ goto g is _X
+            | is <- toList _C
+            , _X <- toList $ symbols g
+            , not . null $ goto g is _X
+            ]
+      in case size $ add \\ _C of
+        0 -> _C `union` add
+        _ -> items' $ _C `union` add
+  in items' $ singleton $ closure g $ singleton (Item (Init $ s0 g) [] [NT $ s0 g])
+
 kernel :: Set Item -> Set Item
 kernel = let
     kernel' (Item (Init   _) _  _) = True
@@ -50,11 +72,16 @@ kernel = let
 
 -- Generate the set of all possible Items for a given grammar:
 allItems :: Grammar () -> Set Item
-allItems g = insert (Item (Init $ s0 g) [] [NT $ s0 g]) $ fromList
-  [ Item (ItemNT nt) (take n γ) (drop n γ)
-  | nt <- toList $ ns g
-  , (_, p@(Prod γ)) <- prodsFor g nt
-  , isProd p
-  , n <- [0..length γ]
-  ]
+allItems g = fromList
+    [ Item (Init $ s0 g) [] [NT $ s0 g]
+    , Item (Init $ s0 g) [NT $ s0 g] []
+    ]
+  `union`
+  fromList
+    [ Item (ItemNT nt) (reverse $ take n γ) (drop n γ)
+    | nt <- toList $ ns g
+    , (_, p@(Prod γ)) <- prodsFor g nt
+    , isProd p
+    , n <- [0..length γ]
+    ]
 
