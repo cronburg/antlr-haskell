@@ -1,10 +1,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Text.ANTLR.LR1
   ( Item(..)
-  , closure, goto
+  , closure, slrGoto, slrItems
   , ItemLHS(..)
   , kernel, allItems, items
-  , slrTable, Token(..), Action(..), LRState, SLRTable
+  , slrTable, Token(..), Action(..), LRState, LRTable
+  , lrParse, slrParse
   ) where
 import Text.ANTLR.Allstar.Grammar
 import qualified Text.ANTLR.LL1 as LL
@@ -50,22 +51,24 @@ closure g is' = let
 
   in closure' is'
 
-goto :: Grammar () -> Set Item -> ProdElem -> Set Item
-goto g is _X = closure g $ fromList
+type Goto = Set Item -> ProdElem -> Set Item
+
+slrGoto :: Grammar () -> Goto
+slrGoto g is _X = closure g $ fromList
   [ Item _A (_X : α) β
   | Item _A α (_X' : β) <- toList is
   , _X == _X'
   ]
 
-items :: Grammar () -> Set (Set Item)
-items g = let
+items :: Grammar () -> Goto -> Set (Set Item)
+items g goto = let
     items' :: Set (Set Item) -> Set (Set Item)
     items' _C = let
       add = fromList
-            [ goto g is _X
+            [ goto is _X
             | is <- toList _C
             , _X <- toList $ symbols g
-            , not . null $ goto g is _X
+            , not . null $ goto is _X
             ]
       in case size $ add \\ _C of
         0 -> _C `union` add
@@ -95,7 +98,7 @@ allItems g = fromList
     ]
 
 type LRState  = Set Item
-type SLRTable = Map (LRState, Token) Action
+type LRTable = Map (LRState, Token) Action
 
 data Action =
     Shift   LRState
@@ -104,16 +107,19 @@ data Action =
   | Error
   deriving (Eq, Ord, Show)
 
-slrTable :: Grammar () -> SLRTable
+slrItems :: Grammar () -> Set (Set Item)
+slrItems g = items g $ slrGoto g
+
+slrTable :: Grammar () -> LRTable
 slrTable g = let
 
     --slr' :: a -> b -> b
-    --slr' :: Set Item -> Item -> SLRTable -> SLRTable
-    slr' :: Set Item -> SLRTable
+    --slr' :: Set Item -> Item -> LRTable -> LRTable
+    slr' :: Set Item -> LRTable
     slr' _Ii = let
-        slr'' :: Item -> SLRTable
-        slr'' (Item (ItemNT nt) α (T a:β)) = M.singleton (_Ii, Token a) (Shift $ goto g _Ii $ NT a)
-        slr'' (Item (Init   nt) α (T a:β)) = M.singleton (_Ii, Token a) (Shift $ goto g _Ii $ NT a)
+        slr'' :: Item -> LRTable
+        slr'' (Item (ItemNT nt) α (T a:β)) = M.singleton (_Ii, Token a) (Shift $ slrGoto g _Ii $ NT a)
+        slr'' (Item (Init   nt) α (T a:β)) = M.singleton (_Ii, Token a) (Shift $ slrGoto g _Ii $ NT a)
         slr'' (Item (ItemNT nt) α [])      = M.fromList
                                           [ ((_Ii, a), Reduce (nt, Prod α))
                                           | a <- (toList . LL.follow g) nt
@@ -122,5 +128,34 @@ slrTable g = let
         slr'' _ = M.empty
       in S.fold M.union M.empty (S.map slr'' _Ii)
 
-  in S.fold M.union M.empty $ S.map slr' $ items g
+  in S.fold M.union M.empty $ S.map slr' $ slrItems g
+
+type Config = ([LRState], [Token])
+
+look :: (LRState, Token) -> LRTable -> Maybe Action
+look (s,a) act = uPIO (print ("lookup:", s, a, M.lookup (s, a) act)) `seq` M.lookup (s, a) act
+
+lrParse :: Grammar () -> LRTable -> Goto -> [Token] -> Bool
+lrParse g act goto w = let
+  
+    lr :: Config -> Bool
+    lr (s:states, a:ws) = let
+        
+        lr' :: Maybe Action -> Bool
+        lr' Nothing = False
+        lr' (Just Accept) = True
+        lr' (Just Error)  = False
+        lr' (Just (Shift t)) = lr (t:s:states, ws)
+        lr' (Just (Reduce (_A, Prod β))) = let
+              ss'@(t:_) = drop (length β) (s:states)
+            in uPIO (print ("Reduce:", _A, Prod β)) `seq` lr (goto t (NT _A) : ss', a:ws)
+
+      in lr' $ look (s,a) act
+
+    s_0 = Item (Init $ s0 g) [] [NT $ s0 g]
+
+  in lr ([closure g $ S.singleton s_0], w)
+
+slrParse :: Grammar () -> [Token] -> Bool
+slrParse g = lrParse g (slrTable g) (slrGoto g)
 

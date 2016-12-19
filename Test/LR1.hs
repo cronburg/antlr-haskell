@@ -52,7 +52,7 @@ c' = closure grm
 
 propClosureClosure :: Set Item' -> Property
 propClosureClosure items' = let items = S.map (\(I' is) -> is) items' in True ==>
-  (c' . c') items == c' items 
+  (c' . c') items == c' items
 
 newtype Grammar' = G' (Grammar ())
   deriving (Eq, Ord, Show)
@@ -80,15 +80,15 @@ instance Arbitrary Grammar' where
 -}
 
 closedItems :: Grammar' -> Property
-closedItems (G' g) = True ==> null (S.fold union empty (items g) \\ allItems g)
+closedItems (G' g) = True ==> null (S.fold union empty (slrItems g) \\ allItems g)
 
 closedItems0 =
-  S.fold union empty (items grm) \\ allItems grm
+  S.fold union empty (slrItems grm) \\ allItems grm
   @?=
   empty
 
 testItems =
-  items grm
+  slrItems grm
   @?=
   fromList [_I0, _I1, _I2, _I3, _I4, _I5, _I6, _I7, _I8, _I9, _I10, _I11]
 
@@ -136,17 +136,22 @@ r6 = Reduce ("F", Prod [T "id"])
 
 -- Easier to debug when shown separately:
 testSLRTable =
-  slrTable grm
+  (slrTable grm
   `M.difference`
-  testSLRExp 
+  testSLRExp)
   @?=
   M.empty
 testSLRTable2 =
-  testSLRExp 
+  (testSLRExp 
   `M.difference`
-  slrTable grm
+  slrTable grm)
   @?=
   M.empty
+
+testSLRTable3 = 
+  slrTable grm
+  @?=
+  testSLRExp
 
 testSLRExp = M.fromList
     [ ((_I0, Token "id"), Shift _I5)
@@ -187,6 +192,16 @@ testSLRExp = M.fromList
     , ((_I11, EOF),       r5)
     ]
 
+testLRParse =
+  slrParse grm (map Token ["id", "*", "id", "+", "id"] ++ [EOF])
+  @?=
+  True
+
+testLRParse2 =
+  slrParse grm (map Token ["id", "*", "id", "+", "+"] ++ [EOF])
+  @?=
+  False
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "closure" testClosure
@@ -197,5 +212,8 @@ main = defaultMainWithOpts
   , testProperty  "closedItems" closedItems
   , testCase "slrTable" testSLRTable
   , testCase "slrTable2" testSLRTable2
+  , testCase "slrTable3" testSLRTable3
+  , testCase "testLRParse" testLRParse
+  , testCase "testLRParse2" testLRParse2
   ] mempty
 
