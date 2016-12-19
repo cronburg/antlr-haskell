@@ -7,6 +7,7 @@ module Text.ANTLR.LL1
   , isLL1, parseTable
   , predictiveParse
   , ParseEvent(..)
+  , isToken, isEps', isEOF
   ) where
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.ATN
@@ -26,6 +27,15 @@ data Token =
   | Eps'
   | EOF -- End of input really, but EOF is ubiquitous.
   deriving (Eq, Ord, Show)
+
+isToken (Token _) = True
+isToken _ = False
+
+isEps' Eps' = True
+isEps' _    = False
+
+isEOF EOF = True
+isEOF _   = False
 
 -- Fold while the given pred function is true:
 foldWhile :: (a -> b -> Bool) -> (a -> b -> b) -> b -> [a] -> b

@@ -90,53 +90,101 @@ closedItems0 =
 testItems =
   items grm
   @?=
-  fromList
-    -- I_0
-    [ fromList  [ Item (Init "E") [] [NT "E"]
+  fromList [_I0, _I1, _I2, _I3, _I4, _I5, _I6, _I7, _I8, _I9, _I10, _I11]
+
+_I0 = fromList  [ Item (Init "E") [] [NT "E"]
                 , Item (ItemNT "E") [] [NT "E",T "+",NT "T"]
                 , Item (ItemNT "E") [] [NT "T"]
                 , Item (ItemNT "F") [] [T "(",NT "E",T ")"]
                 , Item (ItemNT "F") [] [T "id"]
                 , Item (ItemNT "T") [] [NT "F"]
                 , Item (ItemNT "T") [] [NT "T",T "*",NT "F"]]
-    -- I_1
-    , fromList  [ Item (Init "E") [NT "E"] []
+_I1 = fromList  [ Item (Init "E") [NT "E"] []
                 , Item (ItemNT "E") [NT "E"] [T "+",NT "T"]]
-    -- I_4
-    , fromList  [ Item (ItemNT "E") [] [NT "E",T "+",NT "T"]
+_I4 = fromList  [ Item (ItemNT "E") [] [NT "E",T "+",NT "T"]
                 , Item (ItemNT "E") [] [NT "T"]
                 , Item (ItemNT "F") [] [T "(",NT "E",T ")"]
                 , Item (ItemNT "F") [] [T "id"]
                 , Item (ItemNT "F") [T "("] [NT "E",T ")"]
                 , Item (ItemNT "T") [] [NT "F"]
                 , Item (ItemNT "T") [] [NT "T",T "*",NT "F"]]
-    -- I_8
-    , fromList  [ Item (ItemNT "E") [NT "E"] [T "+",NT "T"]
+_I8 = fromList  [ Item (ItemNT "E") [NT "E"] [T "+",NT "T"]
                 , Item (ItemNT "F") [NT "E",T "("] [T ")"]]
-    -- I_2
-    , fromList  [ Item (ItemNT "E") [NT "T"] []
+_I2 = fromList  [ Item (ItemNT "E") [NT "T"] []
                 , Item (ItemNT "T") [NT "T"] [T "*",NT "F"]]
-    -- I_9
-    , fromList  [ Item (ItemNT "E") [NT "T",T "+",NT "E"] []
+_I9 = fromList  [ Item (ItemNT "E") [NT "T",T "+",NT "E"] []
                 , Item (ItemNT "T") [NT "T"] [T "*",NT "F"]]
-    -- I_6
-    , fromList  [ Item (ItemNT "E") [T "+",NT "E"] [NT "T"]
+_I6 = fromList  [ Item (ItemNT "E") [T "+",NT "E"] [NT "T"]
                 , Item (ItemNT "F") [] [T "(",NT "E",T ")"]
                 , Item (ItemNT "F") [] [T "id"]
                 , Item (ItemNT "T") [] [NT "F"]
                 , Item (ItemNT "T") [] [NT "T",T "*",NT "F"]]
-    -- I_7
-    , fromList  [ Item (ItemNT "F") [] [T "(",NT "E",T ")"]
+_I7 = fromList  [ Item (ItemNT "F") [] [T "(",NT "E",T ")"]
                 , Item (ItemNT "F") [] [T "id"]
                 , Item (ItemNT "T") [T "*",NT "T"] [NT "F"]]
-    -- I_11
-    , fromList  [ Item (ItemNT "F") [T ")",NT "E",T "("] []]
-    -- I_5
-    , fromList  [ Item (ItemNT "F") [T "id"] []]
-    -- I_3
-    , fromList  [ Item (ItemNT "T") [NT "F"] []]
-    -- I_10
-    , fromList  [ Item (ItemNT "T") [NT "F",T "*",NT "T"] []]
+_I11 = fromList  [ Item (ItemNT "F") [T ")",NT "E",T "("] []]
+_I5  = fromList  [ Item (ItemNT "F") [T "id"] []]
+_I3  = fromList  [ Item (ItemNT "T") [NT "F"] []]
+_I10 = fromList  [ Item (ItemNT "T") [NT "F",T "*",NT "T"] []]
+
+r1 = Reduce ("E", Prod [NT "E", T "+", NT "T"])
+r2 = Reduce ("E", Prod [NT "T"])
+r3 = Reduce ("T", Prod [NT "T", T "*", NT "F"])
+r4 = Reduce ("T", Prod [NT "F"])
+r5 = Reduce ("F", Prod [T "(", NT "E", T ")"])
+r6 = Reduce ("F", Prod [T "id"])
+
+-- Easier to debug when shown separately:
+testSLRTable =
+  slrTable grm
+  `M.difference`
+  testSLRExp 
+  @?=
+  M.empty
+testSLRTable2 =
+  testSLRExp 
+  `M.difference`
+  slrTable grm
+  @?=
+  M.empty
+
+testSLRExp = M.fromList
+    [ ((_I0, Token "id"), Shift _I5)
+    , ((_I0, Token "("),  Shift _I4)
+    , ((_I1, Token "+"),  Shift _I6)
+    , ((_I1, EOF),        Accept)
+    , ((_I2, Token "+"),  r2)
+    , ((_I2, Token "*"),  Shift _I7)
+    , ((_I2, Token ")"),  r2)
+    , ((_I2, EOF),        r2)
+    , ((_I3, Token "+"),  r4)
+    , ((_I3, Token "*"),  r4)
+    , ((_I3, Token ")"),  r4)
+    , ((_I3, EOF),        r4)
+    , ((_I4, Token "id"), Shift _I5)
+    , ((_I4, Token "("),  Shift _I4)
+    , ((_I5, Token "+"),  r6)
+    , ((_I5, Token "*"),  r6)
+    , ((_I5, Token ")"),  r6)
+    , ((_I5, EOF),        r6)
+    , ((_I6, Token "id"), Shift _I5)
+    , ((_I6, Token "("),  Shift _I4)
+    , ((_I7, Token "id"), Shift _I5)
+    , ((_I7, Token "("),  Shift _I4)
+    , ((_I8, Token "+"),  Shift _I6)
+    , ((_I8, Token ")"),  Shift _I11)
+    , ((_I9, Token "+"),  r1)
+    , ((_I9, Token "*"),  Shift _I7)
+    , ((_I9, Token ")"),  r1)
+    , ((_I9, EOF),        r1)
+    , ((_I10, Token "+"), r3)
+    , ((_I10, Token "*"), r3)
+    , ((_I10, Token ")"), r3)
+    , ((_I10, EOF),       r3)
+    , ((_I11, Token "+"), r5)
+    , ((_I11, Token "*"), r5)
+    , ((_I11, Token ")"), r5)
+    , ((_I11, EOF),       r5)
     ]
 
 main :: IO ()
@@ -147,5 +195,7 @@ main = defaultMainWithOpts
   , testCase "items" testItems
   , testCase "closedItems0" closedItems0
   , testProperty  "closedItems" closedItems
+  , testCase "slrTable" testSLRTable
+  , testCase "slrTable2" testSLRTable2
   ] mempty
 

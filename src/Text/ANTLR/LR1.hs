@@ -4,12 +4,21 @@ module Text.ANTLR.LR1
   , closure, goto
   , ItemLHS(..)
   , kernel, allItems, items
+  , slrTable, Token(..), Action(..), LRState, SLRTable
   ) where
 import Text.ANTLR.Allstar.Grammar
+import qualified Text.ANTLR.LL1 as LL
+import Text.ANTLR.LL1 (Token(..))
+
 import Data.Set ( Set(..), fromList, empty, member, toList, size
   , union, (\\), insert, toList, singleton
   )
 import qualified Data.Set as S
+import Data.Map ( Map(..) )
+import qualified Data.Map as M
+
+import System.IO.Unsafe (unsafePerformIO)
+uPIO = unsafePerformIO
 
 data ItemLHS =
     Init   NonTerminal -- S' if S is the grammar start symbol
@@ -84,4 +93,34 @@ allItems g = fromList
     , isProd p
     , n <- [0..length γ]
     ]
+
+type LRState  = Set Item
+type SLRTable = Map (LRState, Token) Action
+
+data Action =
+    Shift   LRState
+  | Reduce (Production ())
+  | Accept
+  | Error
+  deriving (Eq, Ord, Show)
+
+slrTable :: Grammar () -> SLRTable
+slrTable g = let
+
+    --slr' :: a -> b -> b
+    --slr' :: Set Item -> Item -> SLRTable -> SLRTable
+    slr' :: Set Item -> SLRTable
+    slr' _Ii = let
+        slr'' :: Item -> SLRTable
+        slr'' (Item (ItemNT nt) α (T a:β)) = M.singleton (_Ii, Token a) (Shift $ goto g _Ii $ NT a)
+        slr'' (Item (Init   nt) α (T a:β)) = M.singleton (_Ii, Token a) (Shift $ goto g _Ii $ NT a)
+        slr'' (Item (ItemNT nt) α [])      = M.fromList
+                                          [ ((_Ii, a), Reduce (nt, Prod α))
+                                          | a <- (toList . LL.follow g) nt
+                                          ]
+        slr'' (Item (Init nt) α [])   = M.singleton (_Ii, LL.EOF) Accept
+        slr'' _ = M.empty
+      in S.fold M.union M.empty (S.map slr'' _Ii)
+
+  in S.fold M.union M.empty $ S.map slr' $ items g
 
