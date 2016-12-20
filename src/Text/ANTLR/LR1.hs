@@ -1,9 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables, ExplicitForAll #-}
 module Text.ANTLR.LR1
   ( Item(..)
-  , closure, slrGoto, slrItems
+  , slrClosure, slrGoto, slrItems
   , ItemLHS(..)
-  , kernel, allItems, items
+  , kernel, allSLRItems, items
   , slrTable, Token(..), LRAction(..), Action, LRState, LRTable
   , lrParse, slrParse, slrRecognize, ParseEvent(..)
   ) where
@@ -29,17 +29,21 @@ data ItemLHS =
 -- An Item is a production with a dot in it indicating how far
 -- into the production we have parsed:
 --               A       ->  α          .    β
-data Item = Item ItemLHS Symbols {- . -} Symbols
+data Item a = Item ItemLHS Symbols {- . -} Symbols a
   deriving (Eq, Ord, Show)
 
-closure :: Grammar () -> Set Item -> Set Item
-closure g is' = let
+type Closure a = Set (Item a) -> Set (Item a)
 
-    closure' :: Set Item -> Set Item
+type SLRClosure = Closure ()
+
+slrClosure :: Grammar () -> SLRClosure
+slrClosure g is' = let
+
+    closure' :: SLRClosure
     closure' _J = let
       add = fromList
-            [ Item (ItemNT _B) [] γ
-            | Item _A α rst@(pe@(NT _B) : β) <- toList _J
+            [ Item (ItemNT _B) [] γ ()
+            | Item _A α rst@(pe@(NT _B) : β) () <- toList _J
             , not $ null rst
             , isNT pe
             , (_, p@(Prod γ)) <- prodsFor g _B
@@ -51,18 +55,18 @@ closure g is' = let
 
   in closure' is'
 
-type Goto = Set Item -> ProdElem -> Set Item
+type Goto a = LRState a -> ProdElem -> LRState a
 
-slrGoto :: Grammar () -> Goto
-slrGoto g is _X = closure g $ fromList
-  [ Item _A (_X : α) β
-  | Item _A α (_X' : β) <- toList is
+slrGoto :: Grammar () -> Goto ()
+slrGoto g is _X = slrClosure g $ fromList
+  [ Item _A (_X : α) β ()
+  | Item _A α (_X' : β) () <- toList is
   , _X == _X'
   ]
 
-items :: Grammar () -> Goto -> Set (Set Item)
-items g goto = let
-    items' :: Set (Set Item) -> Set (Set Item)
+items :: forall a. Ord a => Grammar () -> Goto a -> Closure a -> LRState a -> Set (LRState a)
+items g goto closure s0 = let
+    items' :: Set (LRState a) -> Set (LRState a)
     items' _C = let
       add = fromList
             [ goto is _X
@@ -73,67 +77,75 @@ items g goto = let
       in case size $ add \\ _C of
         0 -> _C `union` add
         _ -> items' $ _C `union` add
-  in items' $ singleton $ closure g $ singleton (Item (Init $ s0 g) [] [NT $ s0 g])
+  in items' $ singleton $ closure s0
+--  singleton (Item (Init $ s0 g) [] [NT $ s0 g])
 
-kernel :: Set Item -> Set Item
+kernel :: Set (Item a) -> Set (Item a)
 kernel = let
-    kernel' (Item (Init   _) _  _) = True
-    kernel' (Item (ItemNT _) [] _) = False
+    kernel' (Item (Init   _) _  _ _) = True
+    kernel' (Item (ItemNT _) [] _ _) = False
     kernel' _ = True
   in S.filter kernel'
 
 -- Generate the set of all possible Items for a given grammar:
-allItems :: Grammar () -> Set Item
-allItems g = fromList
-    [ Item (Init $ s0 g) [] [NT $ s0 g]
-    , Item (Init $ s0 g) [NT $ s0 g] []
+allSLRItems :: Grammar () -> Set SLRItem
+allSLRItems g = fromList
+    [ Item (Init $ s0 g) [] [NT $ s0 g] ()
+    , Item (Init $ s0 g) [NT $ s0 g] [] ()
     ]
   `union`
   fromList
-    [ Item (ItemNT nt) (reverse $ take n γ) (drop n γ)
+    [ Item (ItemNT nt) (reverse $ take n γ) (drop n γ) ()
     | nt <- toList $ ns g
     , (_, p@(Prod γ)) <- prodsFor g nt
     , isProd p
     , n <- [0..length γ]
     ]
 
-type LRState  = Set Item
-type LRTable = Map (LRState, Token) LRAction
+type LRState a = Set (Item a)
+type LRTable a = Map (LRState a, Token) (LRAction a)
 
-data LRAction =
-    Shift   LRState
+data LRAction a =
+    Shift  (LRState a)
   | Reduce (Production ())
   | Accept
   | Error
   deriving (Eq, Ord, Show)
 
-slrItems :: Grammar () -> Set (Set Item)
-slrItems g = items g $ slrGoto g
+type SLRItem = Item ()
+type SLRState = LRState ()
+type SLRTable = LRTable ()
 
-slrTable :: Grammar () -> LRTable
+slrS0 :: Grammar () -> SLRState
+slrS0 g = singleton $ Item (Init $ s0 g) [] [NT $ s0 g] ()
+
+slrItems :: Grammar () -> Set (Set SLRItem)
+slrItems g = items g (slrGoto g) (slrClosure g) (slrS0 g)
+
+slrTable :: Grammar () -> SLRTable
 slrTable g = let
 
     --slr' :: a -> b -> b
     --slr' :: Set Item -> Item -> LRTable -> LRTable
-    slr' :: Set Item -> LRTable
+    slr' :: SLRState -> SLRTable
     slr' _Ii = let
-        slr'' :: Item -> LRTable
-        slr'' (Item (ItemNT nt) α (T a:β)) = --uPIO (print ("TABLE:", a, slrGoto g _Ii $ T a, _Ii)) `seq`
+        slr'' :: SLRItem -> SLRTable
+        slr'' (Item (ItemNT nt) α (T a:β) ()) = --uPIO (print ("TABLE:", a, slrGoto g _Ii $ T a, _Ii)) `seq`
                   M.singleton (_Ii, Token a) (Shift $ slrGoto g _Ii $ T a)
-        slr'' (Item (Init   nt) α (T a:β)) = M.singleton (_Ii, Token a) (Shift $ slrGoto g _Ii $ T a)
-        slr'' (Item (ItemNT nt) α [])      = M.fromList
+        slr'' (Item (Init   nt) α (T a:β) ()) = M.singleton (_Ii, Token a) (Shift $ slrGoto g _Ii $ T a)
+        slr'' (Item (ItemNT nt) α [] ())      = M.fromList
                                           [ ((_Ii, a), Reduce (nt, Prod $ reverse α))
                                           | a <- (toList . LL.follow g) nt
                                           ]
-        slr'' (Item (Init nt) α [])   = M.singleton (_Ii, LL.EOF) Accept
+        slr'' (Item (Init nt) α [] ())   = M.singleton (_Ii, LL.EOF) Accept
         slr'' _ = M.empty
       in S.fold M.union M.empty (S.map slr'' _Ii)
 
   in S.fold M.union M.empty $ S.map slr' $ slrItems g
 
-type Config = ([LRState], [Token])
+type Config a = ([LRState a], [Token])
 
-look :: (LRState, Token) -> LRTable -> Maybe LRAction
+look :: Ord a => (LRState a, Token) -> LRTable a -> Maybe (LRAction a)
 look (s,a) tbl = --uPIO (print ("lookup:", s, a, M.lookup (s, a) act)) `seq`
     M.lookup (s, a) tbl
 
@@ -144,13 +156,13 @@ data ParseEvent ast =
 
 type Action ast = ParseEvent ast -> ast
 
-lrParse :: forall ast. Grammar () -> LRTable -> Goto -> Action ast -> [Token] -> Maybe ast
-lrParse g tbl goto act w = let
+lrParse :: forall ast a. Ord a => Grammar () -> LRTable a -> Goto a -> Closure a -> LRState a -> Action ast -> [Token] -> Maybe ast
+lrParse g tbl goto closure s_0 act w = let
   
-    lr :: Config -> [ast] -> Maybe ast
+    lr :: Config a -> [ast] -> Maybe ast
     lr (s:states, a:ws) asts = let
         
-        lr' :: Maybe LRAction -> Maybe ast
+        lr' :: Maybe (LRAction a) -> Maybe ast
         lr' Nothing          = Nothing
         lr' (Just Accept)    = case length asts of
               1 -> Just $ head asts
@@ -164,12 +176,10 @@ lrParse g tbl goto act w = let
 
       in lr' $ look (s,a) tbl
 
-    s_0 = Item (Init $ s0 g) [] [NT $ s0 g]
-
-  in lr ([closure g $ S.singleton s_0], w) []
+  in lr ([closure s_0], w) []
 
 slrParse :: Grammar () -> Action ast -> [Token] -> Maybe ast
-slrParse g = lrParse g (slrTable g) (slrGoto g)
+slrParse g = lrParse g (slrTable g) (slrGoto g) (slrClosure g) (slrS0 g)
 
 slrRecognize :: Grammar () -> [Token] -> Bool
 slrRecognize g w = (Nothing /=) $ slrParse g (const 0) w

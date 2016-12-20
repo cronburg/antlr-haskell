@@ -23,32 +23,34 @@ uPIO = unsafePerformIO
 
 grm = dragonBook41
 
+slrItem x y z = Item x y z ()
+
 testClosure =
-  closure grm (S.singleton $ Item (Init "E") [] [NT "E"])
+  slrClosure grm (S.singleton $ slrItem (Init "E") [] [NT "E"])
   @?=
   fromList
-    [ Item (Init "E")   [] [NT "E"]
-    , Item (ItemNT "E") [] [NT "E", T "+", NT "T"]
-    , Item (ItemNT "E") [] [NT "T"]
-    , Item (ItemNT "T") [] [NT "T", T "*", NT "F"]
-    , Item (ItemNT "T") [] [NT "F"]
-    , Item (ItemNT "F") [] [T "(", NT "E", T ")"]
-    , Item (ItemNT "F") [] [T "id"]
+    [ slrItem (Init "E")   [] [NT "E"]
+    , slrItem (ItemNT "E") [] [NT "E", T "+", NT "T"]
+    , slrItem (ItemNT "E") [] [NT "T"]
+    , slrItem (ItemNT "T") [] [NT "T", T "*", NT "F"]
+    , slrItem (ItemNT "T") [] [NT "F"]
+    , slrItem (ItemNT "F") [] [T "(", NT "E", T ")"]
+    , slrItem (ItemNT "F") [] [T "id"]
     ]
 
 testKernel =
-  kernel (closure grm (S.singleton $ Item (Init "E") [] [NT "E"]))
+  kernel (slrClosure grm (S.singleton $ slrItem (Init "E") [] [NT "E"]))
   @?=
   fromList
-    [Item (Init "E") [] [NT "E"]]
+    [ slrItem (Init "E") [] [NT "E"] ]
 
-newtype Item' = I' Item
+newtype Item' = I' (Item ())
   deriving (Eq, Ord, Show)
 
 instance Arbitrary Item' where
-  arbitrary = (elements . map I' . S.toList . allItems) grm
+  arbitrary = (elements . map I' . S.toList . allSLRItems) grm
 
-c' = closure grm
+c' = slrClosure grm
 
 propClosureClosure :: Set Item' -> Property
 propClosureClosure items' = let items = S.map (\(I' is) -> is) items' in True ==>
@@ -80,10 +82,10 @@ instance Arbitrary Grammar' where
 -}
 
 closedItems :: Grammar' -> Property
-closedItems (G' g) = True ==> null (S.fold union empty (slrItems g) \\ allItems g)
+closedItems (G' g) = True ==> null (S.fold union empty (slrItems g) \\ allSLRItems g)
 
 closedItems0 =
-  S.fold union empty (slrItems grm) \\ allItems grm
+  S.fold union empty (slrItems grm) \\ allSLRItems grm
   @?=
   empty
 
@@ -92,40 +94,40 @@ testItems =
   @?=
   fromList [_I0, _I1, _I2, _I3, _I4, _I5, _I6, _I7, _I8, _I9, _I10, _I11]
 
-_I0 = fromList  [ Item (Init "E") [] [NT "E"]
-                , Item (ItemNT "E") [] [NT "E",T "+",NT "T"]
-                , Item (ItemNT "E") [] [NT "T"]
-                , Item (ItemNT "F") [] [T "(",NT "E",T ")"]
-                , Item (ItemNT "F") [] [T "id"]
-                , Item (ItemNT "T") [] [NT "F"]
-                , Item (ItemNT "T") [] [NT "T",T "*",NT "F"]]
-_I1 = fromList  [ Item (Init "E") [NT "E"] []
-                , Item (ItemNT "E") [NT "E"] [T "+",NT "T"]]
-_I4 = fromList  [ Item (ItemNT "E") [] [NT "E",T "+",NT "T"]
-                , Item (ItemNT "E") [] [NT "T"]
-                , Item (ItemNT "F") [] [T "(",NT "E",T ")"]
-                , Item (ItemNT "F") [] [T "id"]
-                , Item (ItemNT "F") [T "("] [NT "E",T ")"]
-                , Item (ItemNT "T") [] [NT "F"]
-                , Item (ItemNT "T") [] [NT "T",T "*",NT "F"]]
-_I8 = fromList  [ Item (ItemNT "E") [NT "E"] [T "+",NT "T"]
-                , Item (ItemNT "F") [NT "E",T "("] [T ")"]]
-_I2 = fromList  [ Item (ItemNT "E") [NT "T"] []
-                , Item (ItemNT "T") [NT "T"] [T "*",NT "F"]]
-_I9 = fromList  [ Item (ItemNT "E") [NT "T",T "+",NT "E"] []
-                , Item (ItemNT "T") [NT "T"] [T "*",NT "F"]]
-_I6 = fromList  [ Item (ItemNT "E") [T "+",NT "E"] [NT "T"]
-                , Item (ItemNT "F") [] [T "(",NT "E",T ")"]
-                , Item (ItemNT "F") [] [T "id"]
-                , Item (ItemNT "T") [] [NT "F"]
-                , Item (ItemNT "T") [] [NT "T",T "*",NT "F"]]
-_I7 = fromList  [ Item (ItemNT "F") [] [T "(",NT "E",T ")"]
-                , Item (ItemNT "F") [] [T "id"]
-                , Item (ItemNT "T") [T "*",NT "T"] [NT "F"]]
-_I11 = fromList  [ Item (ItemNT "F") [T ")",NT "E",T "("] []]
-_I5  = fromList  [ Item (ItemNT "F") [T "id"] []]
-_I3  = fromList  [ Item (ItemNT "T") [NT "F"] []]
-_I10 = fromList  [ Item (ItemNT "T") [NT "F",T "*",NT "T"] []]
+_I0 = fromList  [ slrItem (Init "E") [] [NT "E"]
+                , slrItem (ItemNT "E") [] [NT "E",T "+",NT "T"]
+                , slrItem (ItemNT "E") [] [NT "T"]
+                , slrItem (ItemNT "F") [] [T "(",NT "E",T ")"]
+                , slrItem (ItemNT "F") [] [T "id"]
+                , slrItem (ItemNT "T") [] [NT "F"]
+                , slrItem (ItemNT "T") [] [NT "T",T "*",NT "F"]]
+_I1 = fromList  [ slrItem (Init "E") [NT "E"] []
+                , slrItem (ItemNT "E") [NT "E"] [T "+",NT "T"]]
+_I4 = fromList  [ slrItem (ItemNT "E") [] [NT "E",T "+",NT "T"]
+                , slrItem (ItemNT "E") [] [NT "T"]
+                , slrItem (ItemNT "F") [] [T "(",NT "E",T ")"]
+                , slrItem (ItemNT "F") [] [T "id"]
+                , slrItem (ItemNT "F") [T "("] [NT "E",T ")"]
+                , slrItem (ItemNT "T") [] [NT "F"]
+                , slrItem (ItemNT "T") [] [NT "T",T "*",NT "F"]]
+_I8 = fromList  [ slrItem (ItemNT "E") [NT "E"] [T "+",NT "T"]
+                , slrItem (ItemNT "F") [NT "E",T "("] [T ")"]]
+_I2 = fromList  [ slrItem (ItemNT "E") [NT "T"] []
+                , slrItem (ItemNT "T") [NT "T"] [T "*",NT "F"]]
+_I9 = fromList  [ slrItem (ItemNT "E") [NT "T",T "+",NT "E"] []
+                , slrItem (ItemNT "T") [NT "T"] [T "*",NT "F"]]
+_I6 = fromList  [ slrItem (ItemNT "E") [T "+",NT "E"] [NT "T"]
+                , slrItem (ItemNT "F") [] [T "(",NT "E",T ")"]
+                , slrItem (ItemNT "F") [] [T "id"]
+                , slrItem (ItemNT "T") [] [NT "F"]
+                , slrItem (ItemNT "T") [] [NT "T",T "*",NT "F"]]
+_I7 = fromList  [ slrItem (ItemNT "F") [] [T "(",NT "E",T ")"]
+                , slrItem (ItemNT "F") [] [T "id"]
+                , slrItem (ItemNT "T") [T "*",NT "T"] [NT "F"]]
+_I11 = fromList  [ slrItem (ItemNT "F") [T ")",NT "E",T "("] []]
+_I5  = fromList  [ slrItem (ItemNT "F") [T "id"] []]
+_I3  = fromList  [ slrItem (ItemNT "T") [NT "F"] []]
+_I10 = fromList  [ slrItem (ItemNT "T") [NT "F",T "*",NT "T"] []]
 
 r1 = Reduce ("E", Prod [NT "E", T "+", NT "T"])
 r2 = Reduce ("E", Prod [NT "T"])
