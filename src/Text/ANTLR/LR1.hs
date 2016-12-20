@@ -1,11 +1,11 @@
 {-# LANGUAGE ScopedTypeVariables, ExplicitForAll #-}
 module Text.ANTLR.LR1
-  ( Item(..)
-  , slrClosure, slrGoto, slrItems
-  , ItemLHS(..)
-  , kernel, allSLRItems, items
-  , slrTable, Token(..), LRAction(..), Action, LRState, LRTable
-  , lrParse, slrParse, slrRecognize, ParseEvent(..)
+  ( Token(..), Action, Item(..), ItemLHS(..), ParseEvent(..)
+  , kernel, items
+  , slrClosure, slrGoto, slrItems, allSLRItems, slrTable, slrParse, slrRecognize
+  , lr1Closure, lr1Goto, lr1Items, lr1Table, lr1Parse, lr1Recognize
+  , LRState, LRTable, LRAction(..)
+  , lrParse
   ) where
 import Text.ANTLR.Allstar.Grammar
 import qualified Text.ANTLR.LL1 as LL
@@ -35,6 +35,7 @@ data Item a = Item ItemLHS Symbols {- . -} Symbols a
 type Closure a = Set (Item a) -> Set (Item a)
 
 type SLRClosure = Closure ()
+type LR1Closure = Closure LR1LookAhead
 
 slrClosure :: Grammar () -> SLRClosure
 slrClosure g is' = let
@@ -55,14 +56,41 @@ slrClosure g is' = let
 
   in closure' is'
 
+lr1Closure :: Grammar () -> Closure LR1LookAhead
+lr1Closure g is' = let
+
+    tokenToProdElem (Token a) = [T a]
+    tokenToProdElem _ = []
+
+    closure' :: LR1Closure
+    closure' _J = let
+      add = fromList
+            -- TODO: Handle EOF in LL.first set calculation properly?:
+            [ Item (ItemNT _B) [] γ (if b == Eps' then EOF else b)
+            | Item _A α rst@(pe@(NT _B) : β) a <- toList _J
+            , not $ null rst
+            , isNT pe
+            , (_, p@(Prod γ)) <- prodsFor g _B
+            , isProd p
+            , b <- toList $ LL.first g (β ++ tokenToProdElem a)
+            ]
+      in case size $ add \\ _J of
+        0 -> _J `union` add
+        _ -> closure' $ _J `union` add
+
+  in closure' is'
+
 type Goto a = LRState a -> ProdElem -> LRState a
 
-slrGoto :: Grammar () -> Goto ()
-slrGoto g is _X = slrClosure g $ fromList
-  [ Item _A (_X : α) β ()
-  | Item _A α (_X' : β) () <- toList is
+goto :: Ord a => Grammar () -> Closure a -> Goto a
+goto g closure is _X = closure $ fromList
+  [ Item _A (_X : α) β  a
+  | Item _A α (_X' : β) a <- toList is
   , _X == _X'
   ]
+
+slrGoto :: Grammar () -> Goto ()
+slrGoto g = goto g (slrClosure g)
 
 items :: forall a. Ord a => Grammar () -> Goto a -> Closure a -> LRState a -> Set (LRState a)
 items g goto closure s0 = let
@@ -116,8 +144,11 @@ type SLRItem = Item ()
 type SLRState = LRState ()
 type SLRTable = LRTable ()
 
+lrS0 :: a -> Grammar () -> LRState a
+lrS0 a g = singleton $ Item (Init $ s0 g) [] [NT $ s0 g] a
+
 slrS0 :: Grammar () -> SLRState
-slrS0 g = singleton $ Item (Init $ s0 g) [] [NT $ s0 g] ()
+slrS0 = lrS0 ()
 
 slrItems :: Grammar () -> Set (Set SLRItem)
 slrItems g = items g (slrGoto g) (slrClosure g) (slrS0 g)
@@ -142,6 +173,24 @@ slrTable g = let
       in S.fold M.union M.empty (S.map slr'' _Ii)
 
   in S.fold M.union M.empty $ S.map slr' $ slrItems g
+
+type LR1Item  = Item    LR1LookAhead
+type LR1Table = LRTable LR1LookAhead
+
+lr1Table :: Grammar () -> LR1Table
+lr1Table g = let
+    lr1' :: LR1State -> LR1Table
+    lr1' _Ii = let
+        lr1'' :: LR1Item -> LR1Table
+        lr1'' (Item (ItemNT nt) α (T a:β) _) = --uPIO (print ("TABLE:", a, slrGoto g _Ii $ T a, _Ii)) `seq`
+                  M.singleton (_Ii, Token a) (Shift $ lr1Goto g _Ii $ T a)
+        lr1'' (Item (Init   nt) α (T a:β) _) = M.singleton (_Ii, Token a) (Shift $ lr1Goto g _Ii $ T a)
+        lr1'' (Item (ItemNT nt) α [] a)      = M.singleton (_Ii,       a) (Reduce (nt, Prod $ reverse α))
+        lr1'' (Item (Init nt) α [] EOF)   = M.singleton (_Ii, LL.EOF) Accept
+        lr1'' _ = M.empty
+      in S.fold M.union M.empty (S.map lr1'' _Ii)
+
+  in S.fold M.union M.empty $ S.map lr1' $ lr1Items g
 
 type Config a = ([LRState a], [Token])
 
@@ -183,4 +232,23 @@ slrParse g = lrParse g (slrTable g) (slrGoto g) (slrClosure g) (slrS0 g)
 
 slrRecognize :: Grammar () -> [Token] -> Bool
 slrRecognize g w = (Nothing /=) $ slrParse g (const 0) w
+
+lr1Recognize :: Grammar () -> [Token] -> Bool
+lr1Recognize g w = (Nothing /=) $ lr1Parse g (const 0) w
+
+type LR1LookAhead = Token -- Single Token of lookahead for LR1
+
+lr1Goto :: Grammar () -> Goto LR1LookAhead
+lr1Goto g = goto g (lr1Closure g)
+
+type LR1State = LRState LR1LookAhead
+
+lr1S0 :: Grammar () -> LRState LR1LookAhead
+lr1S0 = lrS0 EOF
+
+lr1Items :: Grammar () -> Set (LRState LR1LookAhead)
+lr1Items g = items g (lr1Goto g) (lr1Closure g) (lr1S0 g)
+
+lr1Parse :: Grammar () -> Action ast -> [Token] -> Maybe ast
+lr1Parse g = lrParse g (lr1Table g) (lr1Goto g) (lr1Closure g) (lr1S0 g)
 

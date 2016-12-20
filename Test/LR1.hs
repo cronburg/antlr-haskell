@@ -195,7 +195,7 @@ testSLRExp = M.fromList
     ]
 
 testLRRecognize =
-  slrRecognize grm (map Token ["id", "*", "id", "+", "id"] ++ [EOF])
+  slrRecognize grm w0
   @?=
   True
 
@@ -220,7 +220,7 @@ action0 (TokenE EOF)       = ULeafEOF
 action0 (NonTE (nt, ss, asts)) = UAST nt ss asts
 
 testLRParse =
-  slrParse grm action0 (map Token ["id", "*", "id", "+", "id"] ++ [EOF])
+  slrParse grm action0 w0
   @?=
   (Just $
     UAST "E" [NT "E", T "+", NT "T"]
@@ -240,6 +240,96 @@ testLRParse2 =
   @?=
   Nothing
 
+w0 = map Token ["id", "*", "id", "+", "id"] ++ [EOF]
+
+testLR1Table =
+  lr1Table dragonBook455
+  @?=
+  lr1TableExp
+
+lr1TableExp = M.fromList
+  [ ((i0, Token "c"), Shift i3)
+  , ((i0, Token "d"), Shift i4)
+  , ((i1, EOF),       Accept)
+  , ((i2, Token "c"), Shift i6)
+  , ((i2, Token "d"), Shift i7)
+  , ((i3, Token "c"), Shift i3)
+  , ((i3, Token "d"), Shift i4)
+  , ((i4, Token "c"), r3')
+  , ((i4, Token "d"), r3')
+  , ((i5, EOF),       r1')
+  , ((i6, Token "c"), Shift i6)
+  , ((i6, Token "d"), Shift i7)
+  , ((i7, EOF),       r3')
+  , ((i8, Token "c"), r2')
+  , ((i8, Token "d"), r2')
+  , ((i9, EOF),       r2')
+  ]
+
+--r5 = Reduce ("F", Prod [T "(", NT "E", T ")"])
+r1' = Reduce ("S", Prod [NT "C", NT "C"])
+r2' = Reduce ("C", Prod [T "c", NT "C"])
+r3' = Reduce ("C", Prod [T "d"])
+
+testLR1Items =
+  lr1Items dragonBook455
+  @?=
+  fromList [i0,i1,i2,i3,i4,i5,i6,i7,i8,i9]
+
+-- page 262 of soft cover dragon book:
+i0 = fromList
+  [ Item (Init   "S") [] [NT "S"]         EOF
+  , Item (ItemNT "S") [] [NT "C", NT "C"] EOF
+  , Item (ItemNT "C") [] [T "c", NT "C"]  (Token "c")
+  , Item (ItemNT "C") [] [T "c", NT "C"]  (Token "d")
+  , Item (ItemNT "C") [] [T "d"]          (Token "c")
+  , Item (ItemNT "C") [] [T "d"]          (Token "d")
+  ]
+
+i1 = fromList [ Item (Init "S") [NT "S"] [] EOF ]
+
+i2 = fromList
+  [ Item (ItemNT "S") [NT "C"] [NT "C"]   EOF
+  , Item (ItemNT "C") [] [T "c", NT "C"]  EOF
+  , Item (ItemNT "C") [] [T "d"]          EOF
+  ]
+
+i3 = fromList
+  [ Item (ItemNT "C") [T "c"] [NT "C"]    (Token "c")
+  , Item (ItemNT "C") [T "c"] [NT "C"]    (Token "d")
+  , Item (ItemNT "C") [] [T "c", NT "C"]  (Token "c")
+  , Item (ItemNT "C") [] [T "c", NT "C"]  (Token "d")
+  , Item (ItemNT "C") [] [T "d"]          (Token "c")
+  , Item (ItemNT "C") [] [T "d"]          (Token "d")
+  ]
+
+i4 = fromList
+  [ Item (ItemNT "C") [T "d"] [] (Token "c")
+  , Item (ItemNT "C") [T "d"] [] (Token "d")
+  ]
+
+i5 = fromList [ Item (ItemNT "S") [NT "C", NT "C"] [] EOF ]
+
+i6 = fromList
+  [ Item (ItemNT "C") [T "c"] [NT "C"]    EOF
+  , Item (ItemNT "C") [] [T "c", NT "C"]  EOF
+  , Item (ItemNT "C") [] [T "d"]          EOF
+  ]
+
+i7 = fromList [ Item (ItemNT "C") [T "d"] [] EOF ]
+
+i8 = fromList
+  [ Item (ItemNT "C") [NT "C", T "c"] [] (Token "c")
+  , Item (ItemNT "C") [NT "C", T "c"] [] (Token "d")
+  ]
+
+i9 = fromList [ Item (ItemNT "C") [NT "C", T "c"] [] EOF ]
+
+testLR1Parse =
+  lr1Parse grm action0 w0
+  @?=
+  slrParse grm action0 w0
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "closure" testClosure
@@ -255,5 +345,8 @@ main = defaultMainWithOpts
   , testCase "testLRRecognize2" testLRRecognize2
   , testCase "testLRParse" testLRParse
   , testCase "testLRParse2" testLRParse2
+  , testCase "testLR1Parse" testLR1Parse
+  , testCase "testLR1Items" testLR1Items
+  , testCase "testLR1Table" testLR1Table
   ] mempty
 

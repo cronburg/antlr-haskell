@@ -43,3 +43,13 @@ dragonBook41 = defaultGrammar
           ]
   }
 
+dragonBook455 = defaultGrammar
+  { ns = fromList ["S", "C"]
+  , ts = fromList ["c", "d"]
+  , s0 = "S"
+  , ps =  [ ("S", Prod [NT "C", NT "C"])
+          , ("C", Prod [T "c", NT "C"])
+          , ("C", Prod [T "d"])
+          ]
+  }
+
