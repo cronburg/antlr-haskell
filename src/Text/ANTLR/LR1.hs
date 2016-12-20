@@ -118,10 +118,11 @@ slrTable g = let
     slr' :: Set Item -> LRTable
     slr' _Ii = let
         slr'' :: Item -> LRTable
-        slr'' (Item (ItemNT nt) α (T a:β)) = M.singleton (_Ii, Token a) (Shift $ slrGoto g _Ii $ NT a)
-        slr'' (Item (Init   nt) α (T a:β)) = M.singleton (_Ii, Token a) (Shift $ slrGoto g _Ii $ NT a)
+        slr'' (Item (ItemNT nt) α (T a:β)) = --uPIO (print ("TABLE:", a, slrGoto g _Ii $ T a, _Ii)) `seq`
+                  M.singleton (_Ii, Token a) (Shift $ slrGoto g _Ii $ T a)
+        slr'' (Item (Init   nt) α (T a:β)) = M.singleton (_Ii, Token a) (Shift $ slrGoto g _Ii $ T a)
         slr'' (Item (ItemNT nt) α [])      = M.fromList
-                                          [ ((_Ii, a), Reduce (nt, Prod α))
+                                          [ ((_Ii, a), Reduce (nt, Prod $ reverse α))
                                           | a <- (toList . LL.follow g) nt
                                           ]
         slr'' (Item (Init nt) α [])   = M.singleton (_Ii, LL.EOF) Accept
@@ -133,7 +134,8 @@ slrTable g = let
 type Config = ([LRState], [Token])
 
 look :: (LRState, Token) -> LRTable -> Maybe Action
-look (s,a) act = uPIO (print ("lookup:", s, a, M.lookup (s, a) act)) `seq` M.lookup (s, a) act
+look (s,a) act = --uPIO (print ("lookup:", s, a, M.lookup (s, a) act)) `seq`
+    M.lookup (s, a) act
 
 lrParse :: Grammar () -> LRTable -> Goto -> [Token] -> Bool
 lrParse g act goto w = let
@@ -148,7 +150,8 @@ lrParse g act goto w = let
         lr' (Just (Shift t)) = lr (t:s:states, ws)
         lr' (Just (Reduce (_A, Prod β))) = let
               ss'@(t:_) = drop (length β) (s:states)
-            in uPIO (print ("Reduce:", _A, Prod β)) `seq` lr (goto t (NT _A) : ss', a:ws)
+            in --uPIO (print ("Reduce:", _A, Prod β)) `seq`
+                lr (goto t (NT _A) : ss', a:ws)
 
       in lr' $ look (s,a) act
 
