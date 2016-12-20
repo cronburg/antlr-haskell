@@ -1,11 +1,11 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, ExplicitForAll #-}
 module Text.ANTLR.LR1
   ( Item(..)
   , closure, slrGoto, slrItems
   , ItemLHS(..)
   , kernel, allItems, items
-  , slrTable, Token(..), Action(..), LRState, LRTable
-  , lrParse, slrParse
+  , slrTable, Token(..), LRAction(..), Action, LRState, LRTable
+  , lrParse, slrParse, slrRecognize, ParseEvent(..)
   ) where
 import Text.ANTLR.Allstar.Grammar
 import qualified Text.ANTLR.LL1 as LL
@@ -98,9 +98,9 @@ allItems g = fromList
     ]
 
 type LRState  = Set Item
-type LRTable = Map (LRState, Token) Action
+type LRTable = Map (LRState, Token) LRAction
 
-data Action =
+data LRAction =
     Shift   LRState
   | Reduce (Production ())
   | Accept
@@ -133,32 +133,44 @@ slrTable g = let
 
 type Config = ([LRState], [Token])
 
-look :: (LRState, Token) -> LRTable -> Maybe Action
-look (s,a) act = --uPIO (print ("lookup:", s, a, M.lookup (s, a) act)) `seq`
-    M.lookup (s, a) act
+look :: (LRState, Token) -> LRTable -> Maybe LRAction
+look (s,a) tbl = --uPIO (print ("lookup:", s, a, M.lookup (s, a) act)) `seq`
+    M.lookup (s, a) tbl
 
-lrParse :: Grammar () -> LRTable -> Goto -> [Token] -> Bool
-lrParse g act goto w = let
+-- TODO: unify with LL
+data ParseEvent ast =
+    TokenE Token
+  | NonTE  (NonTerminal, Symbols, [ast])
+
+type Action ast = ParseEvent ast -> ast
+
+lrParse :: forall ast. Grammar () -> LRTable -> Goto -> Action ast -> [Token] -> Maybe ast
+lrParse g tbl goto act w = let
   
-    lr :: Config -> Bool
-    lr (s:states, a:ws) = let
+    lr :: Config -> [ast] -> Maybe ast
+    lr (s:states, a:ws) asts = let
         
-        lr' :: Maybe Action -> Bool
-        lr' Nothing = False
-        lr' (Just Accept) = True
-        lr' (Just Error)  = False
-        lr' (Just (Shift t)) = lr (t:s:states, ws)
+        lr' :: Maybe LRAction -> Maybe ast
+        lr' Nothing          = Nothing
+        lr' (Just Accept)    = case length asts of
+              1 -> Just $ head asts
+              _ -> Nothing
+        lr' (Just Error)     = Nothing
+        lr' (Just (Shift t)) = lr (t:s:states, ws) $ act (TokenE a) : asts
         lr' (Just (Reduce (_A, Prod β))) = let
               ss'@(t:_) = drop (length β) (s:states)
-            in --uPIO (print ("Reduce:", _A, Prod β)) `seq`
-                lr (goto t (NT _A) : ss', a:ws)
+            in lr (goto t (NT _A) : ss', a:ws)
+                  ((act $ NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
 
-      in lr' $ look (s,a) act
+      in lr' $ look (s,a) tbl
 
     s_0 = Item (Init $ s0 g) [] [NT $ s0 g]
 
-  in lr ([closure g $ S.singleton s_0], w)
+  in lr ([closure g $ S.singleton s_0], w) []
 
-slrParse :: Grammar () -> [Token] -> Bool
+slrParse :: Grammar () -> Action ast -> [Token] -> Maybe ast
 slrParse g = lrParse g (slrTable g) (slrGoto g)
+
+slrRecognize :: Grammar () -> [Token] -> Bool
+slrRecognize g w = (Nothing /=) $ slrParse g (const 0) w
 

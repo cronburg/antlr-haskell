@@ -192,15 +192,51 @@ testSLRExp = M.fromList
     , ((_I11, EOF),       r5)
     ]
 
-testLRParse =
-  slrParse grm (map Token ["id", "*", "id", "+", "id"] ++ [EOF])
+testLRRecognize =
+  slrRecognize grm (map Token ["id", "*", "id", "+", "id"] ++ [EOF])
   @?=
   True
 
-testLRParse2 =
-  slrParse grm (map Token ["id", "*", "id", "+", "+"] ++ [EOF])
+testLRRecognize2 =
+  slrRecognize grm (map Token ["id", "*", "id", "+", "+"] ++ [EOF])
   @?=
   False
+
+data UAST =
+    ULeafEOF
+  | ULeafEps
+  | ULeaf Terminal
+  | UAST  NonTerminal
+          Symbols
+          [UAST]
+  deriving (Eq, Ord, Show)
+
+action0 :: ParseEvent UAST -> UAST
+action0 (TokenE (Token t)) = ULeaf t
+action0 (TokenE Eps')      = ULeafEps
+action0 (TokenE EOF)       = ULeafEOF
+action0 (NonTE (nt, ss, asts)) = UAST nt ss asts
+
+testLRParse =
+  slrParse grm action0 (map Token ["id", "*", "id", "+", "id"] ++ [EOF])
+  @?=
+  (Just $
+    UAST "E" [NT "E", T "+", NT "T"]
+      [ UAST "E" [NT "T"]
+          [ UAST "T" [NT "T", T "*", NT "F"]
+              [ UAST "T" [NT "F"] [UAST "F" [T "id"] [ULeaf "id"]]
+              , ULeaf "*"
+              , UAST "F" [T "id"] [ULeaf "id"]
+              ]
+          ]
+      , ULeaf "+"
+      , UAST "T" [NT "F"] [UAST "F" [T "id"] [ULeaf "id"]]
+      ])
+
+testLRParse2 =
+  slrParse grm action0 (map Token ["id", "*", "id", "+", "+"] ++ [EOF])
+  @?=
+  Nothing
 
 main :: IO ()
 main = defaultMainWithOpts
@@ -213,6 +249,8 @@ main = defaultMainWithOpts
   , testCase "slrTable" testSLRTable
   , testCase "slrTable2" testSLRTable2
   , testCase "slrTable3" testSLRTable3
+  , testCase "testLRRecognize" testLRRecognize
+  , testCase "testLRRecognize2" testLRRecognize2
   , testCase "testLRParse" testLRParse
   , testCase "testLRParse2" testLRParse2
   ] mempty
