@@ -55,6 +55,7 @@ library
                   , Text.ANTLR.Allstar.ATN
                   , Text.ANTLR.Allstar.Lex
                   , Text.ANTLR.LL1
+                  , Text.ANTLR.LR1
 
                   , Language.ANTLR4
                   , Language.ANTLR4.Parser
@@ -143,6 +144,20 @@ Test-Suite Stacks
 Test-Suite LL1
   Type:           exitcode-stdio-1.0
   Main-Is:        Test/LL1.hs
+  build-depends:  base
+                , ANTLR4
+                , QuickCheck
+                , HUnit
+                , Cabal
+                , test-framework
+                , test-framework-hunit
+                , test-framework-quickcheck2
+                , containers
+  default-language: Haskell2010
+
+Test-Suite LR1
+  Type:           exitcode-stdio-1.0
+  Main-Is:        Test/LR1.hs
   build-depends:  base
                 , ANTLR4
                 , QuickCheck
