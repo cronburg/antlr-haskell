@@ -22,6 +22,7 @@ data Parser s = Parser
   , dfa :: Set DFAEdge
   , tokens :: [Lex.Token]
   , stackSensitive :: Set DFAState
+  , amb2 :: [(Lex.Token, Set Int)]
   }
 
 type ParserS s a = State (Parser s) a
@@ -48,7 +49,9 @@ parse = undefined
 --            sllPredict
 --            startState
 --adaptivePredict ::
+adaptivePredict :: NonTerminal -> Gamma -> ParserS s (Maybe Int)
 adaptivePredict = undefined
+
 
 
 --depends on: closure
@@ -157,18 +160,33 @@ move d a = do
 --            closure
 --            getConflictSetsPerLoc
 llPredict :: NonTerminal -> [Lex.Token] -> Gamma -> ParserS s (Maybe Int)
-llPredict a start g0 = undefined
-  -- let
-  --    loop :: Set Configuration -> ParserS s (Maybe Int)
-  --    loop d = do
-  --      Parser {i = i', tokens = ts} <- get
-  --      let curr = ts !! i'
-  --      mv <- move d curr
-  --      let d' = Set.foldr (Set.union . (closure Set.empty)) Set.empty mv
-  --      -- TODO
-  -- in do
-  --      d <- startState a g0
-  --      loop d
+llPredict _A start _γ0 =
+  let
+    loop _D = do
+      p@(Parser {tokens = (cur:rest), amb2 = a2}) <- get
+      ATN {_Δ = delta} <- getATN
+      let term = Lex.termOf cur
+      mv <- move _D term
+      let _D' = Set.foldr (Set.union . (closure delta Set.empty)) Set.empty mv
+      case (Set.toList . getJs) _D' of
+        []  -> return Nothing
+        [i] -> return $ Just i
+        _   -> do -- ambiguous case
+           let altsets = getConflictSetsPerLoc _D'
+           if (Set.size altsets == 1) && (Set.size (Set.elemAt 0 altsets) > 1)
+             then do
+               let x = (Set.elemAt 0 altsets)
+               put $ p{amb2 = (cur, x) : a2}
+               return $ Just $ Set.elemAt 0 x
+             else loop _D'
+
+
+
+    getJs confs = Set.foldr (\(_,i,_) s -> Set.insert i s) Set.empty confs
+  in
+    do
+      _D <- startState _A _γ0
+      loop _D
 
 
 --getATN = return $ ATN { _Δ = Set.empty }
