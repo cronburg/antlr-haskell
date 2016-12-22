@@ -22,7 +22,7 @@ data Parser s = Parser
   , dfa :: Set DFAEdge
   , tokens :: [Lex.Token]
   , stackSensitive :: Set DFAState
-  , amb2 :: [(Lex.Token, Set Int)]
+  , amb2 :: [([Lex.Token],Lex.Token, Set Int)]
   }
 
 type ParserS s a = State (Parser s) a
@@ -50,7 +50,34 @@ parse = undefined
 --            startState
 --adaptivePredict ::
 adaptivePredict :: NonTerminal -> Gamma -> ParserS s (Maybe Int)
-adaptivePredict = undefined
+adaptivePredict _A _γ0 =
+  let hasPredForA :: [Production a] -> Bool
+      hasPredForA ((_,Sem _ _):_) = True
+      hasPredForA [] = False
+      hasPredForA (prod:prods) = hasPredForA prods
+
+      --getD0 dfa = undefined
+        --if dfa does not have start edge for _A
+        --then do
+          -- make it using startState
+          -- update the DFA
+        -- else
+          -- grab the start state already in the DFA
+
+  in do
+      p@(Parser{tokens=ts,g=gram, dfa=_dfa}) <- get
+      if hasPredForA $ prodsFor gram _A
+        then do
+          alt <- llPredict _A ts _γ0
+          put $ p{tokens=ts} -- rewind input
+          return alt
+        else do
+          -- dfa
+          _D0 <- startState _A Wildcard
+          alt <- sllPredict _A _D0 ts _γ0
+          put $ p{tokens=ts}
+          return alt
+
 
 
 
@@ -142,7 +169,7 @@ target d0 a = do
 
 -- no dependencies
 -- set of all (q,i,Gamma) s.t. p -a> q and (p,i,Gamma) in State d
-move :: Set Configuration -> Terminal -> ParserS s (Set Configuration)
+move :: Set Configuration ->  Terminal -> ParserS s (Set Configuration)
 move d a = do
   ATN {_Δ = delta} <- getATN
   return $ Set.foldr (fltr delta) Set.empty d
@@ -176,7 +203,7 @@ llPredict _A start _γ0 =
            if (Set.size altsets == 1) && (Set.size (Set.elemAt 0 altsets) > 1)
              then do
                let x = (Set.elemAt 0 altsets)
-               put $ p{amb2 = (cur, x) : a2}
+               put $ p{amb2 = (start, cur, x) : a2}
                return $ Just $ Set.elemAt 0 x
              else do
                put $ p {tokens = rest}
