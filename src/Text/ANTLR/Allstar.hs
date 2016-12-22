@@ -178,7 +178,9 @@ llPredict _A start _γ0 =
                let x = (Set.elemAt 0 altsets)
                put $ p{amb2 = (cur, x) : a2}
                return $ Just $ Set.elemAt 0 x
-             else loop _D'
+             else do
+               put $ p {tokens = rest}
+               loop _D'
 
 
 
