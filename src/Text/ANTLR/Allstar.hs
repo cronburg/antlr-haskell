@@ -42,7 +42,47 @@ type Configuration = (ATNState, Int, Gamma)
 
 --depends on: adaptivePredict
 --parse ::
-parse = undefined
+parse :: NonTerminal -> ParserS s (Maybe ())
+parse _S =
+  let loop p _γ0 i =
+        case p of
+          Accept _B -> if _B == _S
+                        then return $ Just () --success
+                        else let ((q,_γ1):_) = pop _γ0
+                             in  loop q _γ1 i
+          _          ->
+           do
+             ATN {_Δ = delta} <-  getATN
+             parser@(Parser{tokens = (curr:rest), s=parser_state}) <- get
+             -- should only ever be one by atn construction
+             let [(_,t,q)] = Set.toList $ Set.filter (\(p',_,_) -> p' == p) delta
+             case t of
+               TE b -> if b == curr
+                                  then do
+                                    put $ parser {tokens = rest}
+                                    loop q _γ0 i
+                                  else return Nothing
+               NTE _B -> do
+                 let _γ1 = push q _γ0
+                 _i <- adaptivePredict _B _γ1
+                 case _i of
+                   Just i' -> loop (Middle _B i' 0) _γ1 i'
+                   Nothing -> return Nothing
+               PE (Predicate _π f) -> if f parser_state
+                                      then loop q _γ0 i
+                                      else return Nothing
+               ME (Mutator _μ f) -> do
+                put $ parser{s = f parser_state}
+                loop q _γ0 i
+               Epsilon -> loop q _γ0 i
+  in do
+       let gamma = Empty
+       i <- adaptivePredict _S gamma
+
+       case i of
+         Just i -> let p = Middle _S i 0
+                   in  loop p gamma i
+         Nothing -> return Nothing
 
 
 --depends on: llPredict
