@@ -3,7 +3,7 @@ import Test.Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.LL1
 
-import Data.Set (fromList, union, empty)
+import Data.Set (fromList, union, empty, Set(..))
 import qualified Data.Set as S
 import qualified Data.Map.Strict as M
 
@@ -16,8 +16,12 @@ import Test.HUnit
 import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
+type LL1NonTerminal = String
+type LL1Terminal    = String
+
 uPIO = unsafePerformIO
 
+grm :: Grammar () LL1NonTerminal LL1Terminal
 grm = dragonBook428
 
 termination = first grm [NT "E"] @?= first grm [NT "E"]
@@ -57,8 +61,14 @@ firstAll =
     , (T "id",  fromList [Token "id"])
     ]
 
-followAll =
-  S.map (\nt -> (NT nt, follow grm nt)) (ns grm)
+grm' :: Grammar () LL1NonTerminal LL1Terminal
+grm' = grm
+
+followAll :: IO ()
+followAll = let
+    fncn :: LL1NonTerminal -> (ProdElem LL1NonTerminal LL1Terminal, Set (Token LL1Terminal))
+    fncn nt = (NT nt, follow grm' nt)
+  in S.map fncn (ns grm')
   @?=
   fromList
     [ (NT "E",  fromList [Token ")", EOF])
@@ -90,9 +100,9 @@ parseTableTest =
 
 data UAST =
     ULeafEps
-  | ULeaf Terminal
-  | UAST  NonTerminal
-          Symbols
+  | ULeaf LL1Terminal
+  | UAST  LL1NonTerminal
+          (Symbols LL1NonTerminal LL1Terminal)
           [UAST]
   deriving (Eq, Ord, Show)
 
@@ -138,7 +148,6 @@ main = defaultMainWithOpts
   , testCase "dragonHasAllNonTerms" $ hasAllNonTerms grm @?= True
   , testCase "dragonHasAllTerms" $ hasAllTerms grm @?= True
   , testCase "dragonStartIsNonTerm" $ startIsNonTerm grm @?= True
-  , testCase "dragonDistinctTermsNonTerms" $ distinctTermsNonTerms grm @?= True
   , testCase "dragonIsValid" $ validGrammar grm @?= True
   , testCase "dragonIsLL1" $ isLL1 grm @?= True
   , testCase "dragonParseTable" parseTableTest

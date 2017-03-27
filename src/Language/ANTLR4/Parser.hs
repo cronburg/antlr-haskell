@@ -21,31 +21,7 @@ import Text.ParserCombinators.Parsec.Pos      (newPos)
 -- text munging
 import Data.Char
 
-
-
--- .g4 style syntax
-data G4 = Grammar {gName :: String}
-        | Prod {pName :: String, patterns :: [PRHS] }
-        | Lex  {annotation :: Maybe GAnnot, lName :: String, pattern :: LRHS }
-  deriving (Show, Eq)
-
-data PRHS     = PRHS { alphas :: [Either GTerm GNonTerm]
-                        , pred :: Maybe Exp
-                        , mutator :: Maybe Exp
-                        }
-  deriving (Show, Eq)
-
-newtype GTerm    = GTerm String
-  deriving (Show,Eq)
-newtype GNonTerm = GNonTerm String
-  deriving (Show, Eq)
-data    GAnnot   = Fragment
-  deriving (Show, Eq)
-
-data LRHS     = LRHS { regex :: String
-                     , directive :: Maybe String
-                     }
-  deriving (Show, Eq)
+import Language.ANTLR4.Syntax
 
 -- Parser
 sE :: String -> Exp

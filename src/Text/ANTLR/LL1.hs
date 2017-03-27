@@ -28,7 +28,7 @@ data Token t =
   | EOF -- End of input really, but EOF is ubiquitous.
   deriving (Eq, Ord, Show)
 
-isToken (Token _) = True
+isToken Token{} = True
 isToken _ = False
 
 isEps' Eps' = True
@@ -57,7 +57,9 @@ foldWhileEpsilon fncn b0 (a:as)
   | epsIn a b0 = foldWhile epsIn fncn (fncn a b0) as
   | otherwise  = fncn a b0
 
-first :: forall t. forall nt. (NonTerminal nt, Terminal t, Ord nt, Ord t) => Grammar () nt t -> [ProdElem nt t] -> Set (Token t)
+first ::
+  forall t nt. (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  => Grammar () nt t -> [ProdElem nt t] -> Set (Token t)
 first g = let
     firstOne :: Set (ProdElem nt t) -> ProdElem nt t -> Set (Token t)
     firstOne _ t@(T x) = singleton $ Token x
@@ -74,7 +76,6 @@ first g = let
             ]
     
     firstMany :: [Set (Token t)] -> Set (Token t)
-    --firstMany :: Set Token -> Set Token -> Set Token
     firstMany []   = singleton Eps'
     firstMany (ts:tss)
       | Eps' `member` ts = ts `union` firstMany tss
@@ -82,7 +83,7 @@ first g = let
   in firstMany . map (firstOne empty)
 
 follow ::
-  forall nt. forall t. (NonTerminal nt, Terminal t, Ord nt, Eq t, Ord t)
+  forall nt t. (NonTerminal nt, Terminal t, Ord nt, Ord t)
   => Grammar () nt t -> nt -> Set (Token t)
 follow g = let
     follow' busy _B
@@ -148,7 +149,7 @@ type Value nt t = Set (Symbols nt t)
 ambigVal :: Value nt t -> Bool
 ambigVal = (1 >) . size
 
--- M[A,t] = α for each terminal t `member` FIRST(α)
+-- M[A,s] = α for each symbol s `member` FIRST(α)
 type ParseTable nt t = M.Map (Key nt t) (Value nt t)
 
 parseTable' ::
@@ -156,7 +157,9 @@ parseTable' ::
   => (Value nt t -> Value nt t -> Value nt t) -> Grammar () nt t-> ParseTable nt t
 parseTable' fncn g = let
 
-    insertMe :: (NonTerminal nt, Terminal t) => (nt, Token t, Symbols nt t) -> (ParseTable nt t -> ParseTable nt t)
+    insertMe ::
+      (NonTerminal nt, Terminal t)
+      => (nt, Token t, Symbols nt t) -> (ParseTable nt t -> ParseTable nt t)
     insertMe (_A, a, α) = M.insertWith fncn (_A, a) $ singleton α
 
   in
@@ -217,7 +220,7 @@ recognize ::
 recognize g = (Nothing /=) . predictiveParse g (const ())
 
 predictiveParse ::
-  forall nt. forall t. forall ast. (Show nt, Show t, Show ast, NonTerminal nt, Terminal t, Ord nt, Ord t)
+  forall nt t ast. (Show nt, Show t, Show ast, NonTerminal nt, Terminal t, Ord nt, Ord t)
   => Grammar () nt t -> Action ast nt t -> [Token t] ->  Maybe ast
 predictiveParse g act w0 = let
 
@@ -248,7 +251,7 @@ predictiveParse g act w0 = let
     -- [ast] - a stack (list) of the asts the user has computed for us
     --         intermixed (in proper order) with the Terminals in the production
     --         rule for which we reduced the NonTerminal in question.
---  parse' :: [Token] -> Symbols -> StackTree ast -> Maybe (StackTree ast) --Maybe ast
+    parse' :: [Token t] -> Symbols nt t -> StackTree ast nt t -> Maybe (StackTree ast nt t) --Maybe ast
     parse' [EOF] [] asts  = Just asts  -- Success!
     parse' _     [] asts  = Nothing    -- Parse failure because no end of input found
     parse' (Token a:ws) (T x:xs) asts

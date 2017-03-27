@@ -156,7 +156,7 @@ sllPredict _A d0 start _γ0 = do
     where
       findExistingTarget :: [DFAEdge nt t] -> DFAState nt -> t -> Maybe (DFAState nt)
       findExistingTarget ((DFAE d b d'):rest) d0 a
-        | d == d0 && (sameTokens a b) = Just d'
+        | d == d0 && (sameTerminals a b) = Just d'
         | otherwise         = findExistingTarget rest d0 a
       findExistingTarget [] _ _ = Nothing
       loop :: Set (Configuration nt) -> ParserS s nt t (Maybe Int)

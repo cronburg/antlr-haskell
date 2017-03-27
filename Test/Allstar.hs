@@ -25,7 +25,7 @@ module Main where
           ATN {_Δ = d} <-  getATN
           return $ closure d Set.empty (Start "C", 0, Empty))
           ( Parser { g = mattToolG})
-      expected :: Set Configuration
+      expected :: Set (Configuration String)
       expected   =
         fromList [(Start "A",0,Stacks (fromList [[Middle "C" 4 1]]))
                  ,(Start "C",0,Empty)
@@ -43,7 +43,7 @@ module Main where
             move epsilon_closure "a"
           )
           ( Parser { g = mattToolG})
-      expected :: Set Configuration
+      expected :: Set (Configuration String)
       expected = fromList [(Middle "A" 0 1,0,Empty)
                           ,(Middle "A" 0 1,0,Stacks (fromList [[Middle "C" 4 1]]))
                           ,(Middle "A" 1 1,0,Empty)

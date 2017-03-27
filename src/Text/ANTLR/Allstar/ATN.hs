@@ -54,7 +54,7 @@ data Edge s nt t = NTE nt
 {- ATNs do not leak the Terminal and NonTerminal abstractions -}
 instance (NonTerminal nt, Terminal t) => Eq (Edge s nt t) where
   NTE nt == NTE nt1 = sameNTs nt nt1
-  TE t == TE t1 = sameTokens t t1
+  TE t == TE t1 = sameTerminals t t1
   PE p == PE p1 = p == p1
   ME m == ME m1 = m == m1
   Epsilon == Epsilon = True

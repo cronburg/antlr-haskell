@@ -1,8 +1,8 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, FlexibleInstances #-}
 module Text.ANTLR.Allstar.Grammar
   ( NonTerminal
   , Terminal
-  , sameNTs, sameTokens
+  , sameNTs, sameTerminals, ntSymbolName, tSymbolName, SymbolName
   , ProdElem(..)
   , Symbols
   , Production(..)
@@ -28,10 +28,25 @@ import qualified Data.Set as S
 -- information, but when we *compare* them, we should ignore the source info.
 
 class NonTerminal nt where
-  sameNTs :: nt -> nt -> Bool
+  ntSymbolName :: nt -> SymbolName
+ -- sameNTs :: nt -> nt -> Bool
+
+sameNTs :: (NonTerminal nt) => nt -> nt -> Bool
+sameNTs nt0 nt1 = ntSymbolName nt0 == ntSymbolName nt1
+
+type SymbolName = String
 
 class Terminal t where
-  sameTokens :: t -> t -> Bool
+  tSymbolName :: t -> SymbolName
+
+sameTerminals :: (Terminal t) => t -> t -> Bool
+sameTerminals t0 t1 = tSymbolName t0 == tSymbolName t1
+
+instance NonTerminal ([] Char) where
+  ntSymbolName = id
+
+instance Terminal ([] Char) where
+  tSymbolName = id
 
 -- Grammar Symbols:
 data ProdElem nt t =

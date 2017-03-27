@@ -44,7 +44,10 @@ testKernel =
   fromList
     [ slrItem (Init "E") [] [NT "E"] ]
 
-newtype Item' = I' (Item ())
+type LR1Terminal = String
+type LR1NonTerminal = String
+
+newtype Item' = I' (Item () String String)
   deriving (Eq, Ord, Show)
 
 instance Arbitrary Item' where
@@ -56,7 +59,7 @@ propClosureClosure :: Set Item' -> Property
 propClosureClosure items' = let items = S.map (\(I' is) -> is) items' in True ==>
   (c' . c') items == c' items
 
-newtype Grammar' = G' (Grammar ())
+newtype Grammar' = G' (Grammar () String String)
   deriving (Eq, Ord, Show)
 
 instance Arbitrary Grammar' where
@@ -207,13 +210,13 @@ testLRRecognize2 =
 data UAST =
     ULeafEOF
   | ULeafEps
-  | ULeaf Terminal
-  | UAST  NonTerminal
-          Symbols
+  | ULeaf LR1Terminal
+  | UAST  LR1NonTerminal
+          (Symbols LR1NonTerminal LR1Terminal)
           [UAST]
   deriving (Eq, Ord, Show)
 
-action0 :: ParseEvent UAST -> UAST
+action0 :: ParseEvent UAST LR1NonTerminal LR1Terminal -> UAST
 action0 (TokenE (Token t)) = ULeaf t
 action0 (TokenE Eps')      = ULeafEps
 action0 (TokenE EOF)       = ULeafEOF

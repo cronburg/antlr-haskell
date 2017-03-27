@@ -60,6 +60,7 @@ library
                   , Language.ANTLR4
                   , Language.ANTLR4.Parser
                   , Language.ANTLR4.Quote
+                  , Language.ANTLR4.Syntax
 
   -- Modules included in this library but not exported.
   -- other-modules:
