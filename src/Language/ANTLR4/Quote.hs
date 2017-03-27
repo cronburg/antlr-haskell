@@ -43,7 +43,9 @@ g4_exp ast = do
 
 -- TODO Mutator and Predicated fn' cases
 -- TODO Lex case
-toAllstarGrammar :: [G4P.G4] -> (AG.NonTerminal -> AG.Grammar s)
+toAllstarGrammar ::
+  forall s nt t. (AG.NonTerminal nt, AG.Terminal t)
+  => [G4P.G4] -> (nt -> AG.Grammar s nt t)
 toAllstarGrammar grammarMems =
   let
       toNonTerms :: [Either G4P.GTerm G4P.GNonTerm] -> [String]

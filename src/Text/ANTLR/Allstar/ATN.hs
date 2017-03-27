@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Text.ANTLR.Allstar.ATN where
 -- Augmented Transition Network
 import Text.ANTLR.Allstar.Grammar
@@ -5,59 +6,75 @@ import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.Stacks
 import Data.Set (Set(..), empty, fromList, toList)
 
-type Gamma = Stacks ATNState
+type Gamma nt = Stacks (ATNState nt)
 
-data ATN s = ATN
+data ATN s nt t = ATN
   -- q  :: Set ATNState
   -- Σ is an alphabet consisting of distinct elements which are comparable for
   -- equality.
   -- _Σ :: Set (Edge s)
-  { _Δ :: Set (Transition s)
+  { _Δ :: Set (Transition s nt t)
   } deriving (Eq, Ord)
 
-instance Show (ATN s) where
+instance (Show nt, Show t) => Show (ATN s nt t) where
   show ATN {_Δ = _Δ} = "\n[" ++ (concatMap (\s -> "\n, " ++ show s) (toList _Δ)) ++ "\n]"
 
 -- Tuple corresponding to a distinct transition in the ATN:
-type Transition s = (ATNState, Edge s, ATNState)
+type Transition s nt t = (ATNState nt, Edge s nt t, ATNState nt)
 
 -- The possible subscripts from Figure 8 of the ALL(*) paper
-data ATNState = Start  NonTerminal
-              | Middle NonTerminal Int Int
-              | Accept NonTerminal
-  deriving (Eq, Ord, Show)
+data ATNState nt  = Start  nt
+                  | Middle nt Int Int
+                  | Accept nt
+  deriving (Ord, Show)
 
-sigma :: ATN s -> [Edge s]
+{- ATNs do not leak the Terminal and NonTerminal abstractions -}
+instance (NonTerminal nt) => Eq (ATNState nt) where
+  Start nt == Start nt1             = sameNTs nt nt1
+  Middle nt x y == Middle nt1 x1 y1 = sameNTs nt nt1 && x == x1 && y == y1
+  Accept nt == Accept nt1           = sameNTs nt nt1
+  x == y                            = False
+
+sigma :: ATN s nt t -> [Edge s nt t]
 sigma = undefined
 
-e :: ATN s -> Set ATNState
+e :: ATN s nt t -> Set (ATNState nt)
 e = undefined
 
-f :: ATN s -> Set ATNState
+f :: ATN s nt t -> Set (ATNState nt)
 f = undefined
 
-data Edge s = NTE NonTerminal
-            | TE  Terminal
-            | PE  (Predicate s)
-            | ME  (Mutator   s)
-            | Epsilon
-  deriving (Eq, Ord, Show)
+data Edge s nt t = NTE nt
+                 | TE  t
+                 | PE  (Predicate s)
+                 | ME  (Mutator   s)
+                 | Epsilon
+  deriving (Ord, Show)
+
+{- ATNs do not leak the Terminal and NonTerminal abstractions -}
+instance (NonTerminal nt, Terminal t) => Eq (Edge s nt t) where
+  NTE nt == NTE nt1 = sameNTs nt nt1
+  TE t == TE t1 = sameTokens t t1
+  PE p == PE p1 = p == p1
+  ME m == ME m1 = m == m1
+  Epsilon == Epsilon = True
+  x == y = False
 
 -- atnOf :: Grammar -> (ATNState,Edge) -> Maybe ATNState
-atnOf :: Grammar s -> ATN s
+atnOf :: forall nt. forall t. forall s. (NonTerminal nt, Terminal t, Ord nt, Ord t) => Grammar s nt t -> ATN s nt t
 atnOf g = let
 
-  _Δ :: Int -> Production s -> [Transition s]
+  _Δ :: Int -> Production s nt t -> [Transition s nt t]
   _Δ i (lhs, rhs) = let
   --(Prod _α)) = let
 
     -- Construct an internal production state from the given ATN identifier
-    st :: NonTerminal -> Int -> Int -> ATNState
+    st :: nt -> Int -> Int -> ATNState nt
     st = Middle
 
     -- Create the transition for the k^th production element in the i^th
     -- production:
-    _Δ' :: Int -> ProdElem -> Transition s
+    _Δ' :: Int -> ProdElem nt t -> Transition s nt t
     _Δ' k (NT nt) = (st lhs i (k - 1), NTE nt, st lhs i k)
     _Δ' k (T  t)  = (st lhs i (k - 1), TE  t,  st lhs i k)
 

@@ -22,8 +22,8 @@ uPIO = unsafePerformIO
 
 -- An LL1 Token (as used in first and follow sets) is either a
 -- terminal in the grammar's alphabet, or an epsilon
-data Token =
-    Token Terminal
+data Token t =
+    Token t
   | Eps'
   | EOF -- End of input really, but EOF is ubiquitous.
   deriving (Eq, Ord, Show)
@@ -57,9 +57,9 @@ foldWhileEpsilon fncn b0 (a:as)
   | epsIn a b0 = foldWhile epsIn fncn (fncn a b0) as
   | otherwise  = fncn a b0
 
-first :: Grammar () -> [ProdElem] -> Set Token
+first :: forall t. forall nt. (NonTerminal nt, Terminal t, Ord nt, Ord t) => Grammar () nt t -> [ProdElem nt t] -> Set (Token t)
 first g = let
-    firstOne :: Set ProdElem -> ProdElem -> Set Token
+    firstOne :: Set (ProdElem nt t) -> ProdElem nt t -> Set (Token t)
     firstOne _ t@(T x) = singleton $ Token x
     firstOne _ Eps     = singleton Eps'
     firstOne busy nt@(NT x)
@@ -73,7 +73,7 @@ first g = let
             , isProd rhs
             ]
     
-    firstMany :: [Set Token] -> Set Token
+    firstMany :: [Set (Token t)] -> Set (Token t)
     --firstMany :: Set Token -> Set Token -> Set Token
     firstMany []   = singleton Eps'
     firstMany (ts:tss)
@@ -81,7 +81,9 @@ first g = let
       | otherwise        = ts
   in firstMany . map (firstOne empty)
 
-follow :: Grammar () -> NonTerminal -> Set Token
+follow ::
+  forall nt. forall t. (NonTerminal nt, Terminal t, Ord nt, Eq t, Ord t)
+  => Grammar () nt t -> nt -> Set (Token t)
 follow g = let
     follow' busy _B
       | _B `member` busy = empty
@@ -89,7 +91,7 @@ follow g = let
 
         busy' = insert _B busy
         
-        followProd :: NonTerminal -> Symbols -> Set Token
+        followProd :: nt -> Symbols nt t -> Set (Token t)
         followProd _  []  = empty
         followProd _A [s]
               -- If A -> αB then everything in FOLLOW(A) is in FOLLOW(B)
@@ -125,7 +127,7 @@ follow g = let
 --      first(α) `intersection` first(β) == empty
 -- and if epsilon is in α, then
 --      first(α) `intersection` follow(A) == empty
-isLL1 :: Grammar () -> Bool
+isLL1 :: (NonTerminal nt, Terminal t, Eq nt, Ord nt, Eq t, Ord t) => Grammar () nt t -> Bool
 isLL1 g =
   validGrammar g && and
       [  (first g α `intersection` first  g β  == empty)
@@ -137,22 +139,24 @@ isLL1 g =
       , α /= β
       ]
 
-type Key = (NonTerminal, Token)
+type Key nt t = (nt, Token t)
 
 -- All possible productions we could reduce. Empty implies parse error,
 -- singleton implies unambiguous entry, multiple implies ambiguous:
-type Value = Set Symbols
+type Value nt t = Set (Symbols nt t)
 
-ambigVal :: Value -> Bool
+ambigVal :: Value nt t -> Bool
 ambigVal = (1 >) . size
 
 -- M[A,t] = α for each terminal t `member` FIRST(α)
-type ParseTable = M.Map Key Value
+type ParseTable nt t = M.Map (Key nt t) (Value nt t)
 
-parseTable' :: (Value -> Value -> Value) -> Grammar () -> ParseTable
+parseTable' ::
+  forall nt. forall t. (NonTerminal nt, Terminal t, Ord nt, Ord t, Eq t, Eq nt)
+  => (Value nt t -> Value nt t -> Value nt t) -> Grammar () nt t-> ParseTable nt t
 parseTable' fncn g = let
 
-    insertMe :: (NonTerminal, Token, Symbols) -> (ParseTable -> ParseTable)
+    insertMe :: (NonTerminal nt, Terminal t) => (nt, Token t, Symbols nt t) -> (ParseTable nt t -> ParseTable nt t)
     insertMe (_A, a, α) = M.insertWith fncn (_A, a) $ singleton α
 
   in
@@ -182,32 +186,39 @@ parseTable' fncn g = let
       , EOF  `member` follow g _A
       ]
 
+parseTable :: 
+  forall nt. forall t. (NonTerminal nt, Terminal t, Ord nt, Ord t, Eq t, Eq nt)
+  => Grammar () nt t -> ParseTable nt t
 parseTable = parseTable' union
 
 -- Action function is given the nonterminal we just matched on, and the
 -- corresponding list of symbols in the RHS of the matched production
 -- alternative, and the result of recursively 
-data ParseEvent ast =
-    TermE Terminal
-  | NonTE (NonTerminal, Symbols, [ast])
+data ParseEvent ast nt t =
+    TermE t
+  | NonTE (nt, Symbols nt t, [ast])
   | EpsE
-type Action ast = ParseEvent ast -> ast
+type Action ast nt t = ParseEvent ast nt t -> ast
 
-data TreeNode ast =
+data TreeNode ast nt t =
     Comp   ast
-  | InComp NonTerminal Symbols [ast] Int
+  | InComp nt (Symbols nt t) [ast] Int
   deriving (Eq, Ord, Show)
 
-type StackTree ast = [TreeNode ast]
+type StackTree ast nt t = [TreeNode ast nt t]
 
 isComp (Comp _) = True
 isComp _ = False
 isInComp = not . isComp
 
-recognize :: Grammar () -> [Token] -> Bool
+recognize ::
+  (NonTerminal nt, Terminal t, Ord nt, Ord t, Show nt, Show t)
+  => Grammar () nt t -> [Token t] -> Bool
 recognize g = (Nothing /=) . predictiveParse g (const ())
 
-predictiveParse :: Show ast => Grammar () -> Action ast -> [Token] ->  Maybe ast
+predictiveParse ::
+  forall nt. forall t. forall ast. (Show nt, Show t, Show ast, NonTerminal nt, Terminal t, Ord nt, Ord t)
+  => Grammar () nt t -> Action ast nt t -> [Token t] ->  Maybe ast
 predictiveParse g act w0 = let
 
     --reduce :: StackTree ast -> StackTree ast
@@ -230,6 +241,7 @@ predictiveParse g act w0 = let
     pushStack (T t)   _  (InComp nt ss asts i:stree) = reduce $ InComp nt ss (act (TermE t) : asts) (i - 1) : stree
     pushStack Eps     _  (InComp nt ss asts i:stree) = reduce $ InComp nt ss (act EpsE : asts) (i - 1) : stree
     
+    _M :: ParseTable nt t
     _M = parseTable g
 
     -- input word LL1 symbols -> Stack of symbols -> AST

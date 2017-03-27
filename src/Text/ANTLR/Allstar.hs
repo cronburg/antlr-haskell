@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Text.ANTLR.Allstar where
 import Text.ANTLR.Allstar.Grammar
 --import Text.ANTLR.Allstar.GSS
@@ -13,36 +14,39 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 -- parser
-data Parser s = Parser
+data Parser s nt t = Parser
   -- Parser is the mutator state, i.e. current state of the parse
-  { g   :: Grammar s
+  { g   :: Grammar s nt t
   , i   :: Int
-  , amb :: Map ATNState [Int]
+  , amb :: Map (ATNState nt) [Int]
   , s   :: s
-  , dfa :: Set DFAEdge
-  , tokens :: [Lex.Token]
-  , stackSensitive :: Set DFAState
-  , amb2 :: [([Lex.Token],Lex.Token, Set Int)]
+  , dfa :: Set (DFAEdge nt t)
+  , tokens :: [Lex.Token t]
+  , stackSensitive :: Set (DFAState nt)
+  , amb2 :: [([Lex.Token t], Lex.Token t, Set Int)]
   }
 
-type ParserS s a = State (Parser s) a
+type ParserS s nt t a = State (Parser s nt t) a
 
-data DFAEdge = DFAE DFAState Terminal DFAState
+data DFAEdge nt t = DFAE (DFAState nt) t (DFAState nt)
   deriving (Eq, Ord)
-data DFAState = ErrorState
-              | ConfState (Set Configuration)
-              | FinalState Int -- production index
+
+data DFAState nt  = ErrorState
+                  | ConfState (Set (Configuration nt))
+                  | FinalState Int -- production index
   deriving (Eq, Ord)
 type Error = String
 -- configuration
-type Configuration = (ATNState, Int, Gamma)
+type Configuration nt = (ATNState nt, Int, Gamma nt)
 
 
 -- data types
 
 --depends on: adaptivePredict
 --parse ::
-parse :: NonTerminal -> ParserS s (Maybe ())
+parse 
+  :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  => nt -> ParserS s nt t (Maybe ())
 parse _S =
   let loop p _γ0 i =
         case p of
@@ -53,11 +57,11 @@ parse _S =
           _          ->
            do
              ATN {_Δ = delta} <-  getATN
-             parser@(Parser{tokens = (curr:rest), s=parser_state}) <- get
+             parser@(Parser{tokens = (curr_tok:rest), s=parser_state}) <- get
              -- should only ever be one by atn construction
              let [(_,t,q)] = Set.toList $ Set.filter (\(p',_,_) -> p' == p) delta
              case t of
-               TE b -> if b == curr
+               TE b -> if b == Lex.termOf curr_tok
                                   then do
                                     put $ parser {tokens = rest}
                                     loop q _γ0 i
@@ -89,9 +93,11 @@ parse _S =
 --            sllPredict
 --            startState
 --adaptivePredict ::
-adaptivePredict :: NonTerminal -> Gamma -> ParserS s (Maybe Int)
+adaptivePredict
+  :: forall s. forall nt. forall t. (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  => nt -> Gamma nt -> ParserS s nt t (Maybe Int)
 adaptivePredict _A _γ0 =
-  let hasPredForA :: [Production a] -> Bool
+  let hasPredForA :: [Production s nt t] -> Bool
       hasPredForA ((_,Sem _ _):_) = True
       hasPredForA [] = False
       hasPredForA (prod:prods) = hasPredForA prods
@@ -123,7 +129,9 @@ adaptivePredict _A _γ0 =
 
 --depends on: closure
 --startState ::
-startState :: NonTerminal -> Gamma -> ParserS s (Set Configuration)
+startState 
+  :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  => nt -> Gamma nt -> ParserS s nt t (Set (Configuration nt))
 startState a gamma = do
   ATN {_Δ = delta} <-  getATN
   Parser {s = parser_state} <- get
@@ -139,23 +147,25 @@ startState a gamma = do
 --depends on: target
 --            llPredict
 --sllPredict ::
-sllPredict :: NonTerminal -> Set Configuration -> [Lex.Token] -> Gamma -> ParserS s (Maybe Int)
+sllPredict 
+  :: forall nt. forall t. forall s. (NonTerminal nt, Ord nt, Terminal t, Ord t)
+  => nt -> Set (Configuration nt) -> [Lex.Token t] -> Gamma nt -> ParserS s nt t (Maybe Int)
 sllPredict _A d0 start _γ0 = do
 
   loop d0
     where
-      findExistingTarget :: [DFAEdge] -> DFAState -> Terminal -> Maybe DFAState
+      findExistingTarget :: [DFAEdge nt t] -> DFAState nt -> t -> Maybe (DFAState nt)
       findExistingTarget ((DFAE d b d'):rest) d0 a
-        | d == d0 && a == b = Just d'
+        | d == d0 && (sameTokens a b) = Just d'
         | otherwise         = findExistingTarget rest d0 a
       findExistingTarget [] _ _ = Nothing
-      loop :: Set Configuration -> ParserS s (Maybe Int)
+      loop :: Set (Configuration nt) -> ParserS s nt t (Maybe Int)
       loop d = do
-        p@(Parser {tokens = (a:rest), dfa = _dfa, stackSensitive=ss}) <- get
-        let maybeD' = findExistingTarget (Set.toList _dfa) (ConfState d) a
+        p@(Parser {tokens = (tok:rest), dfa = _dfa, stackSensitive=ss}) <- get
+        let maybeD' = findExistingTarget (Set.toList _dfa) (ConfState d) (Lex.termOf tok)
         _D' <- case maybeD' of
                  Just d' -> return d'
-                 _       -> target d (Lex.termOf a)
+                 _       -> target d (Lex.termOf tok)
         case (_D', Set.member _D' ss)  of
           (_, True) -> do
             put $ p {tokens = start}
@@ -176,7 +186,10 @@ sllPredict _A d0 start _γ0 = do
 --            getConflictSetsPerLoc
 --            getProdSetsPerState
 --target ::
-target :: Set Configuration -> Terminal -> ParserS s (DFAState)
+target ::
+  forall nt. forall t. forall s.
+  (NonTerminal nt, Ord nt, Terminal t, Ord t)
+  => Set (Configuration nt) -> t -> ParserS s nt t (DFAState nt)
 target d0 a = do
   mv <- move d0 a
   ATN { _Δ = transitions } <- getATN
@@ -185,7 +198,7 @@ target d0 a = do
     where
       onlyOneProd confs =
         Set.size (Set.foldr (\(_,i,_) s -> Set.insert i s) Set.empty confs ) == 1
-      checkConstraint :: Set Configuration -> ParserS s DFAState
+      checkConstraint :: Set (Configuration nt) -> ParserS s nt t (DFAState nt)
       checkConstraint d'
         | Set.null d' = do
             p@ (Parser {dfa=delta}) <- get
@@ -209,14 +222,16 @@ target d0 a = do
 
 -- no dependencies
 -- set of all (q,i,Gamma) s.t. p -a> q and (p,i,Gamma) in State d
-move :: Set Configuration ->  Terminal -> ParserS s (Set Configuration)
+move ::
+  forall nt. forall t. forall s. (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  => Set (Configuration nt) -> t -> ParserS s nt t (Set (Configuration nt))
 move d a = do
   ATN {_Δ = delta} <- getATN
   return $ Set.foldr (fltr delta) Set.empty d
   where
-    fltr :: Set (Transition s) -> Configuration -> Set Configuration -> Set Configuration
+    fltr :: Set (Transition s nt t) -> Configuration nt -> Set (Configuration nt) -> Set (Configuration nt)
     fltr delta (p0,i,gamma) d' = fromP (p0,i,gamma) (Set.toList delta) d'
-    fromP :: Configuration -> [Transition s] -> Set Configuration -> Set Configuration
+    fromP :: Configuration nt -> [Transition s nt t] -> Set (Configuration nt) -> Set (Configuration nt)
     fromP _ [] d' = d'
     fromP (p0,i,gamma) ((p1,e,q1) : rest) d'
       | (e == TE a)  = fromP (p0,i,gamma) rest $ Set.insert (q1,i,gamma) d'
@@ -226,7 +241,9 @@ move d a = do
 --depends on: move
 --            closure
 --            getConflictSetsPerLoc
-llPredict :: NonTerminal -> [Lex.Token] -> Gamma -> ParserS s (Maybe Int)
+llPredict 
+  :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  => nt -> [Lex.Token t] -> Gamma nt -> ParserS s nt t (Maybe Int)
 llPredict _A start _γ0 =
   let
     loop _D = do
@@ -259,14 +276,16 @@ llPredict _A start _γ0 =
 
 
 --getATN = return $ ATN { _Δ = Set.empty }
-getATN :: ParserS s (ATN s)
+getATN :: (NonTerminal nt, Terminal t, Ord nt, Ord t) => ParserS s nt t (ATN s nt t)
 getATN = do
   Parser { g = grammar} <- get
   return $ atnOf grammar
 
 
 --no fn dependencies
-closure :: Set (Transition s) -> Set Configuration -> Configuration -> Set Configuration
+closure ::
+  forall nt. forall t. forall s. (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  => Set (Transition s nt t) -> Set (Configuration nt) -> Configuration nt -> Set (Configuration nt)
 closure d busy (cfg@(p,i,gamma))
   | Set.member cfg busy = Set.empty
   | otherwise =
@@ -278,16 +297,16 @@ closure d busy (cfg@(p,i,gamma))
     isWildcard :: Stacks a -> Bool
     isWildcard Wildcard = True
     isWildcard _        = False
-    cfgsAfterNTEdge :: [Transition s] -> [Configuration]
+    cfgsAfterNTEdge :: [Transition s nt t] -> [Configuration nt]
     cfgsAfterNTEdge [] = []
     cfgsAfterNTEdge ((p0, (NTE nt), q0):rest) = (q0,i,Wildcard) : cfgsAfterNTEdge rest
     cfgsAfterNTEdge (_:rest) = cfgsAfterNTEdge rest
-    cfgsNonEmpty :: [Configuration]
+    cfgsNonEmpty :: [Configuration nt]
     cfgsNonEmpty =
-      let toConf :: (ATNState, Gamma) -> Configuration
+      let toConf :: (ATNState nt, Gamma nt) -> Configuration nt
           toConf (q,g') = (q,i, g')
       in map toConf (pop gamma)
-    cfgsNonEnd :: [Transition s] -> ATNState -> [Configuration]
+    cfgsNonEnd :: [Transition s nt t] -> ATNState nt -> [Configuration nt]
     cfgsNonEnd [] _ = []
     cfgsNonEnd ((p0, e, q0):rest) p
       | p0 == p   = case e of
@@ -295,7 +314,7 @@ closure d busy (cfg@(p,i,gamma))
                       NTE nt  -> (Start nt, i, push q0 gamma) : (cfgsNonEnd rest p)
                       _       -> (q0,i,gamma) : (cfgsNonEnd rest p)
       | otherwise = (cfgsNonEnd rest p)
-    cfgSubRoutine :: [Transition s] -> Set Configuration -> Set Configuration
+    cfgSubRoutine :: [Transition s nt t] -> Set (Configuration nt) -> Set (Configuration nt)
     cfgSubRoutine edges cfg_set=
       case p of
         Accept nt -> (
@@ -328,10 +347,10 @@ closure d busy (cfg@(p,i,gamma))
 -- no dependencies
 -- for each p,Gamma: get set of alts {i} from (p,-,Gamma) in D Confs
 --getConflictSetsPerLoc ::
-getConflictSetsPerLoc :: Set Configuration -> Set (Set Int)
+getConflictSetsPerLoc :: forall nt. (NonTerminal nt, Ord nt) => Set (Configuration nt) -> Set (Set Int)
 getConflictSetsPerLoc d =
   let m = Set.foldr updateEntry (Map.empty) d
-      updateEntry :: Configuration -> (Map (ATNState,Gamma) (Set Int)) -> (Map (ATNState,Gamma) (Set Int))
+      updateEntry :: Configuration nt -> (Map (ATNState nt, Gamma nt) (Set Int)) -> (Map (ATNState nt, Gamma nt) (Set Int))
       updateEntry (p,i,g) i_map = Map.alter (updateSet i) (p,g) i_map
       updateSet :: Int -> Maybe (Set Int) -> Maybe (Set Int)
       updateSet i Nothing           = Just $ Set.singleton i
@@ -343,10 +362,10 @@ getConflictSetsPerLoc d =
 -- no dependencies
 -- for each p return set of alts i from (p,-,-) in D Confs
 --getProdSetsPerState ::
-getProdSetsPerState :: Set Configuration -> Set (Set Int)
+getProdSetsPerState :: forall nt. (NonTerminal nt, Ord nt) => Set (Configuration nt) -> Set (Set Int)
 getProdSetsPerState d =
   let m = Set.foldr updateEntry (Map.empty) d
-      updateEntry :: Configuration -> (Map ATNState (Set Int)) -> (Map (ATNState) (Set Int))
+      updateEntry :: Configuration nt -> (Map (ATNState nt) (Set Int)) -> (Map (ATNState nt) (Set Int))
       updateEntry (p,i,_) i_map = Map.alter (updateSet i) p i_map
       updateSet :: Int -> Maybe (Set Int) -> Maybe (Set Int)
       updateSet i Nothing           = Just $ Set.singleton i
