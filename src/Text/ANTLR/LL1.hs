@@ -2,12 +2,12 @@
 module Text.ANTLR.LL1
   ( recognize
   , first, follow
-  , Token(..)
+  , InputSymbol(..)
   , foldWhileEpsilon
   , isLL1, parseTable
   , predictiveParse
   , ParseEvent(..)
-  , isToken, isEps', isEOF
+  , isInputSymbol, isEps', isEOF
   ) where
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.ATN
@@ -20,16 +20,16 @@ import qualified Data.Map.Strict as M
 import System.IO.Unsafe (unsafePerformIO)
 uPIO = unsafePerformIO
 
--- An LL1 Token (as used in first and follow sets) is either a
+-- An LL1 InputSymbol (as used in first and follow sets) is either a
 -- terminal in the grammar's alphabet, or an epsilon
-data Token t =
-    Token t
+data InputSymbol t =
+    InputSymbol t
   | Eps'
   | EOF -- End of input really, but EOF is ubiquitous.
   deriving (Eq, Ord, Show)
 
-isToken Token{} = True
-isToken _ = False
+isInputSymbol InputSymbol{} = True
+isInputSymbol _ = False
 
 isEps' Eps' = True
 isEps' _    = False
@@ -59,10 +59,10 @@ foldWhileEpsilon fncn b0 (a:as)
 
 first ::
   forall t nt. (NonTerminal nt, Terminal t, Ord nt, Ord t)
-  => Grammar () nt t -> [ProdElem nt t] -> Set (Token t)
+  => Grammar () nt t -> [ProdElem nt t] -> Set (InputSymbol t)
 first g = let
-    firstOne :: Set (ProdElem nt t) -> ProdElem nt t -> Set (Token t)
-    firstOne _ t@(T x) = singleton $ Token x
+    firstOne :: Set (ProdElem nt t) -> ProdElem nt t -> Set (InputSymbol t)
+    firstOne _ t@(T x) = singleton $ InputSymbol x
     firstOne _ Eps     = singleton Eps'
     firstOne busy nt@(NT x)
       | nt `member` busy = empty
@@ -75,7 +75,7 @@ first g = let
             , isProd rhs
             ]
     
-    firstMany :: [Set (Token t)] -> Set (Token t)
+    firstMany :: [Set (InputSymbol t)] -> Set (InputSymbol t)
     firstMany []   = singleton Eps'
     firstMany (ts:tss)
       | Eps' `member` ts = ts `union` firstMany tss
@@ -84,7 +84,7 @@ first g = let
 
 follow ::
   forall nt t. (NonTerminal nt, Terminal t, Ord nt, Ord t)
-  => Grammar () nt t -> nt -> Set (Token t)
+  => Grammar () nt t -> nt -> Set (InputSymbol t)
 follow g = let
     follow' busy _B
       | _B `member` busy = empty
@@ -92,7 +92,7 @@ follow g = let
 
         busy' = insert _B busy
         
-        followProd :: nt -> Symbols nt t -> Set (Token t)
+        followProd :: nt -> Symbols nt t -> Set (InputSymbol t)
         followProd _  []  = empty
         followProd _A [s]
               -- If A -> αB then everything in FOLLOW(A) is in FOLLOW(B)
@@ -140,7 +140,7 @@ isLL1 g =
       , α /= β
       ]
 
-type Key nt t = (nt, Token t)
+type Key nt t = (nt, InputSymbol t)
 
 -- All possible productions we could reduce. Empty implies parse error,
 -- singleton implies unambiguous entry, multiple implies ambiguous:
@@ -159,24 +159,24 @@ parseTable' fncn g = let
 
     insertMe ::
       (NonTerminal nt, Terminal t)
-      => (nt, Token t, Symbols nt t) -> (ParseTable nt t -> ParseTable nt t)
+      => (nt, InputSymbol t, Symbols nt t) -> (ParseTable nt t -> ParseTable nt t)
     insertMe (_A, a, α) = M.insertWith fncn (_A, a) $ singleton α
 
   in
     foldr insertMe M.empty
       -- For each terminal a `member` FIRST(α), add A -> α to M[A,α]
-      [ (_A, Token a, α)
+      [ (_A, InputSymbol a, α)
       | (_A, Prod α) <- ps g
-      , Token a <- toList $ first g α
+      , InputSymbol a <- toList $ first g α
       ]
     `M.union`
     foldr insertMe M.empty
       -- If Eps `member` FIRST(α), add A -> α to M[A,b]
       -- for each b `member` FOLLOW(A)
-      [ (_A, Token b, α)
+      [ (_A, InputSymbol b, α)
       | (_A, Prod α) <- ps g
       , Eps' `member` first g α
-      , Token b <- toList $ follow g _A
+      , InputSymbol b <- toList $ follow g _A
       ]
     `M.union`
     foldr insertMe M.empty
@@ -216,12 +216,12 @@ isInComp = not . isComp
 
 recognize ::
   (NonTerminal nt, Terminal t, Ord nt, Ord t, Show nt, Show t)
-  => Grammar () nt t -> [Token t] -> Bool
+  => Grammar () nt t -> [InputSymbol t] -> Bool
 recognize g = (Nothing /=) . predictiveParse g (const ())
 
 predictiveParse ::
   forall nt t ast. (Show nt, Show t, Show ast, NonTerminal nt, Terminal t, Ord nt, Ord t)
-  => Grammar () nt t -> Action ast nt t -> [Token t] ->  Maybe ast
+  => Grammar () nt t -> Action ast nt t -> [InputSymbol t] ->  Maybe ast
 predictiveParse g act w0 = let
 
     --reduce :: StackTree ast -> StackTree ast
@@ -251,10 +251,10 @@ predictiveParse g act w0 = let
     -- [ast] - a stack (list) of the asts the user has computed for us
     --         intermixed (in proper order) with the Terminals in the production
     --         rule for which we reduced the NonTerminal in question.
-    parse' :: [Token t] -> Symbols nt t -> StackTree ast nt t -> Maybe (StackTree ast nt t) --Maybe ast
+    parse' :: [InputSymbol t] -> Symbols nt t -> StackTree ast nt t -> Maybe (StackTree ast nt t) --Maybe ast
     parse' [EOF] [] asts  = Just asts  -- Success!
     parse' _     [] asts  = Nothing    -- Parse failure because no end of input found
-    parse' (Token a:ws) (T x:xs) asts
+    parse' (InputSymbol a:ws) (T x:xs) asts
       | x == a    = parse' ws xs $ pushStack (T x) [] asts
       | otherwise = Nothing
     parse' ws@(a:_) (NT _X:xs) asts =

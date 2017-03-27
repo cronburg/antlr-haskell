@@ -16,6 +16,8 @@ import Test.HUnit
 import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
+iS = InputSymbol
+
 type LL1NonTerminal = String
 type LL1Terminal    = String
 
@@ -26,21 +28,21 @@ grm = dragonBook428
 
 termination = first grm [NT "E"] @?= first grm [NT "E"]
 
-firstF = first grm [NT "F"] @?= fromList [Token "(", Token "id"]
+firstF = first grm [NT "F"] @?= fromList [iS "(", iS "id"]
 
-noEps = first grm [NT "E"] @?= fromList [Token "(", Token "id"]
+noEps = first grm [NT "E"] @?= fromList [iS "(", iS "id"]
 
 firstT' =
   first grm [NT "T'"]
   @?=
-  fromList [Token "*", Eps']
+  fromList [iS "*", Eps']
 
 foldEpsTest = foldWhileEpsilon union empty
-  [ fromList [Token "(", Token "id"]
-  , fromList [Token ")"]
+  [ fromList [iS "(", iS "id"]
+  , fromList [iS ")"]
   ]
   @?=
-  fromList [Token "(", Token "id"]
+  fromList [iS "(", iS "id"]
 
 firstAll =
   ( S.map ((\nt -> (nt, first grm [nt])) . NT) (ns grm)
@@ -49,16 +51,16 @@ firstAll =
   )
   @?=
   fromList
-    [ (NT "E",  fromList [Token "(", Token "id"])
-    , (NT "E'", fromList [Token "+", Eps'])
-    , (NT "F",  fromList [Token "(", Token "id"])
-    , (NT "T",  fromList [Token "(", Token "id"])
-    , (NT "T'", fromList [Token "*", Eps'])
-    , (T "(",   fromList [Token "("])
-    , (T ")",   fromList [Token ")"])
-    , (T "*",   fromList [Token "*"])
-    , (T "+",   fromList [Token "+"])
-    , (T "id",  fromList [Token "id"])
+    [ (NT "E",  fromList [iS "(", iS "id"])
+    , (NT "E'", fromList [iS "+", Eps'])
+    , (NT "F",  fromList [iS "(", iS "id"])
+    , (NT "T",  fromList [iS "(", iS "id"])
+    , (NT "T'", fromList [iS "*", Eps'])
+    , (T "(",   fromList [iS "("])
+    , (T ")",   fromList [iS ")"])
+    , (T "*",   fromList [iS "*"])
+    , (T "+",   fromList [iS "+"])
+    , (T "id",  fromList [iS "id"])
     ]
 
 grm' :: Grammar () LL1NonTerminal LL1Terminal
@@ -66,16 +68,16 @@ grm' = grm
 
 followAll :: IO ()
 followAll = let
-    fncn :: LL1NonTerminal -> (ProdElem LL1NonTerminal LL1Terminal, Set (Token LL1Terminal))
+    fncn :: LL1NonTerminal -> (ProdElem LL1NonTerminal LL1Terminal, Set (InputSymbol LL1Terminal))
     fncn nt = (NT nt, follow grm' nt)
   in S.map fncn (ns grm')
   @?=
   fromList
-    [ (NT "E",  fromList [Token ")", EOF])
-    , (NT "E'", fromList [Token ")", EOF])
-    , (NT "T",  fromList [Token ")", Token "+", EOF])
-    , (NT "T'", fromList [Token ")", Token "+", EOF])
-    , (NT "F",  fromList [Token ")", Token "*", Token "+", EOF])
+    [ (NT "E",  fromList [iS ")", EOF])
+    , (NT "E'", fromList [iS ")", EOF])
+    , (NT "T",  fromList [iS ")", iS "+", EOF])
+    , (NT "T'", fromList [iS ")", iS "+", EOF])
+    , (NT "F",  fromList [iS ")", iS "*", iS "+", EOF])
     ]
 
 parseTableTest =
@@ -83,19 +85,19 @@ parseTableTest =
   @?=
   M.fromList (map (\((a,b),c) -> ((a,b), S.singleton c))
     -- Figure 4.17 of dragon book:
-    [ (("E",  Token "id"), [NT "T", NT "E'"])
-    , (("E",  Token "("),  [NT "T", NT "E'"])
-    , (("E'", Token "+"),  [T "+", NT "T", NT "E'"])
-    , (("E'", Token ")"),  [Eps])
+    [ (("E",  iS "id"), [NT "T", NT "E'"])
+    , (("E",  iS "("),  [NT "T", NT "E'"])
+    , (("E'", iS "+"),  [T "+", NT "T", NT "E'"])
+    , (("E'", iS ")"),  [Eps])
     , (("E'", EOF),       [Eps])
-    , (("T",  Token "id"), [NT "F", NT "T'"])
-    , (("T",  Token "("),  [NT "F", NT "T'"])
-    , (("T'", Token "+"),  [Eps])
-    , (("T'", Token "*"),  [T "*", NT "F", NT "T'"])
-    , (("T'", Token ")"),  [Eps])
+    , (("T",  iS "id"), [NT "F", NT "T'"])
+    , (("T",  iS "("),  [NT "F", NT "T'"])
+    , (("T'", iS "+"),  [Eps])
+    , (("T'", iS "*"),  [T "*", NT "F", NT "T'"])
+    , (("T'", iS ")"),  [Eps])
     , (("T'", EOF),       [Eps])
-    , (("F",  Token "id"), [T "id"])
-    , (("F",  Token "("),  [T "(", NT "E", T ")"])
+    , (("F",  iS "id"), [T "id"])
+    , (("F",  iS "("),  [T "(", NT "E", T ")"])
     ])
 
 data UAST =
@@ -115,7 +117,7 @@ action1 (TermE x) = uPIO (print ("Act:", x)) `seq` action0 $ TermE x
 action1 EpsE      = action0 EpsE
 
 dragonPredParse =
-  (predictiveParse grm action0 $ map Token ["id", "+", "id", "*", "id"] ++ [EOF])
+  (predictiveParse grm action0 $ map iS ["id", "+", "id", "*", "id"] ++ [EOF])
   @?=
   (Just $ UAST "E" [NT "T", NT "E'"]
             [ UAST "T" [NT "F", NT "T'"]

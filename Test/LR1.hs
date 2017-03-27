@@ -44,6 +44,8 @@ testKernel =
   fromList
     [ slrItem (Init "E") [] [NT "E"] ]
 
+iS = InputSymbol
+
 type LR1Terminal = String
 type LR1NonTerminal = String
 
@@ -159,41 +161,41 @@ testSLRTable3 =
   testSLRExp
 
 testSLRExp = M.fromList
-    [ ((_I0, Token "id"), Shift _I5)
-    , ((_I0, Token "("),  Shift _I4)
-    , ((_I1, Token "+"),  Shift _I6)
+    [ ((_I0, iS "id"), Shift _I5)
+    , ((_I0, iS "("),  Shift _I4)
+    , ((_I1, iS "+"),  Shift _I6)
     , ((_I1, EOF),        Accept)
-    , ((_I2, Token "+"),  r2)
-    , ((_I2, Token "*"),  Shift _I7)
-    , ((_I2, Token ")"),  r2)
+    , ((_I2, iS "+"),  r2)
+    , ((_I2, iS "*"),  Shift _I7)
+    , ((_I2, iS ")"),  r2)
     , ((_I2, EOF),        r2)
-    , ((_I3, Token "+"),  r4)
-    , ((_I3, Token "*"),  r4)
-    , ((_I3, Token ")"),  r4)
+    , ((_I3, iS "+"),  r4)
+    , ((_I3, iS "*"),  r4)
+    , ((_I3, iS ")"),  r4)
     , ((_I3, EOF),        r4)
-    , ((_I4, Token "id"), Shift _I5)
-    , ((_I4, Token "("),  Shift _I4)
-    , ((_I5, Token "+"),  r6)
-    , ((_I5, Token "*"),  r6)
-    , ((_I5, Token ")"),  r6)
+    , ((_I4, iS "id"), Shift _I5)
+    , ((_I4, iS "("),  Shift _I4)
+    , ((_I5, iS "+"),  r6)
+    , ((_I5, iS "*"),  r6)
+    , ((_I5, iS ")"),  r6)
     , ((_I5, EOF),        r6)
-    , ((_I6, Token "id"), Shift _I5)
-    , ((_I6, Token "("),  Shift _I4)
-    , ((_I7, Token "id"), Shift _I5)
-    , ((_I7, Token "("),  Shift _I4)
-    , ((_I8, Token "+"),  Shift _I6)
-    , ((_I8, Token ")"),  Shift _I11)
-    , ((_I9, Token "+"),  r1)
-    , ((_I9, Token "*"),  Shift _I7)
-    , ((_I9, Token ")"),  r1)
+    , ((_I6, iS "id"), Shift _I5)
+    , ((_I6, iS "("),  Shift _I4)
+    , ((_I7, iS "id"), Shift _I5)
+    , ((_I7, iS "("),  Shift _I4)
+    , ((_I8, iS "+"),  Shift _I6)
+    , ((_I8, iS ")"),  Shift _I11)
+    , ((_I9, iS "+"),  r1)
+    , ((_I9, iS "*"),  Shift _I7)
+    , ((_I9, iS ")"),  r1)
     , ((_I9, EOF),        r1)
-    , ((_I10, Token "+"), r3)
-    , ((_I10, Token "*"), r3)
-    , ((_I10, Token ")"), r3)
+    , ((_I10, iS "+"), r3)
+    , ((_I10, iS "*"), r3)
+    , ((_I10, iS ")"), r3)
     , ((_I10, EOF),       r3)
-    , ((_I11, Token "+"), r5)
-    , ((_I11, Token "*"), r5)
-    , ((_I11, Token ")"), r5)
+    , ((_I11, iS "+"), r5)
+    , ((_I11, iS "*"), r5)
+    , ((_I11, iS ")"), r5)
     , ((_I11, EOF),       r5)
     ]
 
@@ -203,7 +205,7 @@ testLRRecognize =
   True
 
 testLRRecognize2 =
-  slrRecognize grm (map Token ["id", "*", "id", "+", "+"] ++ [EOF])
+  slrRecognize grm (map iS ["id", "*", "id", "+", "+"] ++ [EOF])
   @?=
   False
 
@@ -217,9 +219,9 @@ data UAST =
   deriving (Eq, Ord, Show)
 
 action0 :: ParseEvent UAST LR1NonTerminal LR1Terminal -> UAST
-action0 (TokenE (Token t)) = ULeaf t
-action0 (TokenE Eps')      = ULeafEps
-action0 (TokenE EOF)       = ULeafEOF
+action0 (InputSymbolE (InputSymbol t))    = ULeaf t
+action0 (InputSymbolE Eps')      = ULeafEps
+action0 (InputSymbolE EOF)       = ULeafEOF
 action0 (NonTE (nt, ss, asts)) = UAST nt ss asts
 
 testLRParse =
@@ -239,11 +241,11 @@ testLRParse =
       ])
 
 testLRParse2 =
-  slrParse grm action0 (map Token ["id", "*", "id", "+", "+"] ++ [EOF])
+  slrParse grm action0 (map iS ["id", "*", "id", "+", "+"] ++ [EOF])
   @?=
   Nothing
 
-w0 = map Token ["id", "*", "id", "+", "id"] ++ [EOF]
+w0 = map iS ["id", "*", "id", "+", "id"] ++ [EOF]
 
 testLR1Table =
   lr1Table dragonBook455
@@ -251,21 +253,21 @@ testLR1Table =
   lr1TableExp
 
 lr1TableExp = M.fromList
-  [ ((i0, Token "c"), Shift i3)
-  , ((i0, Token "d"), Shift i4)
+  [ ((i0, iS "c"), Shift i3)
+  , ((i0, iS "d"), Shift i4)
   , ((i1, EOF),       Accept)
-  , ((i2, Token "c"), Shift i6)
-  , ((i2, Token "d"), Shift i7)
-  , ((i3, Token "c"), Shift i3)
-  , ((i3, Token "d"), Shift i4)
-  , ((i4, Token "c"), r3')
-  , ((i4, Token "d"), r3')
+  , ((i2, iS "c"), Shift i6)
+  , ((i2, iS "d"), Shift i7)
+  , ((i3, iS "c"), Shift i3)
+  , ((i3, iS "d"), Shift i4)
+  , ((i4, iS "c"), r3')
+  , ((i4, iS "d"), r3')
   , ((i5, EOF),       r1')
-  , ((i6, Token "c"), Shift i6)
-  , ((i6, Token "d"), Shift i7)
+  , ((i6, iS "c"), Shift i6)
+  , ((i6, iS "d"), Shift i7)
   , ((i7, EOF),       r3')
-  , ((i8, Token "c"), r2')
-  , ((i8, Token "d"), r2')
+  , ((i8, iS "c"), r2')
+  , ((i8, iS "d"), r2')
   , ((i9, EOF),       r2')
   ]
 
@@ -283,10 +285,10 @@ testLR1Items =
 i0 = fromList
   [ Item (Init   "S") [] [NT "S"]         EOF
   , Item (ItemNT "S") [] [NT "C", NT "C"] EOF
-  , Item (ItemNT "C") [] [T "c", NT "C"]  (Token "c")
-  , Item (ItemNT "C") [] [T "c", NT "C"]  (Token "d")
-  , Item (ItemNT "C") [] [T "d"]          (Token "c")
-  , Item (ItemNT "C") [] [T "d"]          (Token "d")
+  , Item (ItemNT "C") [] [T "c", NT "C"]  (iS "c")
+  , Item (ItemNT "C") [] [T "c", NT "C"]  (iS "d")
+  , Item (ItemNT "C") [] [T "d"]          (iS "c")
+  , Item (ItemNT "C") [] [T "d"]          (iS "d")
   ]
 
 i1 = fromList [ Item (Init "S") [NT "S"] [] EOF ]
@@ -298,17 +300,17 @@ i2 = fromList
   ]
 
 i3 = fromList
-  [ Item (ItemNT "C") [T "c"] [NT "C"]    (Token "c")
-  , Item (ItemNT "C") [T "c"] [NT "C"]    (Token "d")
-  , Item (ItemNT "C") [] [T "c", NT "C"]  (Token "c")
-  , Item (ItemNT "C") [] [T "c", NT "C"]  (Token "d")
-  , Item (ItemNT "C") [] [T "d"]          (Token "c")
-  , Item (ItemNT "C") [] [T "d"]          (Token "d")
+  [ Item (ItemNT "C") [T "c"] [NT "C"]    (iS "c")
+  , Item (ItemNT "C") [T "c"] [NT "C"]    (iS "d")
+  , Item (ItemNT "C") [] [T "c", NT "C"]  (iS "c")
+  , Item (ItemNT "C") [] [T "c", NT "C"]  (iS "d")
+  , Item (ItemNT "C") [] [T "d"]          (iS "c")
+  , Item (ItemNT "C") [] [T "d"]          (iS "d")
   ]
 
 i4 = fromList
-  [ Item (ItemNT "C") [T "d"] [] (Token "c")
-  , Item (ItemNT "C") [T "d"] [] (Token "d")
+  [ Item (ItemNT "C") [T "d"] [] (iS "c")
+  , Item (ItemNT "C") [T "d"] [] (iS "d")
   ]
 
 i5 = fromList [ Item (ItemNT "S") [NT "C", NT "C"] [] EOF ]
@@ -322,8 +324,8 @@ i6 = fromList
 i7 = fromList [ Item (ItemNT "C") [T "d"] [] EOF ]
 
 i8 = fromList
-  [ Item (ItemNT "C") [NT "C", T "c"] [] (Token "c")
-  , Item (ItemNT "C") [NT "C", T "c"] [] (Token "d")
+  [ Item (ItemNT "C") [NT "C", T "c"] [] (iS "c")
+  , Item (ItemNT "C") [NT "C", T "c"] [] (iS "d")
   ]
 
 i9 = fromList [ Item (ItemNT "C") [NT "C", T "c"] [] EOF ]

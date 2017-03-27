@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, ExplicitForAll #-}
 module Text.ANTLR.LR1
-  ( Token(..), Action, Item(..), ItemLHS(..), ParseEvent(..)
+  ( InputSymbol(..), Action, Item(..), ItemLHS(..), ParseEvent(..)
   , kernel, items
   , slrClosure, slrGoto, slrItems, allSLRItems, slrTable, slrParse, slrRecognize
   , lr1Closure, lr1Goto, lr1Items, lr1Table, lr1Parse, lr1Recognize
@@ -9,7 +9,7 @@ module Text.ANTLR.LR1
   ) where
 import Text.ANTLR.Allstar.Grammar
 import qualified Text.ANTLR.LL1 as LL
-import Text.ANTLR.LL1 (Token(..))
+import Text.ANTLR.LL1 (InputSymbol(..))
 
 import Data.Set ( Set(..), fromList, empty, member, toList, size
   , union, (\\), insert, toList, singleton
@@ -63,7 +63,7 @@ lr1Closure ::
   => Grammar () nt t -> LR1Closure nt t
 lr1Closure g is' = let
 
-    tokenToProdElem (Token a) = [T a]
+    tokenToProdElem (InputSymbol a) = [T a]
     tokenToProdElem _ = []
 
     closure' :: LR1Closure nt t
@@ -141,7 +141,7 @@ allSLRItems g = fromList
     ]
 
 type LRState a nt t = Set (Item a nt t)
-type LRTable a nt t = Map (LRState a nt t, Token t) (LRAction a nt t)
+type LRTable a nt t = Map (LRState a nt t, InputSymbol t) (LRAction a nt t)
 
 data LRAction a nt t =
     Shift  (LRState a nt t)
@@ -176,8 +176,8 @@ slrTable g = let
     slr' _Ii = let
         slr'' :: SLRItem nt t -> SLRTable nt t
         slr'' (Item (ItemNT nt) α (T a:β) ()) = --uPIO (print ("TABLE:", a, slrGoto g _Ii $ T a, _Ii)) `seq`
-                  M.singleton (_Ii, Token a) (Shift $ slrGoto g _Ii $ T a)
-        slr'' (Item (Init   nt) α (T a:β) ()) = M.singleton (_Ii, Token a) (Shift $ slrGoto g _Ii $ T a)
+                  M.singleton (_Ii, InputSymbol a) (Shift $ slrGoto g _Ii $ T a)
+        slr'' (Item (Init   nt) α (T a:β) ()) = M.singleton (_Ii, InputSymbol a) (Shift $ slrGoto g _Ii $ T a)
         slr'' (Item (ItemNT nt) α [] ())      = M.fromList
                                           [ ((_Ii, a), Reduce (nt, Prod $ reverse α))
                                           | a <- (toList . LL.follow g) nt
@@ -198,8 +198,8 @@ lr1Table g = let
     lr1' _Ii = let
         lr1'' :: LR1Item nt t -> LR1Table nt t
         lr1'' (Item (ItemNT nt) α (T a:β) _) = --uPIO (print ("TABLE:", a, slrGoto g _Ii $ T a, _Ii)) `seq`
-                  M.singleton (_Ii, Token a) (Shift $ lr1Goto g _Ii $ T a)
-        lr1'' (Item (Init   nt) α (T a:β) _) = M.singleton (_Ii, Token a) (Shift $ lr1Goto g _Ii $ T a)
+                  M.singleton (_Ii, InputSymbol a) (Shift $ lr1Goto g _Ii $ T a)
+        lr1'' (Item (Init   nt) α (T a:β) _) = M.singleton (_Ii, InputSymbol a) (Shift $ lr1Goto g _Ii $ T a)
         lr1'' (Item (ItemNT nt) α [] a)      = M.singleton (_Ii,       a) (Reduce (nt, Prod $ reverse α))
         lr1'' (Item (Init nt) α [] EOF)   = M.singleton (_Ii, LL.EOF) Accept
         lr1'' _ = M.empty
@@ -207,16 +207,16 @@ lr1Table g = let
 
   in S.fold M.union M.empty $ S.map lr1' $ lr1Items g
 
-type Config a nt t = ([LRState a nt t], [Token t])
+type Config a nt t = ([LRState a nt t], [InputSymbol t])
 
 look :: (Ord a, Ord nt, Ord t)
-  => (LRState a nt t, Token t) -> LRTable a nt t -> Maybe (LRAction a nt t)
+  => (LRState a nt t, InputSymbol t) -> LRTable a nt t -> Maybe (LRAction a nt t)
 look (s,a) tbl = --uPIO (print ("lookup:", s, a, M.lookup (s, a) act)) `seq`
     M.lookup (s, a) tbl
 
 -- TODO: unify with LL
 data ParseEvent ast nt t =
-    TokenE (Token t)
+    InputSymbolE (InputSymbol t)
   | NonTE  (nt, Symbols nt t, [ast])
 
 type Action ast nt t = ParseEvent ast nt t -> ast
@@ -225,7 +225,7 @@ lrParse ::
   forall ast a nt t. (Ord a, NonTerminal nt, Terminal t, Ord nt, Ord t)
   => Grammar () nt t -> LRTable a nt t -> Goto a nt t
   -> Closure a nt t -> LRState a nt t -> Action ast nt t
-  -> [Token t] -> Maybe ast
+  -> [InputSymbol t] -> Maybe ast
 lrParse g tbl goto closure s_0 act w = let
   
     lr :: Config a nt t -> [ast] -> Maybe ast
@@ -237,7 +237,7 @@ lrParse g tbl goto closure s_0 act w = let
               1 -> Just $ head asts
               _ -> Nothing
         lr' (Just Error)     = Nothing
-        lr' (Just (Shift t)) = lr (t:s:states, ws) $ act (TokenE a) : asts
+        lr' (Just (Shift t)) = lr (t:s:states, ws) $ act (InputSymbolE a) : asts
         lr' (Just (Reduce (_A, Prod β))) = let
               ss'@(t:_) = drop (length β) (s:states)
             in lr (goto t (NT _A) : ss', a:ws)
@@ -248,18 +248,18 @@ lrParse g tbl goto closure s_0 act w = let
   in lr ([closure s_0], w) []
 
 slrParse :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
-  => Grammar () nt t -> Action ast nt t -> [Token t] -> Maybe ast
+  => Grammar () nt t -> Action ast nt t -> [InputSymbol t] -> Maybe ast
 slrParse g = lrParse g (slrTable g) (slrGoto g) (slrClosure g) (slrS0 g)
 
 slrRecognize :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
-  => Grammar () nt t -> [Token t] -> Bool
+  => Grammar () nt t -> [InputSymbol t] -> Bool
 slrRecognize g w = (Nothing /=) $ slrParse g (const 0) w
 
 lr1Recognize :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
-  => Grammar () nt t -> [Token t] -> Bool
+  => Grammar () nt t -> [InputSymbol t] -> Bool
 lr1Recognize g w = (Nothing /=) $ lr1Parse g (const 0) w
 
-type LR1LookAhead t = Token t -- Single Token of lookahead for LR1
+type LR1LookAhead t = InputSymbol t -- Single InputSymbol of lookahead for LR1
 
 lr1Goto :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
   => Grammar () nt t -> Goto (LR1LookAhead t) nt t
@@ -275,6 +275,6 @@ lr1Items :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
 lr1Items g = items g (lr1Goto g) (lr1Closure g) (lr1S0 g)
 
 lr1Parse :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
-  => Grammar () nt t -> Action ast nt t -> [Token t] -> Maybe ast
+  => Grammar () nt t -> Action ast nt t -> [InputSymbol t] -> Maybe ast
 lr1Parse g = lrParse g (lr1Table g) (lr1Goto g) (lr1Closure g) (lr1S0 g)
 
