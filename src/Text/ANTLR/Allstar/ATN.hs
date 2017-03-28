@@ -29,7 +29,7 @@ data ATNState nt  = Start  nt
   deriving (Ord, Show)
 
 {- ATNs do not leak the Terminal and NonTerminal abstractions -}
-instance (NonTerminal nt) => Eq (ATNState nt) where
+instance (Referent nt) => Eq (ATNState nt) where
   Start nt == Start nt1             = sameNTs nt nt1
   Middle nt x y == Middle nt1 x1 y1 = sameNTs nt nt1 && x == x1 && y == y1
   Accept nt == Accept nt1           = sameNTs nt nt1
@@ -52,7 +52,7 @@ data Edge s nt t = NTE nt
   deriving (Ord, Show)
 
 {- ATNs do not leak the Terminal and NonTerminal abstractions -}
-instance (NonTerminal nt, Terminal t) => Eq (Edge s nt t) where
+instance (Referent nt, Referent t) => Eq (Edge s nt t) where
   NTE nt == NTE nt1 = sameNTs nt nt1
   TE t == TE t1 = sameTerminals t t1
   PE p == PE p1 = p == p1
@@ -61,7 +61,7 @@ instance (NonTerminal nt, Terminal t) => Eq (Edge s nt t) where
   x == y = False
 
 -- atnOf :: Grammar -> (ATNState,Edge) -> Maybe ATNState
-atnOf :: forall nt. forall t. forall s. (NonTerminal nt, Terminal t, Ord nt, Ord t) => Grammar s nt t -> ATN s nt t
+atnOf :: forall nt. forall t. forall s. (Referent nt, Referent t, Ord nt, Ord t) => Grammar s nt t -> ATN s nt t
 atnOf g = let
 
   _Δ :: Int -> Production s nt t -> [Transition s nt t]

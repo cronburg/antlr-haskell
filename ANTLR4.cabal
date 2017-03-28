@@ -56,6 +56,8 @@ library
                   , Text.ANTLR.Allstar.Lex
                   , Text.ANTLR.LL1
                   , Text.ANTLR.LR1
+                  , Text.ANTLR.Parser
+                  , Text.ANTLR.AST
 
                   , Language.ANTLR4
                   , Language.ANTLR4.Parser

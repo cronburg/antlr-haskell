@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, ExplicitForAll #-}
 module Text.ANTLR.LR1
-  ( InputSymbol(..), Action, Item(..), ItemLHS(..), ParseEvent(..)
+  ( Item(..), ItemLHS(..)
   , kernel, items
   , slrClosure, slrGoto, slrItems, allSLRItems, slrTable, slrParse, slrRecognize
   , lr1Closure, lr1Goto, lr1Items, lr1Table, lr1Parse, lr1Recognize
@@ -9,7 +9,7 @@ module Text.ANTLR.LR1
   ) where
 import Text.ANTLR.Allstar.Grammar
 import qualified Text.ANTLR.LL1 as LL
-import Text.ANTLR.LL1 (InputSymbol(..))
+import Text.ANTLR.Parser
 
 import Data.Set ( Set(..), fromList, empty, member, toList, size
   , union, (\\), insert, toList, singleton
@@ -29,7 +29,7 @@ data ItemLHS nt =
 -- An Item is a production with a dot in it indicating how far
 -- into the production we have parsed:
 --                     A        ->  α                .     β
-data Item a nt t = Item (ItemLHS nt) (Symbols nt t) {- . -} (Symbols nt t) a
+data Item a nt t = Item (ItemLHS nt) (ProdElems nt t) {- . -} (ProdElems nt t) a
   deriving (Eq, Ord, Show)
 
 type Closure a nt t = Set (Item a nt t) -> Set (Item a nt t)
@@ -38,7 +38,7 @@ type SLRClosure nt t = Closure () nt t
 type LR1Closure nt t = Closure (LR1LookAhead t) nt t
 
 slrClosure ::
-  forall nt t. (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  forall nt t. (Referent nt, Referent t, Ord nt, Ord t)
   => Grammar () nt t -> SLRClosure nt t
 slrClosure g is' = let
 
@@ -59,18 +59,18 @@ slrClosure g is' = let
   in closure' is'
 
 lr1Closure ::
-  forall nt t. (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  forall nt t. (Referent nt, Referent t, Ord nt, Ord t)
   => Grammar () nt t -> LR1Closure nt t
 lr1Closure g is' = let
 
-    tokenToProdElem (InputSymbol a) = [T a]
+    tokenToProdElem (Icon a) = [T a]
     tokenToProdElem _ = []
 
     closure' :: LR1Closure nt t
     closure' _J = let
       add = fromList
-            -- TODO: Handle EOF in LL.first set calculation properly?:
-            [ Item (ItemNT _B) [] γ (if b == Eps' then EOF else b)
+            -- TODO: Handle IconEOF in LL.first set calculation properly?:
+            [ Item (ItemNT _B) [] γ (if b == IconEps then IconEOF else b)
             | Item _A α rst@(pe@(NT _B) : β) a <- toList _J
             , not $ null rst
             , isNT pe
@@ -94,12 +94,12 @@ goto g closure is _X = closure $ fromList
   ]
 
 slrGoto ::
-  forall nt t. (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  forall nt t. (Referent nt, Referent t, Ord nt, Ord t)
   => Grammar () nt t -> Goto () nt t
 slrGoto g = goto g (slrClosure g)
 
 items ::
-  forall a nt t. (Ord a, NonTerminal nt, Terminal t, Ord nt, Ord t)
+  forall a nt t. (Ord a, Referent nt, Referent t, Ord nt, Ord t)
   => Grammar () nt t -> Goto a nt t -> Closure a nt t -> LRState a nt t -> Set (LRState a nt t)
 items g goto closure s0 = let
     items' :: Set (LRState a nt t) -> Set (LRState a nt t)
@@ -125,7 +125,7 @@ kernel = let
 
 -- Generate the set of all possible Items for a given grammar:
 allSLRItems ::
-  forall nt t. (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  forall nt t. (Referent nt, Referent t, Ord nt, Ord t)
   => Grammar () nt t -> Set (SLRItem nt t)
 allSLRItems g = fromList
     [ Item (Init $ s0 g) [] [NT $ s0 g] ()
@@ -141,7 +141,8 @@ allSLRItems g = fromList
     ]
 
 type LRState a nt t = Set (Item a nt t)
-type LRTable a nt t = Map (LRState a nt t, InputSymbol t) (LRAction a nt t)
+-- TODO: String should be an arbitrary Eq and Ord "Symbol" type
+type LRTable a nt t = Map (LRState a nt t, Icon t) (LRAction a nt t)
 
 data LRAction a nt t =
     Shift  (LRState a nt t)
@@ -161,12 +162,12 @@ slrS0 :: Grammar () nt t -> SLRState nt t
 slrS0 = lrS0 ()
 
 slrItems ::
-  forall nt t. (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  forall nt t. (Referent nt, Referent t, Ord nt, Ord t)
   => Grammar () nt t -> Set (Set (SLRItem nt t))
 slrItems g = items g (slrGoto g) (slrClosure g) (slrS0 g)
 
 slrTable ::
-  forall nt t. (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  forall nt t. (Referent nt, Referent t, Ord nt, Ord t)
   => Grammar () nt t -> SLRTable nt t
 slrTable g = let
 
@@ -176,13 +177,13 @@ slrTable g = let
     slr' _Ii = let
         slr'' :: SLRItem nt t -> SLRTable nt t
         slr'' (Item (ItemNT nt) α (T a:β) ()) = --uPIO (print ("TABLE:", a, slrGoto g _Ii $ T a, _Ii)) `seq`
-                  M.singleton (_Ii, InputSymbol a) (Shift $ slrGoto g _Ii $ T a)
-        slr'' (Item (Init   nt) α (T a:β) ()) = M.singleton (_Ii, InputSymbol a) (Shift $ slrGoto g _Ii $ T a)
+                  M.singleton (_Ii, Icon a) (Shift $ slrGoto g _Ii $ T a)
+        slr'' (Item (Init   nt) α (T a:β) ()) = M.singleton (_Ii, Icon a) (Shift $ slrGoto g _Ii $ T a)
         slr'' (Item (ItemNT nt) α [] ())      = M.fromList
                                           [ ((_Ii, a), Reduce (nt, Prod $ reverse α))
                                           | a <- (toList . LL.follow g) nt
                                           ]
-        slr'' (Item (Init nt) α [] ())   = M.singleton (_Ii, LL.EOF) Accept
+        slr'' (Item (Init nt) α [] ())   = M.singleton (_Ii, IconEOF) Accept
         slr'' _ = M.empty
       in S.fold M.union M.empty (S.map slr'' _Ii)
 
@@ -191,41 +192,34 @@ slrTable g = let
 type LR1Item  nt t = Item    (LR1LookAhead t) nt t
 type LR1Table nt t = LRTable (LR1LookAhead t) nt t
 
-lr1Table :: forall nt t. (NonTerminal nt, Terminal t, Ord nt, Ord t)
+lr1Table :: forall nt t. (Referent nt, Referent t, Ord nt, Ord t)
   => Grammar () nt t -> LR1Table nt t
 lr1Table g = let
     lr1' :: LR1State nt t -> LR1Table nt t
     lr1' _Ii = let
         lr1'' :: LR1Item nt t -> LR1Table nt t
         lr1'' (Item (ItemNT nt) α (T a:β) _) = --uPIO (print ("TABLE:", a, slrGoto g _Ii $ T a, _Ii)) `seq`
-                  M.singleton (_Ii, InputSymbol a) (Shift $ lr1Goto g _Ii $ T a)
-        lr1'' (Item (Init   nt) α (T a:β) _) = M.singleton (_Ii, InputSymbol a) (Shift $ lr1Goto g _Ii $ T a)
+                  M.singleton (_Ii, Icon a) (Shift $ lr1Goto g _Ii $ T a)
+        lr1'' (Item (Init   nt) α (T a:β) _) = M.singleton (_Ii, Icon a) (Shift $ lr1Goto g _Ii $ T a)
         lr1'' (Item (ItemNT nt) α [] a)      = M.singleton (_Ii,       a) (Reduce (nt, Prod $ reverse α))
-        lr1'' (Item (Init nt) α [] EOF)   = M.singleton (_Ii, LL.EOF) Accept
+        lr1'' (Item (Init nt) α [] IconEOF)  = M.singleton (_Ii, IconEOF) Accept
         lr1'' _ = M.empty
       in S.fold M.union M.empty (S.map lr1'' _Ii)
 
   in S.fold M.union M.empty $ S.map lr1' $ lr1Items g
 
-type Config a nt t = ([LRState a nt t], [InputSymbol t])
+type Config a nt t = ([LRState a nt t], [Icon t])
 
-look :: (Ord a, Ord nt, Ord t)
-  => (LRState a nt t, InputSymbol t) -> LRTable a nt t -> Maybe (LRAction a nt t)
+look :: (Ord a, Ord nt, Ord t, Referent t)
+  => (LRState a nt t, Icon t) -> LRTable a nt t -> Maybe (LRAction a nt t)
 look (s,a) tbl = --uPIO (print ("lookup:", s, a, M.lookup (s, a) act)) `seq`
     M.lookup (s, a) tbl
 
--- TODO: unify with LL
-data ParseEvent ast nt t =
-    InputSymbolE (InputSymbol t)
-  | NonTE  (nt, Symbols nt t, [ast])
-
-type Action ast nt t = ParseEvent ast nt t -> ast
-
 lrParse ::
-  forall ast a nt t. (Ord a, NonTerminal nt, Terminal t, Ord nt, Ord t)
+  forall ast a nt t. (Ord a, Referent nt, Referent t, Ord nt, Ord t)
   => Grammar () nt t -> LRTable a nt t -> Goto a nt t
   -> Closure a nt t -> LRState a nt t -> Action ast nt t
-  -> [InputSymbol t] -> Maybe ast
+  -> [Icon t] -> Maybe ast
 lrParse g tbl goto closure s_0 act w = let
   
     lr :: Config a nt t -> [ast] -> Maybe ast
@@ -237,7 +231,7 @@ lrParse g tbl goto closure s_0 act w = let
               1 -> Just $ head asts
               _ -> Nothing
         lr' (Just Error)     = Nothing
-        lr' (Just (Shift t)) = lr (t:s:states, ws) $ act (InputSymbolE a) : asts
+        lr' (Just (Shift t)) = lr (t:s:states, ws) $ act (TermE a) : asts
         lr' (Just (Reduce (_A, Prod β))) = let
               ss'@(t:_) = drop (length β) (s:states)
             in lr (goto t (NT _A) : ss', a:ws)
@@ -247,34 +241,34 @@ lrParse g tbl goto closure s_0 act w = let
 
   in lr ([closure s_0], w) []
 
-slrParse :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
-  => Grammar () nt t -> Action ast nt t -> [InputSymbol t] -> Maybe ast
+slrParse :: (Referent nt, Referent t, Ord nt, Ord t)
+  => Grammar () nt t -> Action ast nt t -> [Icon t] -> Maybe ast
 slrParse g = lrParse g (slrTable g) (slrGoto g) (slrClosure g) (slrS0 g)
 
-slrRecognize :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
-  => Grammar () nt t -> [InputSymbol t] -> Bool
+slrRecognize :: (Referent nt, Referent t, Ord nt, Ord t)
+  => Grammar () nt t -> [Icon t] -> Bool
 slrRecognize g w = (Nothing /=) $ slrParse g (const 0) w
 
-lr1Recognize :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
-  => Grammar () nt t -> [InputSymbol t] -> Bool
+lr1Recognize :: (Referent nt, Referent t, Ord nt, Ord t)
+  => Grammar () nt t -> [Icon t] -> Bool
 lr1Recognize g w = (Nothing /=) $ lr1Parse g (const 0) w
 
-type LR1LookAhead t = InputSymbol t -- Single InputSymbol of lookahead for LR1
+type LR1LookAhead t = Icon t -- Single Icon of lookahead for LR1
 
-lr1Goto :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
+lr1Goto :: (Referent nt, Referent t, Ord nt, Ord t)
   => Grammar () nt t -> Goto (LR1LookAhead t) nt t
 lr1Goto g = goto g (lr1Closure g)
 
 type LR1State nt t = LRState (LR1LookAhead t) nt t
 
 lr1S0 :: Grammar () nt t -> LRState (LR1LookAhead t) nt t
-lr1S0 = lrS0 EOF
+lr1S0 = lrS0 IconEOF
 
-lr1Items :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
+lr1Items :: (Referent nt, Referent t, Ord nt, Ord t)
   => Grammar () nt t -> Set (LRState (LR1LookAhead t) nt t)
 lr1Items g = items g (lr1Goto g) (lr1Closure g) (lr1S0 g)
 
-lr1Parse :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
-  => Grammar () nt t -> Action ast nt t -> [InputSymbol t] -> Maybe ast
+lr1Parse :: (Referent nt, Referent t, Ord nt, Ord t)
+  => Grammar () nt t -> Action ast nt t -> [Icon t] -> Maybe ast
 lr1Parse g = lrParse g (lr1Table g) (lr1Goto g) (lr1Closure g) (lr1S0 g)
 

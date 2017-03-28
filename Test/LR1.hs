@@ -2,6 +2,8 @@ module Main where
 import Test.Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.LR1
+import Text.ANTLR.AST
+import Text.ANTLR.Parser
 
 import Data.Set (fromList, union, empty, Set(..), (\\))
 import qualified Data.Set as S
@@ -43,8 +45,6 @@ testKernel =
   @?=
   fromList
     [ slrItem (Init "E") [] [NT "E"] ]
-
-iS = InputSymbol
 
 type LR1Terminal = String
 type LR1NonTerminal = String
@@ -161,42 +161,42 @@ testSLRTable3 =
   testSLRExp
 
 testSLRExp = M.fromList
-    [ ((_I0, iS "id"), Shift _I5)
-    , ((_I0, iS "("),  Shift _I4)
-    , ((_I1, iS "+"),  Shift _I6)
-    , ((_I1, EOF),        Accept)
-    , ((_I2, iS "+"),  r2)
-    , ((_I2, iS "*"),  Shift _I7)
-    , ((_I2, iS ")"),  r2)
-    , ((_I2, EOF),        r2)
-    , ((_I3, iS "+"),  r4)
-    , ((_I3, iS "*"),  r4)
-    , ((_I3, iS ")"),  r4)
-    , ((_I3, EOF),        r4)
-    , ((_I4, iS "id"), Shift _I5)
-    , ((_I4, iS "("),  Shift _I4)
-    , ((_I5, iS "+"),  r6)
-    , ((_I5, iS "*"),  r6)
-    , ((_I5, iS ")"),  r6)
-    , ((_I5, EOF),        r6)
-    , ((_I6, iS "id"), Shift _I5)
-    , ((_I6, iS "("),  Shift _I4)
-    , ((_I7, iS "id"), Shift _I5)
-    , ((_I7, iS "("),  Shift _I4)
-    , ((_I8, iS "+"),  Shift _I6)
-    , ((_I8, iS ")"),  Shift _I11)
-    , ((_I9, iS "+"),  r1)
-    , ((_I9, iS "*"),  Shift _I7)
-    , ((_I9, iS ")"),  r1)
-    , ((_I9, EOF),        r1)
-    , ((_I10, iS "+"), r3)
-    , ((_I10, iS "*"), r3)
-    , ((_I10, iS ")"), r3)
-    , ((_I10, EOF),       r3)
-    , ((_I11, iS "+"), r5)
-    , ((_I11, iS "*"), r5)
-    , ((_I11, iS ")"), r5)
-    , ((_I11, EOF),       r5)
+    [ ((_I0, Icon "id"), Shift _I5)
+    , ((_I0, Icon "("),  Shift _I4)
+    , ((_I1, Icon "+"),  Shift _I6)
+    , ((_I1, IconEOF),        Accept)
+    , ((_I2, Icon "+"),  r2)
+    , ((_I2, Icon "*"),  Shift _I7)
+    , ((_I2, Icon ")"),  r2)
+    , ((_I2, IconEOF),        r2)
+    , ((_I3, Icon "+"),  r4)
+    , ((_I3, Icon "*"),  r4)
+    , ((_I3, Icon ")"),  r4)
+    , ((_I3, IconEOF),        r4)
+    , ((_I4, Icon "id"), Shift _I5)
+    , ((_I4, Icon "("),  Shift _I4)
+    , ((_I5, Icon "+"),  r6)
+    , ((_I5, Icon "*"),  r6)
+    , ((_I5, Icon ")"),  r6)
+    , ((_I5, IconEOF),        r6)
+    , ((_I6, Icon "id"), Shift _I5)
+    , ((_I6, Icon "("),  Shift _I4)
+    , ((_I7, Icon "id"), Shift _I5)
+    , ((_I7, Icon "("),  Shift _I4)
+    , ((_I8, Icon "+"),  Shift _I6)
+    , ((_I8, Icon ")"),  Shift _I11)
+    , ((_I9, Icon "+"),  r1)
+    , ((_I9, Icon "*"),  Shift _I7)
+    , ((_I9, Icon ")"),  r1)
+    , ((_I9, IconEOF),        r1)
+    , ((_I10, Icon "+"), r3)
+    , ((_I10, Icon "*"), r3)
+    , ((_I10, Icon ")"), r3)
+    , ((_I10, IconEOF),       r3)
+    , ((_I11, Icon "+"), r5)
+    , ((_I11, Icon "*"), r5)
+    , ((_I11, Icon ")"), r5)
+    , ((_I11, IconEOF),       r5)
     ]
 
 testLRRecognize =
@@ -205,47 +205,40 @@ testLRRecognize =
   True
 
 testLRRecognize2 =
-  slrRecognize grm (map iS ["id", "*", "id", "+", "+"] ++ [EOF])
+  slrRecognize grm (map Icon ["id", "*", "id", "+", "+"] ++ [IconEOF])
   @?=
   False
 
-data UAST =
-    ULeafEOF
-  | ULeafEps
-  | ULeaf LR1Terminal
-  | UAST  LR1NonTerminal
-          (Symbols LR1NonTerminal LR1Terminal)
-          [UAST]
-  deriving (Eq, Ord, Show)
+type LRAST = AST LR1NonTerminal LR1Terminal
 
-action0 :: ParseEvent UAST LR1NonTerminal LR1Terminal -> UAST
-action0 (InputSymbolE (InputSymbol t))    = ULeaf t
-action0 (InputSymbolE Eps')      = ULeafEps
-action0 (InputSymbolE EOF)       = ULeafEOF
-action0 (NonTE (nt, ss, asts)) = UAST nt ss asts
+action0 :: ParseEvent LRAST LR1NonTerminal LR1Terminal -> LRAST
+action0 (TermE (Icon t))    = Leaf t
+action0 (TermE IconEps)      = LeafEps
+--action0 (TermE IconEOF)       = LeafIconEOF
+action0 (NonTE (nt, ss, asts)) = AST nt ss asts
 
 testLRParse =
   slrParse grm action0 w0
   @?=
   (Just $
-    UAST "E" [NT "E", T "+", NT "T"]
-      [ UAST "E" [NT "T"]
-          [ UAST "T" [NT "T", T "*", NT "F"]
-              [ UAST "T" [NT "F"] [UAST "F" [T "id"] [ULeaf "id"]]
-              , ULeaf "*"
-              , UAST "F" [T "id"] [ULeaf "id"]
+    AST "E" [NT "E", T "+", NT "T"]
+      [ AST "E" [NT "T"]
+          [ AST "T" [NT "T", T "*", NT "F"]
+              [ AST "T" [NT "F"] [AST "F" [T "id"] [Leaf "id"]]
+              , Leaf "*"
+              , AST "F" [T "id"] [Leaf "id"]
               ]
           ]
-      , ULeaf "+"
-      , UAST "T" [NT "F"] [UAST "F" [T "id"] [ULeaf "id"]]
+      , Leaf "+"
+      , AST "T" [NT "F"] [AST "F" [T "id"] [Leaf "id"]]
       ])
 
 testLRParse2 =
-  slrParse grm action0 (map iS ["id", "*", "id", "+", "+"] ++ [EOF])
+  slrParse grm action0 (map Icon ["id", "*", "id", "+", "+"] ++ [IconEOF])
   @?=
   Nothing
 
-w0 = map iS ["id", "*", "id", "+", "id"] ++ [EOF]
+w0 = map Icon ["id", "*", "id", "+", "id"] ++ [IconEOF]
 
 testLR1Table =
   lr1Table dragonBook455
@@ -253,22 +246,22 @@ testLR1Table =
   lr1TableExp
 
 lr1TableExp = M.fromList
-  [ ((i0, iS "c"), Shift i3)
-  , ((i0, iS "d"), Shift i4)
-  , ((i1, EOF),       Accept)
-  , ((i2, iS "c"), Shift i6)
-  , ((i2, iS "d"), Shift i7)
-  , ((i3, iS "c"), Shift i3)
-  , ((i3, iS "d"), Shift i4)
-  , ((i4, iS "c"), r3')
-  , ((i4, iS "d"), r3')
-  , ((i5, EOF),       r1')
-  , ((i6, iS "c"), Shift i6)
-  , ((i6, iS "d"), Shift i7)
-  , ((i7, EOF),       r3')
-  , ((i8, iS "c"), r2')
-  , ((i8, iS "d"), r2')
-  , ((i9, EOF),       r2')
+  [ ((i0, Icon "c"), Shift i3)
+  , ((i0, Icon "d"), Shift i4)
+  , ((i1, IconEOF),       Accept)
+  , ((i2, Icon "c"), Shift i6)
+  , ((i2, Icon "d"), Shift i7)
+  , ((i3, Icon "c"), Shift i3)
+  , ((i3, Icon "d"), Shift i4)
+  , ((i4, Icon "c"), r3')
+  , ((i4, Icon "d"), r3')
+  , ((i5, IconEOF),       r1')
+  , ((i6, Icon "c"), Shift i6)
+  , ((i6, Icon "d"), Shift i7)
+  , ((i7, IconEOF),       r3')
+  , ((i8, Icon "c"), r2')
+  , ((i8, Icon "d"), r2')
+  , ((i9, IconEOF),       r2')
   ]
 
 --r5 = Reduce ("F", Prod [T "(", NT "E", T ")"])
@@ -283,52 +276,52 @@ testLR1Items =
 
 -- page 262 of soft cover dragon book:
 i0 = fromList
-  [ Item (Init   "S") [] [NT "S"]         EOF
-  , Item (ItemNT "S") [] [NT "C", NT "C"] EOF
-  , Item (ItemNT "C") [] [T "c", NT "C"]  (iS "c")
-  , Item (ItemNT "C") [] [T "c", NT "C"]  (iS "d")
-  , Item (ItemNT "C") [] [T "d"]          (iS "c")
-  , Item (ItemNT "C") [] [T "d"]          (iS "d")
+  [ Item (Init   "S") [] [NT "S"]         IconEOF
+  , Item (ItemNT "S") [] [NT "C", NT "C"] IconEOF
+  , Item (ItemNT "C") [] [T "c", NT "C"]  (Icon "c")
+  , Item (ItemNT "C") [] [T "c", NT "C"]  (Icon "d")
+  , Item (ItemNT "C") [] [T "d"]          (Icon "c")
+  , Item (ItemNT "C") [] [T "d"]          (Icon "d")
   ]
 
-i1 = fromList [ Item (Init "S") [NT "S"] [] EOF ]
+i1 = fromList [ Item (Init "S") [NT "S"] [] IconEOF ]
 
 i2 = fromList
-  [ Item (ItemNT "S") [NT "C"] [NT "C"]   EOF
-  , Item (ItemNT "C") [] [T "c", NT "C"]  EOF
-  , Item (ItemNT "C") [] [T "d"]          EOF
+  [ Item (ItemNT "S") [NT "C"] [NT "C"]   IconEOF
+  , Item (ItemNT "C") [] [T "c", NT "C"]  IconEOF
+  , Item (ItemNT "C") [] [T "d"]          IconEOF
   ]
 
 i3 = fromList
-  [ Item (ItemNT "C") [T "c"] [NT "C"]    (iS "c")
-  , Item (ItemNT "C") [T "c"] [NT "C"]    (iS "d")
-  , Item (ItemNT "C") [] [T "c", NT "C"]  (iS "c")
-  , Item (ItemNT "C") [] [T "c", NT "C"]  (iS "d")
-  , Item (ItemNT "C") [] [T "d"]          (iS "c")
-  , Item (ItemNT "C") [] [T "d"]          (iS "d")
+  [ Item (ItemNT "C") [T "c"] [NT "C"]    (Icon "c")
+  , Item (ItemNT "C") [T "c"] [NT "C"]    (Icon "d")
+  , Item (ItemNT "C") [] [T "c", NT "C"]  (Icon "c")
+  , Item (ItemNT "C") [] [T "c", NT "C"]  (Icon "d")
+  , Item (ItemNT "C") [] [T "d"]          (Icon "c")
+  , Item (ItemNT "C") [] [T "d"]          (Icon "d")
   ]
 
 i4 = fromList
-  [ Item (ItemNT "C") [T "d"] [] (iS "c")
-  , Item (ItemNT "C") [T "d"] [] (iS "d")
+  [ Item (ItemNT "C") [T "d"] [] (Icon "c")
+  , Item (ItemNT "C") [T "d"] [] (Icon "d")
   ]
 
-i5 = fromList [ Item (ItemNT "S") [NT "C", NT "C"] [] EOF ]
+i5 = fromList [ Item (ItemNT "S") [NT "C", NT "C"] [] IconEOF ]
 
 i6 = fromList
-  [ Item (ItemNT "C") [T "c"] [NT "C"]    EOF
-  , Item (ItemNT "C") [] [T "c", NT "C"]  EOF
-  , Item (ItemNT "C") [] [T "d"]          EOF
+  [ Item (ItemNT "C") [T "c"] [NT "C"]    IconEOF
+  , Item (ItemNT "C") [] [T "c", NT "C"]  IconEOF
+  , Item (ItemNT "C") [] [T "d"]          IconEOF
   ]
 
-i7 = fromList [ Item (ItemNT "C") [T "d"] [] EOF ]
+i7 = fromList [ Item (ItemNT "C") [T "d"] [] IconEOF ]
 
 i8 = fromList
-  [ Item (ItemNT "C") [NT "C", T "c"] [] (iS "c")
-  , Item (ItemNT "C") [NT "C", T "c"] [] (iS "d")
+  [ Item (ItemNT "C") [NT "C", T "c"] [] (Icon "c")
+  , Item (ItemNT "C") [NT "C", T "c"] [] (Icon "d")
   ]
 
-i9 = fromList [ Item (ItemNT "C") [NT "C", T "c"] [] EOF ]
+i9 = fromList [ Item (ItemNT "C") [NT "C", T "c"] [] IconEOF ]
 
 testLR1Parse =
   lr1Parse grm action0 w0

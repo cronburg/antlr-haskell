@@ -45,7 +45,7 @@ type Configuration nt = (ATNState nt, Int, Gamma nt)
 --depends on: adaptivePredict
 --parse ::
 parse 
-  :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  :: (Referent nt, Referent t, Ord nt, Ord t)
   => nt -> ParserS s nt t (Maybe ())
 parse _S =
   let loop p _γ0 i =
@@ -94,7 +94,7 @@ parse _S =
 --            startState
 --adaptivePredict ::
 adaptivePredict
-  :: forall s. forall nt. forall t. (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  :: forall s. forall nt. forall t. (Referent nt, Referent t, Ord nt, Ord t)
   => nt -> Gamma nt -> ParserS s nt t (Maybe Int)
 adaptivePredict _A _γ0 =
   let hasPredForA :: [Production s nt t] -> Bool
@@ -130,7 +130,7 @@ adaptivePredict _A _γ0 =
 --depends on: closure
 --startState ::
 startState 
-  :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  :: (Referent nt, Referent t, Ord nt, Ord t)
   => nt -> Gamma nt -> ParserS s nt t (Set (Configuration nt))
 startState a gamma = do
   ATN {_Δ = delta} <-  getATN
@@ -148,7 +148,7 @@ startState a gamma = do
 --            llPredict
 --sllPredict ::
 sllPredict 
-  :: forall nt. forall t. forall s. (NonTerminal nt, Ord nt, Terminal t, Ord t)
+  :: forall nt. forall t. forall s. (Referent nt, Ord nt, Referent t, Ord t)
   => nt -> Set (Configuration nt) -> [Lex.Token t] -> Gamma nt -> ParserS s nt t (Maybe Int)
 sllPredict _A d0 start _γ0 = do
 
@@ -188,7 +188,7 @@ sllPredict _A d0 start _γ0 = do
 --target ::
 target ::
   forall nt. forall t. forall s.
-  (NonTerminal nt, Ord nt, Terminal t, Ord t)
+  (Referent nt, Ord nt, Referent t, Ord t)
   => Set (Configuration nt) -> t -> ParserS s nt t (DFAState nt)
 target d0 a = do
   mv <- move d0 a
@@ -223,7 +223,7 @@ target d0 a = do
 -- no dependencies
 -- set of all (q,i,Gamma) s.t. p -a> q and (p,i,Gamma) in State d
 move ::
-  forall nt. forall t. forall s. (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  forall nt. forall t. forall s. (Referent nt, Referent t, Ord nt, Ord t)
   => Set (Configuration nt) -> t -> ParserS s nt t (Set (Configuration nt))
 move d a = do
   ATN {_Δ = delta} <- getATN
@@ -242,7 +242,7 @@ move d a = do
 --            closure
 --            getConflictSetsPerLoc
 llPredict 
-  :: (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  :: (Referent nt, Referent t, Ord nt, Ord t)
   => nt -> [Lex.Token t] -> Gamma nt -> ParserS s nt t (Maybe Int)
 llPredict _A start _γ0 =
   let
@@ -276,7 +276,7 @@ llPredict _A start _γ0 =
 
 
 --getATN = return $ ATN { _Δ = Set.empty }
-getATN :: (NonTerminal nt, Terminal t, Ord nt, Ord t) => ParserS s nt t (ATN s nt t)
+getATN :: (Referent nt, Referent t, Ord nt, Ord t) => ParserS s nt t (ATN s nt t)
 getATN = do
   Parser { g = grammar} <- get
   return $ atnOf grammar
@@ -284,7 +284,7 @@ getATN = do
 
 --no fn dependencies
 closure ::
-  forall nt. forall t. forall s. (NonTerminal nt, Terminal t, Ord nt, Ord t)
+  forall nt. forall t. forall s. (Referent nt, Referent t, Ord nt, Ord t)
   => Set (Transition s nt t) -> Set (Configuration nt) -> Configuration nt -> Set (Configuration nt)
 closure d busy (cfg@(p,i,gamma))
   | Set.member cfg busy = Set.empty
@@ -347,7 +347,7 @@ closure d busy (cfg@(p,i,gamma))
 -- no dependencies
 -- for each p,Gamma: get set of alts {i} from (p,-,Gamma) in D Confs
 --getConflictSetsPerLoc ::
-getConflictSetsPerLoc :: forall nt. (NonTerminal nt, Ord nt) => Set (Configuration nt) -> Set (Set Int)
+getConflictSetsPerLoc :: forall nt. (Referent nt, Ord nt) => Set (Configuration nt) -> Set (Set Int)
 getConflictSetsPerLoc d =
   let m = Set.foldr updateEntry (Map.empty) d
       updateEntry :: Configuration nt -> (Map (ATNState nt, Gamma nt) (Set Int)) -> (Map (ATNState nt, Gamma nt) (Set Int))
@@ -362,7 +362,7 @@ getConflictSetsPerLoc d =
 -- no dependencies
 -- for each p return set of alts i from (p,-,-) in D Confs
 --getProdSetsPerState ::
-getProdSetsPerState :: forall nt. (NonTerminal nt, Ord nt) => Set (Configuration nt) -> Set (Set Int)
+getProdSetsPerState :: forall nt. (Referent nt, Ord nt) => Set (Configuration nt) -> Set (Set Int)
 getProdSetsPerState d =
   let m = Set.foldr updateEntry (Map.empty) d
       updateEntry :: Configuration nt -> (Map (ATNState nt) (Set Int)) -> (Map (ATNState nt) (Set Int))

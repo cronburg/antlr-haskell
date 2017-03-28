@@ -1,14 +1,9 @@
-{-# LANGUAGE ScopedTypeVariables, FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses #-}
 module Text.ANTLR.Allstar.Grammar
-  ( NonTerminal
-  , Terminal
-  , sameNTs, sameTerminals, ntSymbolName, tSymbolName, SymbolName
-  , ProdElem(..)
-  , Symbols
-  , Production(..)
-  , ProdRHS(..)
-  , Predicate(..)
-  , Mutator(..)
+  ( Referent(..), sameNTs, sameTerminals
+  , ProdElem(..), ProdElems
+  , Production(..), ProdRHS(..)
+  , Predicate(..), Mutator(..)
   , Grammar(..)
   , defaultGrammar
   , isProd, isSem, isAction
@@ -27,34 +22,25 @@ import qualified Data.Set as S
 -- When we *Show* production elements, they should contain source location
 -- information, but when we *compare* them, we should ignore the source info.
 
-class NonTerminal nt where
-  ntSymbolName :: nt -> SymbolName
- -- sameNTs :: nt -> nt -> Bool
+-- Something is "Referent" if it can be symbolized by some symbol in a set of
+-- symbols. Symbols are typically Strings, an enum data type, or some other
+-- Eq-able (best if finite) set of things.
+class Referent ref where
+  getSymbol :: ref -> String
 
-sameNTs :: (NonTerminal nt) => nt -> nt -> Bool
-sameNTs nt0 nt1 = ntSymbolName nt0 == ntSymbolName nt1
+sameNTs :: (Referent nt) => nt -> nt -> Bool
+sameNTs nt0 nt1 = getSymbol nt0 == getSymbol nt1
 
-type SymbolName = String
+sameTerminals :: (Referent t) => t -> t -> Bool
+sameTerminals t0 t1 = getSymbol t0 == getSymbol t1
 
-class Terminal t where
-  tSymbolName :: t -> SymbolName
+instance Referent ([] Char) where
+  getSymbol = id
 
-sameTerminals :: (Terminal t) => t -> t -> Bool
-sameTerminals t0 t1 = tSymbolName t0 == tSymbolName t1
+instance Referent (String, b) where
+  getSymbol = fst
 
-instance NonTerminal ([] Char) where
-  ntSymbolName = id
-
-instance Terminal ([] Char) where
-  tSymbolName = id
-
-instance NonTerminal (String, b) where
-  ntSymbolName = fst
-
-instance Terminal (String, b) where
-  tSymbolName = fst
-
--- Grammar Symbols:
+-- Grammar ProdElems:
 data ProdElem nt t =
     NT nt
   | T  t
@@ -74,11 +60,11 @@ getNTs = map (\(NT nt) -> nt) . filter isNT
 getTs  = map (\(T t) -> t) . filter isT
 getEps = map (\Eps -> Eps) . filter isEps -- no
 
-type Symbols nt t = [ProdElem nt t]
+type ProdElems nt t = [ProdElem nt t]
 
 data ProdRHS s nt t =
-    Prod    (Symbols nt t)
-  | Sem     (Predicate s) (Symbols nt t)
+    Prod    (ProdElems nt t)
+  | Sem     (Predicate s) (ProdElems nt t)
   | Action  (Mutator s)
   deriving (Eq, Ord, Show)
 
@@ -96,7 +82,9 @@ getProds = map (\(Prod ss) -> ss) . filter isProd
 type Production s nt t = (nt, ProdRHS s nt t)
 
 -- Get only the productions for the given nonterminal nt:
-prodsFor :: forall s. forall nt. forall t. (NonTerminal nt, Terminal t) => Grammar s nt t -> nt -> [Production s nt t]
+prodsFor ::
+  forall s nt t nts ts. (Referent nt, Referent t)
+  => Grammar s nt t -> nt -> [Production s nt t]
 prodsFor g nt = let
     matchesNT :: Production s nt t -> Bool
     matchesNT (nt', _) = sameNTs nt' nt
@@ -134,7 +122,7 @@ data Grammar s nt t = G
   , _μs :: Set (Mutator   s)
   } deriving (Eq, Ord, Show)
 
-symbols :: (NonTerminal nt, Terminal t, Ord nt, Ord t) => Grammar s nt t -> Set (ProdElem nt t)
+symbols :: (Referent nt, Referent t, Ord nt, Ord t) => Grammar s nt t -> Set (ProdElem nt t)
 symbols g = S.insert Eps $ S.map NT (ns g) `union` S.map T (ts g)
 
 defaultGrammar = G
@@ -146,22 +134,22 @@ defaultGrammar = G
   , _μs = empty
   }
 
-validGrammar :: (NonTerminal nt, Terminal t, Eq nt, Ord nt, Eq t, Ord t) => Grammar s nt t -> Bool
+validGrammar :: (Referent nt, Referent t, Eq nt, Ord nt, Eq t, Ord t) => Grammar s nt t -> Bool
 validGrammar g =
      hasAllNonTerms g
   && hasAllTerms g
   && startIsNonTerm g
 --  && distinctTermsNonTerms g
 
-hasAllNonTerms :: (NonTerminal nt, Terminal t, Eq nt, Ord nt) => Grammar s nt t -> Bool
+hasAllNonTerms :: (Referent nt, Referent t, Eq nt, Ord nt) => Grammar s nt t -> Bool
 hasAllNonTerms g =
   ns g == (fromList . getNTs . concat . getProds . map snd $ ps g)
 
-hasAllTerms :: (NonTerminal nt, Terminal t, Eq t, Ord t) => Grammar s nt t -> Bool
+hasAllTerms :: (Referent nt, Referent t, Eq t, Ord t) => Grammar s nt t -> Bool
 hasAllTerms g =
   ts g == (fromList . getTs . concat . getProds . map snd $ ps g)
 
-startIsNonTerm :: (NonTerminal nt, Terminal t, Ord nt) => Grammar s nt t -> Bool
+startIsNonTerm :: (Referent nt, Referent t, Ord nt) => Grammar s nt t -> Bool
 startIsNonTerm g = s0 g `member` ns g
 
 --distinctTermsNonTerms g =

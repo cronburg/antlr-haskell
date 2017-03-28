@@ -1,6 +1,8 @@
 module Main where
 import Test.Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Parser
+import Text.ANTLR.AST
 import Text.ANTLR.LL1
 
 import Data.Set (fromList, union, empty, Set(..))
@@ -16,8 +18,6 @@ import Test.HUnit
 import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
-iS = InputSymbol
-
 type LL1NonTerminal = String
 type LL1Terminal    = String
 
@@ -28,21 +28,21 @@ grm = dragonBook428
 
 termination = first grm [NT "E"] @?= first grm [NT "E"]
 
-firstF = first grm [NT "F"] @?= fromList [iS "(", iS "id"]
+firstF = first grm [NT "F"] @?= fromList [Icon "(", Icon "id"]
 
-noEps = first grm [NT "E"] @?= fromList [iS "(", iS "id"]
+noEps = first grm [NT "E"] @?= fromList [Icon "(", Icon "id"]
 
 firstT' =
   first grm [NT "T'"]
   @?=
-  fromList [iS "*", Eps']
+  fromList [Icon "*", IconEps]
 
 foldEpsTest = foldWhileEpsilon union empty
-  [ fromList [iS "(", iS "id"]
-  , fromList [iS ")"]
+  [ fromList [Icon "(", Icon "id"]
+  , fromList [Icon ")"]
   ]
   @?=
-  fromList [iS "(", iS "id"]
+  fromList [Icon "(", Icon "id"]
 
 firstAll =
   ( S.map ((\nt -> (nt, first grm [nt])) . NT) (ns grm)
@@ -51,16 +51,16 @@ firstAll =
   )
   @?=
   fromList
-    [ (NT "E",  fromList [iS "(", iS "id"])
-    , (NT "E'", fromList [iS "+", Eps'])
-    , (NT "F",  fromList [iS "(", iS "id"])
-    , (NT "T",  fromList [iS "(", iS "id"])
-    , (NT "T'", fromList [iS "*", Eps'])
-    , (T "(",   fromList [iS "("])
-    , (T ")",   fromList [iS ")"])
-    , (T "*",   fromList [iS "*"])
-    , (T "+",   fromList [iS "+"])
-    , (T "id",  fromList [iS "id"])
+    [ (NT "E",  fromList [Icon "(", Icon "id"])
+    , (NT "E'", fromList [Icon "+", IconEps])
+    , (NT "F",  fromList [Icon "(", Icon "id"])
+    , (NT "T",  fromList [Icon "(", Icon "id"])
+    , (NT "T'", fromList [Icon "*", IconEps])
+    , (T "(",   fromList [Icon "("])
+    , (T ")",   fromList [Icon ")"])
+    , (T "*",   fromList [Icon "*"])
+    , (T "+",   fromList [Icon "+"])
+    , (T "id",  fromList [Icon "id"])
     ]
 
 grm' :: Grammar () LL1NonTerminal LL1Terminal
@@ -68,16 +68,16 @@ grm' = grm
 
 followAll :: IO ()
 followAll = let
-    fncn :: LL1NonTerminal -> (ProdElem LL1NonTerminal LL1Terminal, Set (InputSymbol LL1Terminal))
+    fncn :: LL1NonTerminal -> (ProdElem LL1NonTerminal LL1Terminal, Set (Icon LL1Terminal))
     fncn nt = (NT nt, follow grm' nt)
   in S.map fncn (ns grm')
   @?=
   fromList
-    [ (NT "E",  fromList [iS ")", EOF])
-    , (NT "E'", fromList [iS ")", EOF])
-    , (NT "T",  fromList [iS ")", iS "+", EOF])
-    , (NT "T'", fromList [iS ")", iS "+", EOF])
-    , (NT "F",  fromList [iS ")", iS "*", iS "+", EOF])
+    [ (NT "E",  fromList [Icon ")", IconEOF])
+    , (NT "E'", fromList [Icon ")", IconEOF])
+    , (NT "T",  fromList [Icon ")", Icon "+", IconEOF])
+    , (NT "T'", fromList [Icon ")", Icon "+", IconEOF])
+    , (NT "F",  fromList [Icon ")", Icon "*", Icon "+", IconEOF])
     ]
 
 parseTableTest =
@@ -85,56 +85,50 @@ parseTableTest =
   @?=
   M.fromList (map (\((a,b),c) -> ((a,b), S.singleton c))
     -- Figure 4.17 of dragon book:
-    [ (("E",  iS "id"), [NT "T", NT "E'"])
-    , (("E",  iS "("),  [NT "T", NT "E'"])
-    , (("E'", iS "+"),  [T "+", NT "T", NT "E'"])
-    , (("E'", iS ")"),  [Eps])
-    , (("E'", EOF),       [Eps])
-    , (("T",  iS "id"), [NT "F", NT "T'"])
-    , (("T",  iS "("),  [NT "F", NT "T'"])
-    , (("T'", iS "+"),  [Eps])
-    , (("T'", iS "*"),  [T "*", NT "F", NT "T'"])
-    , (("T'", iS ")"),  [Eps])
-    , (("T'", EOF),       [Eps])
-    , (("F",  iS "id"), [T "id"])
-    , (("F",  iS "("),  [T "(", NT "E", T ")"])
+    [ (("E",  Icon "id"), [NT "T", NT "E'"])
+    , (("E",  Icon "("),  [NT "T", NT "E'"])
+    , (("E'", Icon "+"),  [T "+", NT "T", NT "E'"])
+    , (("E'", Icon ")"),  [Eps])
+    , (("E'", IconEOF),       [Eps])
+    , (("T",  Icon "id"), [NT "F", NT "T'"])
+    , (("T",  Icon "("),  [NT "F", NT "T'"])
+    , (("T'", Icon "+"),  [Eps])
+    , (("T'", Icon "*"),  [T "*", NT "F", NT "T'"])
+    , (("T'", Icon ")"),  [Eps])
+    , (("T'", IconEOF),       [Eps])
+    , (("F",  Icon "id"), [T "id"])
+    , (("F",  Icon "("),  [T "(", NT "E", T ")"])
     ])
 
-data UAST =
-    ULeafEps
-  | ULeaf LL1Terminal
-  | UAST  LL1NonTerminal
-          (Symbols LL1NonTerminal LL1Terminal)
-          [UAST]
-  deriving (Eq, Ord, Show)
+type LLAST = AST LL1NonTerminal LL1Terminal
 
-action0 EpsE                    = ULeafEps
-action0 (TermE t)               = ULeaf t
-action0 (NonTE (nt, ss, us))    = UAST nt ss us
+action0 EpsE                    = LeafEps
+action0 (TermE (Icon t))        = Leaf t
+action0 (NonTE (nt, ss, us))    = AST nt ss us
 
 action1 (NonTE (nt, ss, trees)) = uPIO (print ("Act:", nt, ss, trees)) `seq` action0 $ NonTE (nt,ss,trees)
 action1 (TermE x) = uPIO (print ("Act:", x)) `seq` action0 $ TermE x
 action1 EpsE      = action0 EpsE
 
 dragonPredParse =
-  (predictiveParse grm action0 $ map iS ["id", "+", "id", "*", "id"] ++ [EOF])
+  (predictiveParse grm action0 $ map Icon ["id", "+", "id", "*", "id"] ++ [IconEOF])
   @?=
-  (Just $ UAST "E" [NT "T", NT "E'"]
-            [ UAST "T" [NT "F", NT "T'"]
-                [ UAST "F"  [T "id"] [ULeaf "id"]
-                , UAST "T'" [Eps]    [ULeafEps]
+  (Just $ AST "E" [NT "T", NT "E'"]
+            [ AST "T" [NT "F", NT "T'"]
+                [ AST "F"  [T "id"] [Leaf "id"]
+                , AST "T'" [Eps]    [LeafEps]
                 ]
-            , UAST "E'" [T "+", NT "T", NT "E'"]
-                [ ULeaf "+"
-                , UAST "T" [NT "F", NT "T'"]
-                    [ UAST "F" [T "id"] [ULeaf "id"]
-                    , UAST "T'" [T "*", NT "F", NT "T'"]
-                        [ ULeaf "*"
-                        , UAST "F" [T "id"] [ULeaf "id"]
-                        , UAST "T'" [Eps] [ULeafEps]
+            , AST "E'" [T "+", NT "T", NT "E'"]
+                [ Leaf "+"
+                , AST "T" [NT "F", NT "T'"]
+                    [ AST "F" [T "id"] [Leaf "id"]
+                    , AST "T'" [T "*", NT "F", NT "T'"]
+                        [ Leaf "*"
+                        , AST "F" [T "id"] [Leaf "id"]
+                        , AST "T'" [Eps] [LeafEps]
                         ]
                     ]
-                , UAST "E'" [Eps] [ULeafEps]
+                , AST "E'" [Eps] [LeafEps]
                 ]
             ])
 
