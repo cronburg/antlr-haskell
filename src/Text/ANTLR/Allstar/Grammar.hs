@@ -48,6 +48,12 @@ instance NonTerminal ([] Char) where
 instance Terminal ([] Char) where
   tSymbolName = id
 
+instance NonTerminal (String, b) where
+  ntSymbolName = fst
+
+instance Terminal (String, b) where
+  tSymbolName = fst
+
 -- Grammar Symbols:
 data ProdElem nt t =
     NT nt

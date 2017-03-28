@@ -61,7 +61,7 @@ parse _S =
              -- should only ever be one by atn construction
              let [(_,t,q)] = Set.toList $ Set.filter (\(p',_,_) -> p' == p) delta
              case t of
-               TE b -> if b == Lex.termOf curr_tok
+               TE b -> if b == Lex.tok2term curr_tok
                                   then do
                                     put $ parser {tokens = rest}
                                     loop q _γ0 i
@@ -162,10 +162,10 @@ sllPredict _A d0 start _γ0 = do
       loop :: Set (Configuration nt) -> ParserS s nt t (Maybe Int)
       loop d = do
         p@(Parser {tokens = (tok:rest), dfa = _dfa, stackSensitive=ss}) <- get
-        let maybeD' = findExistingTarget (Set.toList _dfa) (ConfState d) (Lex.termOf tok)
+        let maybeD' = findExistingTarget (Set.toList _dfa) (ConfState d) (Lex.tok2term tok)
         _D' <- case maybeD' of
                  Just d' -> return d'
-                 _       -> target d (Lex.termOf tok)
+                 _       -> target d (Lex.tok2term tok)
         case (_D', Set.member _D' ss)  of
           (_, True) -> do
             put $ p {tokens = start}
@@ -249,7 +249,7 @@ llPredict _A start _γ0 =
     loop _D = do
       p@(Parser {tokens = (cur:rest), amb2 = a2}) <- get
       ATN {_Δ = delta} <- getATN
-      let term = Lex.termOf cur
+      let term = Lex.tok2term cur
       mv <- move _D term
       let _D' = Set.foldr (Set.union . (closure delta Set.empty)) Set.empty mv
       case (Set.toList . getJs) _D' of
