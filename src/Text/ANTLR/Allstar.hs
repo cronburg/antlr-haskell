@@ -4,7 +4,7 @@ import Text.ANTLR.Allstar.Grammar
 --import Text.ANTLR.Allstar.GSS
 import Text.ANTLR.Allstar.ATN
 import Text.ANTLR.Allstar.Stacks
-import qualified Text.ANTLR.Allstar.Lex as Lex
+import qualified Text.ANTLR.Lex as Lex
 -- Set
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -14,19 +14,19 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 -- parser
-data Parser s nt t = Parser
+data Parser s nt t v = Parser
   -- Parser is the mutator state, i.e. current state of the parse
   { g   :: Grammar s nt t
   , i   :: Int
   , amb :: Map (ATNState nt) [Int]
   , s   :: s
   , dfa :: Set (DFAEdge nt t)
-  , tokens :: [Lex.Token t]
+  , tokens :: [Lex.Token t v]
   , stackSensitive :: Set (DFAState nt)
-  , amb2 :: [([Lex.Token t], Lex.Token t, Set Int)]
+  , amb2 :: [([Lex.Token t v], Lex.Token t v, Set Int)]
   }
 
-type ParserS s nt t a = State (Parser s nt t) a
+type ParserS s nt t v a = State (Parser s nt t v) a
 
 data DFAEdge nt t = DFAE (DFAState nt) t (DFAState nt)
   deriving (Eq, Ord)
@@ -44,11 +44,13 @@ type Configuration nt = (ATNState nt, Int, Gamma nt)
 
 --depends on: adaptivePredict
 --parse ::
-parse 
-  :: (Referent nt, Referent t, Ord nt, Ord t)
-  => nt -> ParserS s nt t (Maybe ())
+parse
+  :: forall nt t v s. (Referent nt, Referent t, Ord nt, Ord v, Ord t, Eq t)
+  => nt -> ParserS s nt t v (Maybe ())
 parse _S =
-  let loop p _γ0 i =
+  let 
+      --loop :: ATNState nt -> Gamma nt -> Int -> State (ParserS s nt t v (Maybe ())) (Maybe ())
+      loop p _γ0 i =
         case p of
           Accept _B -> if _B == _S
                         then return $ Just () --success
@@ -61,7 +63,7 @@ parse _S =
              -- should only ever be one by atn construction
              let [(_,t,q)] = Set.toList $ Set.filter (\(p',_,_) -> p' == p) delta
              case t of
-               TE b -> if b == Lex.tok2term curr_tok
+               TE b -> if b == Lex.tokenName curr_tok
                                   then do
                                     put $ parser {tokens = rest}
                                     loop q _γ0 i
@@ -94,8 +96,8 @@ parse _S =
 --            startState
 --adaptivePredict ::
 adaptivePredict
-  :: forall s. forall nt. forall t. (Referent nt, Referent t, Ord nt, Ord t)
-  => nt -> Gamma nt -> ParserS s nt t (Maybe Int)
+  :: forall s nt t v. (Referent nt, Referent t, Ord nt, Ord v, Ord t)
+  => nt -> Gamma nt -> ParserS s nt t v (Maybe Int)
 adaptivePredict _A _γ0 =
   let hasPredForA :: [Production s nt t] -> Bool
       hasPredForA ((_,Sem _ _):_) = True
@@ -130,8 +132,8 @@ adaptivePredict _A _γ0 =
 --depends on: closure
 --startState ::
 startState 
-  :: (Referent nt, Referent t, Ord nt, Ord t)
-  => nt -> Gamma nt -> ParserS s nt t (Set (Configuration nt))
+  :: (Referent nt, Referent t, Ord nt, Ord v, Ord t)
+  => nt -> Gamma nt -> ParserS s nt t v (Set (Configuration nt))
 startState a gamma = do
   ATN {_Δ = delta} <-  getATN
   Parser {s = parser_state} <- get
@@ -148,8 +150,8 @@ startState a gamma = do
 --            llPredict
 --sllPredict ::
 sllPredict 
-  :: forall nt. forall t. forall s. (Referent nt, Ord nt, Referent t, Ord t)
-  => nt -> Set (Configuration nt) -> [Lex.Token t] -> Gamma nt -> ParserS s nt t (Maybe Int)
+  :: forall nt t s v. (Referent nt, Ord nt, Referent t, Ord t, Ord v)
+  => nt -> Set (Configuration nt) -> [Lex.Token t v] -> Gamma nt -> ParserS s nt t v (Maybe Int)
 sllPredict _A d0 start _γ0 = do
 
   loop d0
@@ -159,13 +161,13 @@ sllPredict _A d0 start _γ0 = do
         | d == d0 && (sameTerminals a b) = Just d'
         | otherwise         = findExistingTarget rest d0 a
       findExistingTarget [] _ _ = Nothing
-      loop :: Set (Configuration nt) -> ParserS s nt t (Maybe Int)
+      loop :: Set (Configuration nt) -> ParserS s nt t v (Maybe Int)
       loop d = do
         p@(Parser {tokens = (tok:rest), dfa = _dfa, stackSensitive=ss}) <- get
-        let maybeD' = findExistingTarget (Set.toList _dfa) (ConfState d) (Lex.tok2term tok)
+        let maybeD' = findExistingTarget (Set.toList _dfa) (ConfState d) (Lex.tokenName tok)
         _D' <- case maybeD' of
                  Just d' -> return d'
-                 _       -> target d (Lex.tok2term tok)
+                 _       -> target d (Lex.tokenName tok)
         case (_D', Set.member _D' ss)  of
           (_, True) -> do
             put $ p {tokens = start}
@@ -187,9 +189,9 @@ sllPredict _A d0 start _γ0 = do
 --            getProdSetsPerState
 --target ::
 target ::
-  forall nt. forall t. forall s.
-  (Referent nt, Ord nt, Referent t, Ord t)
-  => Set (Configuration nt) -> t -> ParserS s nt t (DFAState nt)
+  forall nt t s v.
+  (Referent nt, Ord nt, Referent t, Ord t, Ord v)
+  => Set (Configuration nt) -> t -> ParserS s nt t v (DFAState nt)
 target d0 a = do
   mv <- move d0 a
   ATN { _Δ = transitions } <- getATN
@@ -198,7 +200,7 @@ target d0 a = do
     where
       onlyOneProd confs =
         Set.size (Set.foldr (\(_,i,_) s -> Set.insert i s) Set.empty confs ) == 1
-      checkConstraint :: Set (Configuration nt) -> ParserS s nt t (DFAState nt)
+      checkConstraint :: Set (Configuration nt) -> ParserS s nt t v (DFAState nt)
       checkConstraint d'
         | Set.null d' = do
             p@ (Parser {dfa=delta}) <- get
@@ -223,8 +225,8 @@ target d0 a = do
 -- no dependencies
 -- set of all (q,i,Gamma) s.t. p -a> q and (p,i,Gamma) in State d
 move ::
-  forall nt. forall t. forall s. (Referent nt, Referent t, Ord nt, Ord t)
-  => Set (Configuration nt) -> t -> ParserS s nt t (Set (Configuration nt))
+  forall nt t s v. (Referent nt, Referent t, Ord nt, Ord v, Ord t)
+  => Set (Configuration nt) -> t -> ParserS s nt t v (Set (Configuration nt))
 move d a = do
   ATN {_Δ = delta} <- getATN
   return $ Set.foldr (fltr delta) Set.empty d
@@ -242,14 +244,14 @@ move d a = do
 --            closure
 --            getConflictSetsPerLoc
 llPredict 
-  :: (Referent nt, Referent t, Ord nt, Ord t)
-  => nt -> [Lex.Token t] -> Gamma nt -> ParserS s nt t (Maybe Int)
+  :: (Referent nt, Referent t, Ord nt, Ord v, Ord t)
+  => nt -> [Lex.Token t v] -> Gamma nt -> ParserS s nt t v (Maybe Int)
 llPredict _A start _γ0 =
   let
     loop _D = do
       p@(Parser {tokens = (cur:rest), amb2 = a2}) <- get
       ATN {_Δ = delta} <- getATN
-      let term = Lex.tok2term cur
+      let term = Lex.tokenName cur
       mv <- move _D term
       let _D' = Set.foldr (Set.union . (closure delta Set.empty)) Set.empty mv
       case (Set.toList . getJs) _D' of
@@ -276,7 +278,9 @@ llPredict _A start _γ0 =
 
 
 --getATN = return $ ATN { _Δ = Set.empty }
-getATN :: (Referent nt, Referent t, Ord nt, Ord t) => ParserS s nt t (ATN s nt t)
+getATN
+  :: (Referent nt, Referent t, Ord nt, Ord t, Ord v)
+  => ParserS s nt t v (ATN s nt t)
 getATN = do
   Parser { g = grammar} <- get
   return $ atnOf grammar
@@ -284,7 +288,7 @@ getATN = do
 
 --no fn dependencies
 closure ::
-  forall nt. forall t. forall s. (Referent nt, Referent t, Ord nt, Ord t)
+  forall nt t s. (Referent nt, Referent t, Ord nt)
   => Set (Transition s nt t) -> Set (Configuration nt) -> Configuration nt -> Set (Configuration nt)
 closure d busy (cfg@(p,i,gamma))
   | Set.member cfg busy = Set.empty

@@ -53,7 +53,7 @@ library
                   , Text.ANTLR.Allstar.GSS
                   , Text.ANTLR.Allstar.Stacks
                   , Text.ANTLR.Allstar.ATN
-                  , Text.ANTLR.Allstar.Lex
+                  , Text.ANTLR.Lex
                   , Text.ANTLR.LL1
                   , Text.ANTLR.LR1
                   , Text.ANTLR.Parser

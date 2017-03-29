@@ -1,7 +1,7 @@
 module Main where
 -- Allstar imports go here, e.g.:
 -- import Text.ANTLR.Allstar.ATN (..)
-import Text.ANTLR.Allstar.Lex
+import Text.ANTLR.Lex
 
 import System.IO.Unsafe (unsafePerformIO)           
 import Data.Monoid                                  
