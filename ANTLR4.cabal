@@ -54,6 +54,9 @@ library
                   , Text.ANTLR.Allstar.Stacks
                   , Text.ANTLR.Allstar.ATN
                   , Text.ANTLR.Lex
+                  , Text.ANTLR.Lex.NFA
+                  , Text.ANTLR.Lex.DFA
+                  , Text.ANTLR.Lex.Automata
                   , Text.ANTLR.LL1
                   , Text.ANTLR.LR1
                   , Text.ANTLR.Parser
@@ -75,6 +78,7 @@ library
   -- Other library packages from which modules are imported.
   build-depends:       base >=4.8 && <4.9, containers, mtl, parsec
                      , parsec, template-haskell, haskell-src-meta >= 0.4
+                     , set-monad
 
   -- Directories containing source files.
   hs-source-dirs:      src
@@ -178,7 +182,7 @@ Test-Suite lexer
   Type:           exitcode-stdio-1.0
   Main-Is:        Test/Lex.hs
   build-depends:  base
-                , ANTLR4
+                , ANTLR4, set-monad
                 , QuickCheck
                 , HUnit
                 , Cabal
