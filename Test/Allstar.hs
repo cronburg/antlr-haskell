@@ -17,12 +17,15 @@ module Main where
   import Data.Set (Set(..), fromList)
   import qualified Data.Set as Set
 
+  getATN' :: ParserS () String String String (ATN () String String)
+  getATN' = getATN
 
   test_closure_01 = actual @?= expected
     where
+      actual :: Set (Configuration String)
       (actual,_) =
         runState (do
-          ATN {_Δ = d} <-  getATN
+          ATN {_Δ = d} <- getATN'
           return $ closure d Set.empty (Start "C", 0, Empty))
           ( Parser { g = mattToolG})
       expected :: Set (Configuration String)
@@ -38,7 +41,7 @@ module Main where
       (actual,_) =
         runState
           (do
-            ATN {_Δ = d} <-  getATN
+            ATN {_Δ = d} <-  getATN'
             let epsilon_closure = closure d Set.empty (Start "C",0,Empty)
             move epsilon_closure "a"
           )
