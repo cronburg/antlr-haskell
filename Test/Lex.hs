@@ -36,37 +36,37 @@ nfa0 = Automata
   }
 
 testValid0 =
-  True
-  @?=
   (  validStartState nfa0
   && validFinalStates nfa0
   && validTransitions nfa0
   )
+  @?=
+  True
 
 testClosureWith0 =
-  fromList [0, 1]
-  @?=
   closureWith (Edge 'a' ==) nfa0 (singleton 0)
+  @?=
+  fromList [0, 1]
 
 testClosureWith1 =
-  fromList []
-  @?=
   closureWith (NFAEpsilon ==) nfa0 (singleton 0)
+  @?=
+  fromList []
 
 testClosureWith2 =
-  fromList [0, 1, 2, 3]
-  @?=
   closureWith (const True) nfa0 (singleton 0)
+  @?=
+  fromList [0, 1, 2, 3]
 
 testClosureWith3 =
-  fromList [0]
-  @?=
   closureWith (Edge 'b' ==) nfa0 (singleton 0)
+  @?=
+  fromList [0]
 
 testMove0 =
-  fromList [0,1]
-  @?=
   move nfa0 (fromList [0,1,2]) (Edge 'a')
+  @?=
+  fromList [0,1]
 
 nfa334 :: NFA Char Int
 nfa334 = Automata
@@ -91,6 +91,35 @@ nfa334 = Automata
     ]
   }
 
+_A = fromList [0,1,2,4,7]
+_B = fromList [1,2,3,4,6,7,8]
+_C = fromList [1,2,4,5,6,7]
+_D = fromList [1,2,4,5,6,9]
+_E = fromList [1,2,4,5,6,7,10]
+
+a = 'a'
+b = 'b'
+
+dfa336 :: DFA.DFA Char (Set Int)
+dfa336 = Automata
+  { _S = fL [_A, _B, _C, _D, _E]
+  , _Σ = fL "ab"
+  , s0 = _A
+  , _F = fL [_E]
+  , _Δ = fL
+    [ (_A, a, _B), (_A, b, _C)
+    , (_B, a, _B), (_B, b, _D)
+    , (_C, a, _B), (_C, b, _C)
+    , (_D, a, _B), (_D, b, _E)
+    , (_E, a, _B), (_E, b, _C)
+    ]
+  }
+
+nfa2dfa0 =
+ nfa2dfa nfa334
+ @?=
+ dfa336
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "testValid0" testValid0
@@ -99,5 +128,6 @@ main = defaultMainWithOpts
   , testCase "testClosureWith2" testClosureWith2
   , testCase "testClosureWith3" testClosureWith3
   , testCase "testMove0" testMove0
+  , testCase "nfa2dfa0" nfa2dfa0
   ] mempty
 

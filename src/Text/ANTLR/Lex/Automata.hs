@@ -10,9 +10,18 @@ data Automata e s i = Automata
   , _Δ :: Set (Transition e i)   -- Transition function
   , s0 :: i                      -- Start state
   , _F :: Set i                  -- Accepting states
-  }
+  } deriving (Eq, Show)
 
 type Transition e i = (i, e, i)
+
+tFrom :: Transition e i -> i
+tFrom (a,b,c) = a
+
+tTo   :: Transition e i -> i
+tTo (a,b,c) = c
+
+tEdge :: Transition e i -> e
+tEdge (a,b,c) = b
 
 data Result = Accept | Reject
 

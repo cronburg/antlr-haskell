@@ -20,9 +20,9 @@ epsClosure :: (Ord (State i), Ord s) => Automata (Edge s) s i -> Config i -> Con
 epsClosure = closureWith (NFAEpsilon ==)
 
 -- Subset construction
-dfaStates :: forall s i. (Ord s, Ord i)
+nfa2dfa :: forall s i. (Ord s, Ord i)
   => NFA s i -> DFA s (Set (State i))
-dfaStates nfa@Automata{s0 = s0, _Σ = _Σ} = let
+nfa2dfa nfa@Automata{s0 = s0, _Σ = _Σ} = let
     
     epsCl = epsClosure nfa
     mv    = move nfa
@@ -47,7 +47,7 @@ dfaStates nfa@Automata{s0 = s0, _Σ = _Σ} = let
     s0' = epsCl $ singleton s0
 
   in Automata
-      { _S = Set.empty
+      { _S = Set.map tFrom _Δ' `union` Set.map tTo _Δ'
       , _Σ = _Σ
       , _Δ = _Δ'
       , s0 = s0'
