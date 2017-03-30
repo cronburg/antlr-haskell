@@ -3,5 +3,7 @@ import Text.ANTLR.Lex.Automata
 
 type Edge s = s
 
-type DFA s i = Automata (Edge s) s i
+type State i = i
+
+type DFA s i = Automata (Edge s) s (State i)
 

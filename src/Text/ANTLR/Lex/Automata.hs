@@ -5,16 +5,14 @@ import qualified Data.Set.Monad as Set
 
 -- e = edge type, s = symbols, i = state indices
 data Automata e s i = Automata
-  { _S :: Set (State i)          -- Finite set of states.
+  { _S :: Set i                  -- Finite set of states.
   , _Σ :: Set s                  -- Input (edge) alphabet
   , _Δ :: Set (Transition e i)   -- Transition function
-  , s0 :: State i                -- Start state
-  , _F :: Set (State i)          -- Accepting states
+  , s0 :: i                      -- Start state
+  , _F :: Set i                  -- Accepting states
   }
 
-type Transition e i = (State i, e, State i)
-
-type State i = i
+type Transition e i = (i, e, i)
 
 data Result = Accept | Reject
 
@@ -22,7 +20,7 @@ validStartState nfa = s0 nfa `member` _S nfa
 
 validFinalStates nfa = and [s `member` _S nfa | s <- toList $ _F nfa]
 
-validTransitions :: forall e s i. (Ord e, Ord (State i)) => Automata e s i -> Bool
+validTransitions :: forall e s i. (Ord e, Ord i) => Automata e s i -> Bool
 validTransitions nfa = let
     vT :: [Transition e i] -> Bool
     vT [] = True
@@ -32,30 +30,35 @@ validTransitions nfa = let
       && vT rest
   in vT $ (toList . _Δ) nfa
 
-type Config i = Set (State i)
+type Config i = Set i
 
 -- Generic closure function so that *someone* never asks "what's a closure?" ever
 -- again.
 closureWith
-  :: forall e s i. (Ord e, Ord (State i))
-  => (e -> Bool) -> Config i -> Automata e s i -> Config i
-closureWith fncn states Automata{_S = _S, _Δ = _Δ'} = let
+  :: forall e s i. (Ord e, Ord i)
+  => (e -> Bool) -> Automata e s i -> Config i -> Config i
+closureWith fncn Automata{_S = _S, _Δ = _Δ'} states = let
     
     -- Check which edges are "epsilons" (or something else).
     _Δ = Set.map (\(a,b,c) -> (a, fncn b, c)) _Δ'
     
-    clOne :: State i -> Config i
-    clOne st = Set.empty
-
-    clMany :: Config i -> Config i -> Config i
-    clMany busy ss
+    cl :: Config i -> Config i -> Config i
+    cl busy ss
       | Set.null ss = Set.empty
       | otherwise = let
           ret = [ s'  | s  <- ss
                       , s' <- _S
                       , s' `notMember` busy
                       , (s, True, s') `member` _Δ ]
-        in ret `union` clMany (ret `union` busy) ret
-  in clMany Set.empty states
+        in ret `union` cl (ret `union` busy) ret
+  in cl Set.empty states
   --in Set.foldr (\a b -> union (cl a) b) Set.empty states
+
+move
+  :: forall e s i. (Ord e, Ord i)
+  => Automata e s i -> Config i -> e -> Config i
+move Automata{_S = _S, _Δ = _Δ} _T a =
+  [ s'  | s  <- _T
+        , s' <- _S
+        , (s, a, s') `member` _Δ ]
 
