@@ -20,6 +20,8 @@ data Icon t =
   | IconEOF -- End of input really, but EOF is ubiquitous.
   deriving (Ord, Show)
 
+-- Icon equivalence only cares about the symbol (not the terminal value attached
+-- to the icon)
 instance (Referent t) => Eq (Icon t) where
   Icon t0 == Icon t1 = getSymbol t0 == getSymbol t1
   IconEps == IconEps = True
