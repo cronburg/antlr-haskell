@@ -50,7 +50,6 @@ library
   -- Modules exported by the library.
    exposed-modules: Text.ANTLR.Allstar
                   , Text.ANTLR.Allstar.Grammar
-                  , Text.ANTLR.Allstar.GSS
                   , Text.ANTLR.Allstar.Stacks
                   , Text.ANTLR.Allstar.ATN
                   , Text.ANTLR.Lex

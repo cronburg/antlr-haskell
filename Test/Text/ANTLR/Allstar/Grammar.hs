@@ -53,21 +53,20 @@ dragonBook455 = defaultGrammar
           ]
   }
 
-dumbGrammar :: Grammar
-dumbGrammar = Grammar
+dumbGrammar = defaultGrammar
   { ns = fromList ["S", "A", "B", "I", "D"]
   , ts = fromList ["1","2","3","+","-","*"]
   , s0 = "S"
-  , gP = [ ("S", Prod [Left "A"])
-         , ("S", Prod [Left "B"])
-         , ("S", Prod [Left "D"])
-         , ("A", Prod [Left "I", Right "+", Left "I"])
-         , ("B", Prod [Left "I", Right "-", Left "I"])
-         , ("I", Prod [Right "1"])
-         , ("I", Prod [Right "2"])
-         , ("I", Prod [Right "3"])
-         , ("D", Prod [Left "I", Right "*", Left "I"])
+  , ps = [ ("S", Prod [NT "A"])
+         , ("S", Prod [NT "B"])
+         , ("S", Prod [NT "D"])
+         , ("A", Prod [NT "I", T "+", NT "I"])
+         , ("B", Prod [NT "I", T "-", NT "I"])
+         , ("I", Prod [T "1"])
+         , ("I", Prod [T "2"])
+         , ("I", Prod [T "3"])
+         , ("D", Prod [NT "I", T "*", NT "I"])
          ]
-  , ps = [(\_ -> True)]
+  --, us = [(\_ -> True)]
   }
 
