@@ -4,7 +4,7 @@ import Text.ANTLR.Lex.Automata
 import Text.ANTLR.Lex.DFA (DFA(..))
 import qualified Text.ANTLR.Lex.DFA as DFA
 
-import Data.Set.Monad (singleton, notMember, union, Set(..))
+import Data.Set.Monad (singleton, notMember, union, Set(..), member)
 import qualified Data.Set.Monad as Set
 
 data Edge s = Edge s | NFAEpsilon
@@ -22,24 +22,25 @@ epsClosure = closureWith (NFAEpsilon ==)
 -- Subset construction
 nfa2dfa :: forall s i. (Ord s, Ord i)
   => NFA s i -> DFA s (Set (State i))
-nfa2dfa nfa@Automata{s0 = s0, _Σ = _Σ} = let
+nfa2dfa nfa@Automata{s0 = s0, _Σ = _Σ, _F = _F0} = let
     
     epsCl = epsClosure nfa
     mv    = move nfa
 
     dS :: Config (DFAState i) -> Config (DFAState i) -> Set (Transition (DFA.Edge s) (DFAState i))
-    dS busy ts
+    dS marked ts
       | Set.null ts = Set.empty
       | otherwise = let
         
           _Δ  = [ (_T, a, epsCl (mv _T (Edge a)))
                 | _T <- ts
-                , _T `notMember` busy
+                , _T `notMember` marked
                 , a  <- _Σ
                 ]
           _Us = Set.map (\(a,b,c) -> c) _Δ
+          fromStates = Set.map (\(a,b,c) -> a) _Δ
 
-        in _Δ `union` dS (_Us `union` busy) _Us
+        in _Δ `union` dS (fromStates `union` marked) _Us
     
     _Δ' :: Set (Transition (DFA.Edge s) (DFAState i))
     _Δ' = dS Set.empty (singleton s0')
@@ -51,6 +52,6 @@ nfa2dfa nfa@Automata{s0 = s0, _Σ = _Σ} = let
       , _Σ = _Σ
       , _Δ = _Δ'
       , s0 = s0'
-      , _F = Set.empty
+      , _F = [nfaState | (_,_,nfaState) <- _Δ', c <- nfaState, c `member` _F0]
       }
 

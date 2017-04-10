@@ -16,14 +16,14 @@ import qualified Data.Map as Map
 -- parser
 data Parser s nt t v = Parser
   -- Parser is the mutator state, i.e. current state of the parse
-  { g   :: Grammar s nt t
-  , i   :: Int
-  , amb :: Map (ATNState nt) [Int]
-  , s   :: s
-  , dfa :: Set (DFAEdge nt t)
-  , tokens :: [Lex.Token t v]
-  , stackSensitive :: Set (DFAState nt)
-  , amb2 :: [([Lex.Token t v], Lex.Token t v, Set Int)]
+  { g               :: Grammar s nt t
+  , i               :: Int
+  , amb             :: Map (ATNState nt) [Int]
+  , s               :: s
+  , dfa             :: Set (DFAEdge nt t)
+  , tokens          :: [Lex.Token t v]
+  , stackSensitive  :: Set (DFAState nt)
+  , amb2            :: [([Lex.Token t v], Lex.Token t v, Set Int)]
   }
 
 type ParserS s nt t v a = State (Parser s nt t v) a

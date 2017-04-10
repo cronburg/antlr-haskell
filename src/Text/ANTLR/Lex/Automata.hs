@@ -10,7 +10,15 @@ data Automata e s i = Automata
   , _Δ :: Set (Transition e i)   -- Transition function
   , s0 :: i                      -- Start state
   , _F :: Set i                  -- Accepting states
-  } deriving (Eq, Show)
+  } deriving (Eq)
+
+instance (Eq e, Eq s, Eq i, Ord e, Ord s, Ord i, Show e, Show s, Show i) => Show (Automata e s i) where
+  show (Automata s sigma delta s0 f) =
+    show s
+    ++ "\n  Σ:  " ++ show sigma
+    ++ "\n  Δ:  " ++ show delta
+    ++ "\n  s0: " ++ show s0
+    ++ "\n  F:  " ++ show f
 
 type Transition e i = (i, e, i)
 
@@ -47,10 +55,10 @@ closureWith
   :: forall e s i. (Ord e, Ord i)
   => (e -> Bool) -> Automata e s i -> Config i -> Config i
 closureWith fncn Automata{_S = _S, _Δ = _Δ'} states = let
-    
+
     -- Check which edges are "epsilons" (or something else).
     _Δ = Set.map (\(a,b,c) -> (a, fncn b, c)) _Δ'
-    
+
     cl :: Config i -> Config i -> Config i
     cl busy ss
       | Set.null ss = Set.empty
@@ -60,7 +68,7 @@ closureWith fncn Automata{_S = _S, _Δ = _Δ'} states = let
                       , s' `notMember` busy
                       , (s, True, s') `member` _Δ ]
         in ret `union` cl (ret `union` busy) ret
-  in cl Set.empty states
+  in states `union` cl Set.empty states
   --in Set.foldr (\a b -> union (cl a) b) Set.empty states
 
 move

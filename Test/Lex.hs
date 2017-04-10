@@ -51,7 +51,7 @@ testClosureWith0 =
 testClosureWith1 =
   closureWith (NFAEpsilon ==) nfa0 (singleton 0)
   @?=
-  fromList []
+  fromList [0]
 
 testClosureWith2 =
   closureWith (const True) nfa0 (singleton 0)
@@ -94,7 +94,7 @@ nfa334 = Automata
 _A = fromList [0,1,2,4,7]
 _B = fromList [1,2,3,4,6,7,8]
 _C = fromList [1,2,4,5,6,7]
-_D = fromList [1,2,4,5,6,9]
+_D = fromList [1,2,4,5,6,7,9]
 _E = fromList [1,2,4,5,6,7,10]
 
 a = 'a'
@@ -119,6 +119,9 @@ nfa2dfa0 =
  nfa2dfa nfa334
  @?=
  dfa336
+
+nfa334Eps0 =
+  NFA.epsClosure nfa334
 
 main :: IO ()
 main = defaultMainWithOpts
