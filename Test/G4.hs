@@ -27,13 +27,13 @@ hello_g4_test = do
   1 @?= 1
 
 regex_test = do
-  parseRegex "[ab]*abb"
+  parseRegex "[ab]* 'a' 'b' 'b'"
   @?= Right
   (Concat
     [ Kleene $ CharSet "ab"
-    , Symbol 'a'
-    , Symbol 'b'
-    , Symbol 'b'
+    , Literal "a"
+    , Literal "b"
+    , Literal "b"
     ])
 
 main :: IO ()

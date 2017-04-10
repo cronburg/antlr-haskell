@@ -11,13 +11,12 @@ import Data.Char (ord)
 import Text.ParserCombinators.Parsec.Language
 import qualified Debug.Trace as D -- trace, traceM
 
-traceM s = D.traceM ("[Regex] " ++ s)
---traceM = return
+--traceM s = D.traceM ("[Regex] " ++ s)
+traceM = return
 
 data Regex s =
     Epsilon
   | Literal   [s]
-  | Symbol    s
   | Union     (Regex s) (Regex s)
   | Concat    [Regex s]
   | Kleene    (Regex s)
@@ -29,41 +28,66 @@ data Regex s =
 
 (<||>) a b = try a <|> try b
 
+rEOF' = do
+  (eof >>= return . const True)
+  <||>
+  (return False)
+
 parseRegex :: String -> Either ParseError (Regex Char)
-parseRegex input = PP.parse (regexP eof) "" input
+parseRegex input = PP.parse (regexP rEOF') "" input
 
 type RegexC = Regex Char
 
-{- rEOF is a parser to indicate when it's okay to stop parsing the regex -}
-regexP :: PS.Parser eof -> PS.Parser RegexC
-regexP rEOF = do
-  r <- regexElements
-  traceM $ "regexP: " ++ show r
-  whiteSpace
-  rEOF
-  return r
-  <?> "regexP"
+-- convert list of sequential regexes into a single regex
+list2regex []  = Epsilon
+list2regex [x] = x
+list2regex xs  = Concat xs
 
-regexElements :: PS.Parser RegexC
-regexElements = do
+{- rEOF is a parser to indicate when it's okay to stop parsing the regex -}
+regexP :: PS.Parser Bool -> PS.Parser RegexC
+regexP rEOF = let
+
+  regexP' :: PS.Parser [RegexC]
+  regexP' = do
+    r <- regexElement
+    traceM $ "regexP: " ++ show r
+    whiteSpace
+    b <- rEOF
+    traceM $ "regexP: " ++ show b
+    y <- getInput
+    traceM $ show y
+    if b
+      then return [r]
+      else do
+        rs <- regexP'
+        return $ r:rs
+    <?> "regexP"
+
+  in do
+    xs <- regexP'
+    return $ list2regex xs
+
+regexElement :: PS.Parser RegexC
+regexElement = do
   whiteSpace
   r <- charSet <||> literal <||> concatR
-  traceM $ "regexElements: " ++ show r
+  traceM $ "regexElement: " ++ show r
   p <- optionMaybe (satisfy (`elem` "+*?"))
-  traceM $ "regexElements: " ++ show p
+  traceM $ "regexElement: " ++ show p
   return (case p of
     Nothing  -> r
     Just '+' -> PosClos  r
     Just '*' -> Kleene   r
     Just '?' -> Question r
     Just _   -> undefined)
+  
 
 many2 p = do { x <- p; xs <- many p; return (x:xs) }
 
 concatR :: PS.Parser RegexC
 concatR = do
   traceM "<concatR>"
-  c <- many2 (charSet <||> literal) >>= return . Concat
+  c <- many1 (charSet <||> literal) >>= return . Concat
   traceM "</concatR>"
   return c
 

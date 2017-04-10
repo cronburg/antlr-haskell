@@ -3,7 +3,7 @@ module Language.ANTLR4.Parser where
 -- syntax (Exp)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
-import Debug.Trace (trace, traceM)
+import qualified Debug.Trace as D (trace, traceM)
 
 import qualified Language.Haskell.Meta as LHM
 
@@ -23,6 +23,9 @@ import Data.Char
 
 import Language.ANTLR4.Syntax
 import Language.ANTLR4.Regex (Regex(..), parseRegex, regexP)
+
+--traceM s = D.traceM ("[Regex] " ++ s)
+traceM = return
 
 ------------------------------------------------------------------------------
 -- Or-Try Combinator (tries two parsers, one after the other)
@@ -99,6 +102,10 @@ prodP = do
       e <- haskellParseExpTill "}"
       return e
 
+rEOF = do
+  c <- try (lookAhead (reservedOp "->" <||> reservedOp ";"))
+  return True
+
 lexerP :: PS.Parser G4
 lexerP = do
   whiteSpaceOrComment
@@ -106,7 +113,7 @@ lexerP = do
   h <- upper
   t <- manyTill anyChar (reservedOp ":")
   traceM $ "Lexeme Name: " ++ (h:t)
-  r <- regexP (try $ lookAhead $ reservedOp "->" <|> reservedOp ";")
+  r <- regexP rEOF
   traceM $ "Regex: " ++ show r
   optionMaybe $ reservedOp "->"
   mDir <- optionMaybe $ manyTill anyToken (reservedOp ";")
