@@ -16,7 +16,8 @@ import qualified Text.Parsec.Prim       as PP
 import qualified Text.Parsec.Token      as PT
 import qualified Text.Parsec.Expr       as PE
 import qualified Text.Parsec.Combinator as PC
-import Text.ParserCombinators.Parsec.Language (haskellStyle, reservedOpNames, reservedNames)
+import Text.ParserCombinators.Parsec.Language (haskellStyle, reservedOpNames, reservedNames
+  , commentLine, commentStart, commentEnd)
 import Text.ParserCombinators.Parsec.Pos      (newPos)
 -- text munging
 import Data.Char
@@ -35,17 +36,17 @@ parseANTLR :: SourceName -> Line -> Column -> String -> Either ParseError [G4]
 parseANTLR fileName line column input =
   PP.parse result fileName input
   where
-    result = do {
+    
+    result = do
       setPosition (newPos fileName line column)
-    ; whiteSpace
-    ; x <- gExps
-    ; whiteSpace
-    ; eof <|> errorParse
-    ; return x
-    }
-    errorParse = do{
+      whiteSpace
+      x <- gExps
+      eof <|> errorParse
+      return x
+    
+    errorParse = do
       rest <- manyTill anyToken eof
-    ; unexpected $ "<START>" ++ rest ++ "<END>"}
+      unexpected $ rest
 
 gExps :: PS.Parser [G4]
 gExps = many1 gExp
@@ -57,9 +58,7 @@ gExp = do
 
 grammarP :: PS.Parser G4
 grammarP = do
-  whiteSpaceOrComment
   reserved "grammar"
-  whiteSpaceOrComment
   h <- upper
   t <- manyTill anyToken (reservedOp ";")
   traceM $ show $ Grammar (h : t)
@@ -67,37 +66,30 @@ grammarP = do
 
 prodP :: PS.Parser G4
 prodP = do
-  whiteSpaceOrComment
   h <- lower
   t <- manyTill anyChar (reservedOp ":")
-  whiteSpaceOrComment
   rhsList <- sepBy1 rhsP (reservedOp "|")
   reservedOp ";"
   return $ Prod (trim (h : t)) rhsList
   where
     rhsP = do
-      whiteSpaceOrComment
       mPred <- optionMaybe predP
       alphaList <- many alphaP
       mMute <- optionMaybe muteP
       return $ PRHS alphaList mPred mMute
     alphaP = termP <||> nonTermP
     termP = do
-      whiteSpaceOrComment
       reservedOp "'"
       s <- manyTill anyToken $ reservedOp "'"
       return $ Left $ GTerm s
     nonTermP = do
-      whiteSpaceOrComment
       s <- identifier
       return $ Right $ GNonTerm s
     predP = do
-      whiteSpaceOrComment
       reservedOp "{"
       e <- haskellParseExpTill "}?"
       return e
     muteP = do
-      whiteSpaceOrComment
       reservedOp "{"
       e <- haskellParseExpTill "}"
       return e
@@ -108,7 +100,6 @@ rEOF = do
 
 lexerP :: PS.Parser G4
 lexerP = do
-  whiteSpaceOrComment
   mAnnot <- optionMaybe annot
   h <- upper
   t <- manyTill anyChar (reservedOp ":")
@@ -121,28 +112,8 @@ lexerP = do
   where
     annot = fragment -- <||> ....
     fragment = do
-      whiteSpaceOrComment
       reserved "fragment"
       return Fragment
-
-{-
-  (reg, mDir) <- withDir <||> withoutDir
-  reg' <- case parseRegex reg of
-    Left  _ -> unexpected "MATT" 
-    Right r -> return r
-  return $ Lex mAnnot (trim (h : t)) (LRHS reg' mDir)
-  where
-    withDir = do
-      whiteSpaceOrComment
-      r <- manyTill anyToken (reservedOp "->")
-      dir <- manyTill anyToken (reservedOp ";")
-      return (r, Just dir)
-    withoutDir = do
-      whiteSpaceOrComment
-      r <- manyTill anyToken (reservedOp ";")
-      return (r, Nothing)
--}
-
 
 -- Parser combinators end
 haskellParseExpTill :: String -> PS.Parser Exp
@@ -169,8 +140,11 @@ whiteSpaceOrComment = comment <||> whiteSpace
 -- Lexer
 lexer :: PT.TokenParser ()
 lexer = PT.makeTokenParser $ haskellStyle
- { reservedOpNames = ["//",";","|", ":", "{", "}", "}?", "'", "->"]
+ { reservedOpNames = [";", "|", ":", "{", "}", "}?", "'", "->"]
  , reservedNames   = ["grammar"]
+ , commentLine     = "//"
+ , commentStart    = "/*"
+ , commentEnd      = "*/"
  }
 
 whiteSpace    = PT.whiteSpace  lexer

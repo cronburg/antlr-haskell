@@ -13,9 +13,10 @@ g4_basic =
   |]
 
 
--- https://github.com/antlr/grammars-v4/blob/master/antlr4/examples/Hello.g4
 hello =
   [antlr4|
+    // Hello World grammar
+    // https://github.com/antlr/grammars-v4/blob/master/antlr4/examples/Hello.g4
     grammar Hello;
     r   : 'hello' ID;
     ID  : [a-z]+ ;
