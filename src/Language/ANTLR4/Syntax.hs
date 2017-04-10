@@ -1,8 +1,10 @@
 module Language.ANTLR4.Syntax
   ( G4(..), PRHS(..), GTerm(..), GNonTerm(..), GAnnot(..)
-  , LRHS(..)
+  , LRHS(..), Regex(..)
   ) where
 import Text.ANTLR.Allstar.Grammar ()
+
+import Language.ANTLR4.Regex (Regex(..))
 
 --import Language.Haskell.TH       
 import Language.Haskell.TH.Syntax (Exp)
@@ -26,7 +28,7 @@ newtype GNonTerm = GNonTerm String
 data    GAnnot   = Fragment
   deriving (Show, Eq)
 
-data LRHS     = LRHS { regex :: String
+data LRHS     = LRHS { regex     :: Regex Char
                      , directive :: Maybe String
                      }
   deriving (Show, Eq)

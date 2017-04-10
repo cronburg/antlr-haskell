@@ -22,6 +22,7 @@ import Text.ParserCombinators.Parsec.Pos      (newPos)
 import Data.Char
 
 import Language.ANTLR4.Syntax
+import Language.ANTLR4.Regex (Regex(..), parseRegex)
 
 -- Parser
 sE :: String -> Exp
@@ -50,7 +51,12 @@ instance Lift PRHS where
       lMExp (Just e)             = [| Just $(return e)|]
 
 instance Lift LRHS where
-  lift (LRHS r md) = [| LRHS $(return $ sE r) $(return $ msE md)|]
+  lift (LRHS r md) = case r of
+    Epsilon    -> [| LRHS Epsilon $(return $ msE md) |]
+    Literal ss -> [| LRHS (Literal $(return $ sE ss)) $(return $ msE md) |]
+    Symbol  s  -> [| LRHS (Symbol $(return $ LitE $ CharL s)) $(return $ msE md) |]
+    CharSet cs -> [| LRHS (CharSet $(return $ sE cs)) $(return $ msE md) |]
+    _ -> undefined
 
 -- Parser combinators begin
 
@@ -133,7 +139,10 @@ lexerP = do
   h <- upper
   t <- manyTill anyChar (reservedOp ":")
   (reg, mDir) <- withDir <||> withoutDir
-  return $ Lex mAnnot (trim (h : t)) (LRHS reg mDir)
+  reg' <- case parseRegex reg of
+    Left  _ -> unexpected reg
+    Right r -> return r
+  return $ Lex mAnnot (trim (h : t)) (LRHS reg' mDir)
   where
     withDir = do
       whiteSpaceOrComment

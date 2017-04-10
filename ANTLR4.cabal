@@ -65,6 +65,7 @@ library
                   , Language.ANTLR4.Parser
                   , Language.ANTLR4.Quote
                   , Language.ANTLR4.Syntax
+                  , Language.ANTLR4.Regex
 
   -- Modules included in this library but not exported.
   -- other-modules:
