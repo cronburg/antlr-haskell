@@ -134,13 +134,12 @@ ambigVal = (1 >) . size
 type ParseTable nt t = M.Map (Key nt t) (Value nt t)
 
 parseTable' ::
-  forall nt. forall t. (Referent nt, Referent t, Ord nt, Ord t, Eq t, Eq nt)
+  forall nt t. (Referent nt, Referent t, Ord nt, Ord t, Eq t, Eq nt)
   => (Value nt t -> Value nt t -> Value nt t) -> Grammar () nt t-> ParseTable nt t
 parseTable' fncn g = let
 
     insertMe ::
-      (Referent nt, Referent t)
-      => (nt, Icon t, ProdElems nt t) -> (ParseTable nt t -> ParseTable nt t)
+      (nt, Icon t, ProdElems nt t) -> (ParseTable nt t -> ParseTable nt t)
     insertMe (_A, a, α) = M.insertWith fncn (_A, a) $ singleton α
 
   in

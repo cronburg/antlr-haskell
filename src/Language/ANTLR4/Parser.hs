@@ -3,7 +3,7 @@ module Language.ANTLR4.Parser where
 -- syntax (Exp)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
-import Debug.Trace (trace)
+import Debug.Trace (trace, traceM)
 
 import qualified Language.Haskell.Meta as LHM
 
@@ -22,43 +22,7 @@ import Text.ParserCombinators.Parsec.Pos      (newPos)
 import Data.Char
 
 import Language.ANTLR4.Syntax
-import Language.ANTLR4.Regex (Regex(..), parseRegex)
-
--- Parser
-sE :: String -> Exp
-sE = LitE . StringL
-
-msE :: Maybe String -> Exp
-msE Nothing = ConE $ mkName "Nothing"
-msE (Just s) = AppE (ConE $ mkName "Just") (sE s)
--- Lifting makes quasiquotation easier
-instance Lift G4 where
-  lift (Grammar n)  = [|Grammar $(return $ sE n)|]
-  lift (Prod n rhs) = do
-    rhsExps <- mapM lift rhs
-    [|Prod $(return $ sE n) $(return $ ListE rhsExps)|]
-  lift (Lex Nothing n rhs)  =  [|Lex Nothing $(return $ sE n) rhs   |]
-  lift (Lex (Just Fragment) n rhs) =  [|Lex (Just Fragment) $(return $ sE n) rhs |]
-
-instance Lift PRHS where
-  lift (PRHS alps mpred mmut) = do
-    alpsE <- mapM lAlps alps
-    [|PRHS $(return $ ListE $ alpsE) $(lMExp mpred) $(lMExp mmut)|]
-    where
-      lAlps (Left (GTerm s))     = [| Left $ GTerm $(return $ sE s)|]
-      lAlps (Right (GNonTerm s)) = [| Right $ GNonTerm $(return $ sE s)|]
-      lMExp Nothing              = [| Nothing|]
-      lMExp (Just e)             = [| Just $(return e)|]
-
-instance Lift LRHS where
-  lift (LRHS r md) = case r of
-    Epsilon    -> [| LRHS Epsilon $(return $ msE md) |]
-    Literal ss -> [| LRHS (Literal $(return $ sE ss)) $(return $ msE md) |]
-    Symbol  s  -> [| LRHS (Symbol $(return $ LitE $ CharL s)) $(return $ msE md) |]
-    CharSet cs -> [| LRHS (CharSet $(return $ sE cs)) $(return $ msE md) |]
-    _ -> undefined
-
--- Parser combinators begin
+import Language.ANTLR4.Regex (Regex(..), parseRegex, regexP)
 
 ------------------------------------------------------------------------------
 -- Or-Try Combinator (tries two parsers, one after the other)
@@ -78,13 +42,15 @@ parseANTLR fileName line column input =
     }
     errorParse = do{
       rest <- manyTill anyToken eof
-    ; unexpected rest }
+    ; unexpected $ "<START>" ++ rest ++ "<END>"}
 
 gExps :: PS.Parser [G4]
-gExps = many gExp
+gExps = many1 gExp
 
 gExp :: PS.Parser G4
-gExp = grammarP <||> prodP <||> lexerP
+gExp = do
+  traceM "gExp"
+  grammarP <||> lexerP <||> prodP
 
 grammarP :: PS.Parser G4
 grammarP = do
@@ -93,6 +59,7 @@ grammarP = do
   whiteSpaceOrComment
   h <- upper
   t <- manyTill anyToken (reservedOp ";")
+  traceM $ show $ Grammar (h : t)
   return $ Grammar (h : t)
 
 prodP :: PS.Parser G4
@@ -138,9 +105,23 @@ lexerP = do
   mAnnot <- optionMaybe annot
   h <- upper
   t <- manyTill anyChar (reservedOp ":")
+  traceM $ "Lexeme Name: " ++ (h:t)
+  r <- regexP (try $ lookAhead $ reservedOp "->" <|> reservedOp ";")
+  traceM $ "Regex: " ++ show r
+  optionMaybe $ reservedOp "->"
+  mDir <- optionMaybe $ manyTill anyToken (reservedOp ";")
+  return $ Lex mAnnot (trim (h : t)) (LRHS r mDir)
+  where
+    annot = fragment -- <||> ....
+    fragment = do
+      whiteSpaceOrComment
+      reserved "fragment"
+      return Fragment
+
+{-
   (reg, mDir) <- withDir <||> withoutDir
   reg' <- case parseRegex reg of
-    Left  _ -> unexpected reg
+    Left  _ -> unexpected "MATT" 
     Right r -> return r
   return $ Lex mAnnot (trim (h : t)) (LRHS reg' mDir)
   where
@@ -153,11 +134,7 @@ lexerP = do
       whiteSpaceOrComment
       r <- manyTill anyToken (reservedOp ";")
       return (r, Nothing)
-    annot = fragment -- <||> ....
-    fragment = do
-      whiteSpaceOrComment
-      reserved "fragment"
-      return Fragment
+-}
 
 
 -- Parser combinators end

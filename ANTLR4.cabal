@@ -74,11 +74,12 @@ library
   other-extensions:    QuasiQuotes
                      , TemplateHaskell
                      , ScopedTypeVariables
+                     , DeriveLift
 
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.8 && <4.9, containers, mtl, parsec
+  build-depends:       base, containers, mtl, parsec
                      , parsec, template-haskell, haskell-src-meta >= 0.4
-                     , set-monad
+                     , set-monad, th-lift
 
   -- Directories containing source files.
   hs-source-dirs:      src
