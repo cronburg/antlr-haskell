@@ -171,6 +171,22 @@ regexTestConcat =
               , (2, Edge 'b', 3) ]
     }
 
+regexTestKleene =
+  regex2nfa (Kleene (Concat [Symbol 'a', Symbol 'b']))
+  @?= Automata
+    { _S = fL [0..5]
+    , _Σ = fL "ab"
+    , s0 = 4
+    , _F = fL [5]
+    , _Δ = fL [ (0, Edge 'a', 1)
+              , (1, NFAEpsilon, 2)
+              , (2, Edge 'b', 3)
+              , (4, NFAEpsilon, 0)
+              , (4, NFAEpsilon, 5)
+              , (3, NFAEpsilon, 0)
+              , (3, NFAEpsilon, 5)]
+    }
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "testValid0" testValid0
@@ -184,5 +200,6 @@ main = defaultMainWithOpts
   , testCase "regexTest1" regexTest1
   , testCase "regexTestUnion" regexTestUnion
   , testCase "regexTestConcat" regexTestConcat
+  , testCase "regexTestKleene" regexTestKleene
   ] mempty
 

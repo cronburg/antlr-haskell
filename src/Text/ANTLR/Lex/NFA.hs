@@ -95,15 +95,14 @@ nfaUnion from to
   = let
 
     Automata{_Δ = _Δ2, _S = _S2, _F = _F2, s0 = s2_0} = shiftAllStates from to n1 n2
-    
+    mx2 = 1 + foldr (\(i0, _, i1) i -> from $ maximum [to i, i0, i1]) 0 _Δ2
+
     _Δ' =     _Δ1
       `union` _Δ2
       `union` Set.singleton (s0', NFAEpsilon, s1_0)
       `union` Set.singleton (s0', NFAEpsilon, s2_0)
       `union` [ (f1_0, NFAEpsilon, f0') | f1_0 <- _F1 ]
       `union` [ (f2_0, NFAEpsilon, f0') | f2_0 <- _F2 ]
-
-    mx2 = 1 + foldr (\(i0, _, i1) i -> from $ maximum [to i, i0, i1]) 0 _Δ2
 
     s0' = to mx2
     f0' = to $ mx2 + 1
@@ -134,7 +133,28 @@ nfaConcat from to
     , _Δ = _Δ'
     }
 
-nfaKleene = undefined
+nfaKleene :: forall s i. (Ord i, Ord s) => (i -> Int) -> (Int -> i) -> NFA s i -> NFA s i
+nfaKleene from to 
+  (n1@Automata{_Δ = _Δ1, _S = _S1, _F = _F1, s0 = s1_0})
+  = let
+    mx1 = 1 + foldr (\(i0, _, i1) i -> from $ maximum [to i, i0, i1]) 0 _Δ1
+
+    s0' = to $ mx1
+    f0' = to $ mx1 + 1
+
+    _Δ' =     _Δ1
+      `union` Set.singleton (s0', NFAEpsilon, s1_0)
+      `union` Set.singleton (s0', NFAEpsilon, f0')
+      `union` [ (f1_0, NFAEpsilon, s1_0) | f1_0 <- _F1 ]
+      `union` [ (f1_0, NFAEpsilon, f0')  | f1_0 <- _F1 ]
+
+  in Automata
+    { _S = allStates _Δ'
+    , _Σ = [ e | (_, Edge e, _) <- Set.filter (\(_,e,_) -> isEdge e) _Δ' ]
+    , s0 = s0'
+    , _F = Set.fromList [f0']
+    , _Δ = _Δ'
+    }
 
 nfaPosclos = undefined
 
