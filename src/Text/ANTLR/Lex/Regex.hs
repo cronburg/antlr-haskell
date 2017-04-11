@@ -20,7 +20,7 @@ regex2nfa' from to r = let
     r2n (Concat [])     = r2n Epsilon -- TODO: empty concat
     r2n (Concat (r:rs)) = foldl (nfaConcat  from to) (r2n r) (map r2n rs)
     r2n (Kleene r1)     = nfaKleene  from to (r2n r1)
-    r2n (PosClos r1)    = nfaPosclos from to (r2n r1)
+    r2n (PosClos r1)    = r2n $ Concat [r1, Kleene r1]
   in r2n r 
 
 regex2nfa :: Ord s => Regex s -> NFA s Int

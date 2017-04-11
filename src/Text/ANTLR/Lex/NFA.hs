@@ -156,5 +156,3 @@ nfaKleene from to
     , _Δ = _Δ'
     }
 
-nfaPosclos = undefined
-

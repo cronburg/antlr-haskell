@@ -187,6 +187,26 @@ regexTestKleene =
               , (3, NFAEpsilon, 5)]
     }
 
+regexTestPosclos =
+  regex2nfa (PosClos (Concat [Symbol 'a', Symbol 'b']))
+  @?= Automata
+    { _S = fL [0..9]
+    , _Σ = fL "ab"
+    , s0 = 0
+    , _F = fL [9]
+    , _Δ = fL [ (0, Edge 'a', 1)
+              , (1, NFAEpsilon, 2)
+              , (2, Edge 'b', 3)
+              , (3, NFAEpsilon, 8)
+              , (4, Edge 'a', 5)
+              , (5, NFAEpsilon, 6)
+              , (6, Edge 'b', 7)
+              , (8, NFAEpsilon, 4)
+              , (8, NFAEpsilon, 9)
+              , (7, NFAEpsilon, 4)
+              , (7, NFAEpsilon, 9)]
+    }
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "testValid0" testValid0
@@ -201,5 +221,6 @@ main = defaultMainWithOpts
   , testCase "regexTestUnion" regexTestUnion
   , testCase "regexTestConcat" regexTestConcat
   , testCase "regexTestKleene" regexTestKleene
+  , testCase "regexTestPosclos" regexTestPosclos
   ] mempty
 
