@@ -6,6 +6,8 @@ import Text.ANTLR.Lex.Automata
 import Text.ANTLR.Lex.NFA as NFA
 import qualified Text.ANTLR.Lex.DFA as DFA
 
+import Text.ANTLR.Lex.Regex
+
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Monoid
 import Test.Framework
@@ -123,6 +125,40 @@ nfa2dfa0 =
 nfa334Eps0 =
   NFA.epsClosure nfa334
 
+epsilonNFA = 
+  Automata
+    { _S = fL [0, 1]
+    , _Σ = fL ""
+    , s0 = 0
+    , _F = fL [1]
+    , _Δ = fL [ (0, NFAEpsilon, 1) ]
+    }
+
+regexTest0 =
+  regex2nfa Epsilon
+  @?=
+  epsilonNFA
+
+regexTest1 =
+  regex2nfa (Symbol 'a')
+  @?=
+  epsilonNFA { _Σ = fL "a", _Δ = fL [ (0, Edge 'a', 1) ] }
+
+regexTestUnion =
+  regex2nfa (Union (Symbol 'a') (Symbol 'b'))
+  @?= Automata
+    { _S = fL [0..5]
+    , _Σ = fL "ab"
+    , s0 = 4
+    , _F = fL [5]
+    , _Δ = fL [ (0, Edge 'a', 1)
+              , (2, Edge 'b', 3)
+              , (4, NFAEpsilon, 0)
+              , (4, NFAEpsilon, 2)
+              , (1, NFAEpsilon, 5)
+              , (3, NFAEpsilon, 5) ]
+    }
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "testValid0" testValid0
@@ -132,5 +168,8 @@ main = defaultMainWithOpts
   , testCase "testClosureWith3" testClosureWith3
   , testCase "testMove0" testMove0
   , testCase "nfa2dfa0" nfa2dfa0
+  , testCase "regexTest0" regexTest0
+  , testCase "regexTest1" regexTest1
+  , testCase "regexTestUnion" regexTestUnion
   ] mempty
 

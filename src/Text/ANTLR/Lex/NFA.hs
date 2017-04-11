@@ -7,8 +7,13 @@ import qualified Text.ANTLR.Lex.DFA as DFA
 import Data.Set.Monad (singleton, notMember, union, Set(..), member)
 import qualified Data.Set.Monad as Set
 
+import Data.List (maximumBy)
+
 data Edge s = Edge s | NFAEpsilon
-  deriving (Ord, Eq)
+  deriving (Ord, Eq, Show)
+
+isEdge (Edge _) = True
+isEdge _ = False
 
 type NFA s i = Automata (Edge s) s i
 
@@ -54,4 +59,62 @@ nfa2dfa nfa@Automata{s0 = s0, _Σ = _Σ, _F = _F0} = let
       , s0 = s0'
       , _F = [nfaState | (_,_,nfaState) <- _Δ', c <- nfaState, c `member` _F0]
       }
+
+allStates :: forall s i. (Ord i) => Set (Transition (Edge s) i) -> Set (State i)
+allStates ts = [ n | (n, _, _) <- ts ] `union` [ n | (_, _, n) <- ts ]
+
+{- Converts the given list of transitions into a complete NFA / Automata
+ - structure, assuming two things:
+ - * The first node of the first edge is the start state
+ - * The last  node of the last  edge is the (only) final state
+ -}
+list2nfa :: forall s i. (Ord i, Ord s) => [Transition (Edge s) i] -> NFA s i
+list2nfa [] = undefined
+list2nfa ((t@(n1,_,_)):ts) = Automata
+  { _S = allStates $ Set.fromList (t:ts)
+  , _Σ = Set.fromList [ s | (_, Edge s, _) <- filter (\(_,e,_) -> isEdge e) (t:ts) ]
+  , s0 = n1
+  , _F = Set.fromList [ (\(_,_,c) -> c) $ last (t:ts) ]
+  , _Δ = Set.fromList $ t:ts
+  }
+
+nfaUnion :: forall s i. (Ord i, Ord s) => (i -> Int) -> (Int -> i) -> NFA s i -> NFA s i -> NFA s i
+nfaUnion from to
+  (n1@Automata{_Δ = _Δ1, _S = _S1, _F = _F1, s0 = s1_0})
+  (n2@Automata{_Δ = _Δ2, _S = _S2, _F = _F2, s0 = s2_0})
+  = let
+
+    mx1 :: Int
+    mx1 = 1 + foldr (\(i0, _, i1) i -> from $ maximum [to i, i0, i1]) 0 _Δ1
+
+    _Δ2' = [ (to $ from i0 + mx1, e, to $ from i1 + mx1) | (i0, e, i1) <- _Δ2 ]
+    _S2' = [ to $ from i + mx1 | i <- _S2 ]
+    _F2' = [ to $ from i + mx1 | i <- _F2 ]
+    s2_0' = to $ from s2_0 + mx1
+
+    _Δ' =     _Δ1
+      `union` _Δ2'
+      `union` Set.singleton (s0', NFAEpsilon, s1_0)
+      `union` Set.singleton (s0', NFAEpsilon, s2_0')
+      `union` [ (f1_0, NFAEpsilon, f0') | f1_0 <- _F1 ]
+      `union` [ (f2_0, NFAEpsilon, f0') | f2_0 <- _F2' ]
+
+    mx2' = 1 + foldr (\(i0, _, i1) i -> from $ maximum [to i, i0, i1]) 0 _Δ2'
+
+    s0' = to mx2'
+    f0' = to $ mx2' + 1
+
+  in Automata
+    { _S = allStates _Δ'
+    , _Σ = [ e | (_, Edge e, _) <- Set.filter (\(_,e,_) -> isEdge e) _Δ' ]
+    , s0 = s0'
+    , _F = Set.fromList [f0']
+    , _Δ = _Δ'
+    }
+
+nfaConcat = undefined
+
+nfaKleene = undefined
+
+nfaPosclos = undefined
 
