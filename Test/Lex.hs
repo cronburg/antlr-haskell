@@ -159,6 +159,18 @@ regexTestUnion =
               , (3, NFAEpsilon, 5) ]
     }
 
+regexTestConcat =
+  regex2nfa (Concat [Symbol 'a', Symbol 'b'])
+  @?= Automata
+    { _S = fL [0..3]
+    , _Σ = fL "ab"
+    , s0 = 0
+    , _F = fL [3]
+    , _Δ = fL [ (0, Edge 'a', 1)
+              , (1, NFAEpsilon, 2)
+              , (2, Edge 'b', 3) ]
+    }
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "testValid0" testValid0
@@ -171,5 +183,6 @@ main = defaultMainWithOpts
   , testCase "regexTest0" regexTest0
   , testCase "regexTest1" regexTest1
   , testCase "regexTestUnion" regexTestUnion
+  , testCase "regexTestConcat" regexTestConcat
   ] mempty
 
