@@ -216,7 +216,7 @@ dfaGetName x
   | otherwise      = "ERROR"
 
 tokenizeTest0 =
-  tokenize [dfaABPlus] dfaGetName const "abab ab ababab"
+  tokenize [dfaABPlus, dfaWS] dfaGetName const "abab ab ababab"
   @?=
   [ Token "ab+" "abab"
   , Token "ws"  " "

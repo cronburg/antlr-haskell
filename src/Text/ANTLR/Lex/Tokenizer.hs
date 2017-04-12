@@ -6,17 +6,19 @@ import Text.ANTLR.Lex.DFA
 import qualified Data.Set.Monad as Set
 import Data.Set.Monad (member)
 
+import qualified Debug.Trace as D
+
 -- Token with name (n) and value (v)
 data Token n v =
     Token n v
   | EOF
-  | Error -- TODO
+  | Error String -- TODO
   deriving (Show)
 
 instance Eq n => Eq (Token n v) where
   Token s _ == Token s1 _ = s == s1
   EOF       == EOF        = True
-  Error     == Error      = True
+  Error s   == Error s1   = s == s1
   _         == _          = False
 
 -- Token Names are Input Symbols to the parser
@@ -36,7 +38,7 @@ type Lexeme s = [s]
  -    matched (e.g. 'varName') and the associated token name (e.g. 'id')
  -}
 tokenize ::
-  forall s i n v. (Ord i, Eq i, Ord s, Eq s)
+  forall s i n v. (Ord i, Eq i, Ord s, Eq s, Show s, Show i, Show n, Show v)
   => [DFA s i] -> (DFA s i -> n) -> (Lexeme s -> n -> v) -> [s] -> [Token n v]
 tokenize dfas0 dfaName fncn input0 = let
     allTok :: [(DFA s i, State i)] -> [s] -> [Token n v]
@@ -57,9 +59,10 @@ tokenize dfas0 dfaName fncn input0 = let
               (Nothing, [])   -> Nothing
               (Nothing, d:ds) -> Just ([s], d)
               (Just (l,d), _) -> Just (s:l, d))
-      in case oneTok dfaSims0 currInput of
-          Nothing     -> [Error]
-          Just (l, d) ->
+      in case (currInput, oneTok dfaSims0 currInput) of
+          ([], _)       -> [EOF]
+          (ss, Nothing) -> [Error $ show ss]
+          (ss, Just (l, d)) ->
             Token (dfaName d) (fncn l (dfaName d))
             : allTok dfaSims0 (drop (length l) currInput)
   in allTok (zip dfas0 (map s0 dfas0)) input0
