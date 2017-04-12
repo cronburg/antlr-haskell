@@ -11,6 +11,7 @@ data Token n v =
     Token n v
   | EOF
   | Error -- TODO
+  deriving (Show)
 
 instance Eq n => Eq (Token n v) where
   Token s _ == Token s1 _ = s == s1

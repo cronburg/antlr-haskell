@@ -207,6 +207,25 @@ regexTestPosclos =
               , (7, NFAEpsilon, 9)]
     }
 
+dfaABPlus = regex2dfa (PosClos (Concat [Symbol 'a', Symbol 'b']))
+dfaWS     = regex2dfa (PosClos (Symbol ' '))
+
+dfaGetName x
+  | x == dfaWS     = "ws"
+  | x == dfaABPlus = "ab+"
+  | otherwise      = "ERROR"
+
+tokenizeTest0 =
+  tokenize [dfaABPlus] dfaGetName const "abab ab ababab"
+  @?=
+  [ Token "ab+" "abab"
+  , Token "ws"  " "
+  , Token "ab+" "ab"
+  , Token "ws"  " "
+  , Token "ab+" "ababab"
+  , EOF
+  ]
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "testValid0" testValid0
@@ -222,5 +241,6 @@ main = defaultMainWithOpts
   , testCase "regexTestConcat" regexTestConcat
   , testCase "regexTestKleene" regexTestKleene
   , testCase "regexTestPosclos" regexTestPosclos
+  , testCase "tokenizeTest0" tokenizeTest0
   ] mempty
 

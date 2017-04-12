@@ -2,6 +2,7 @@
 module Text.ANTLR.Lex.Regex where
 
 import Text.ANTLR.Lex.NFA
+import qualified Text.ANTLR.Lex.DFA as DFA
 
 data Regex s =
     Epsilon
@@ -25,4 +26,7 @@ regex2nfa' from to r = let
 
 regex2nfa :: Ord s => Regex s -> NFA s Int
 regex2nfa = regex2nfa' id id
+
+regex2dfa :: Ord s => Regex s -> DFA.DFA s (DFAState Int)
+regex2dfa = nfa2dfa . regex2nfa
 
