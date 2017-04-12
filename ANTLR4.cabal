@@ -57,6 +57,7 @@ library
                   , Text.ANTLR.Lex.DFA
                   , Text.ANTLR.Lex.Automata
                   , Text.ANTLR.Lex.Regex
+                  , Text.ANTLR.Lex.Tokenizer
                   , Text.ANTLR.LL1
                   , Text.ANTLR.LR1
                   , Text.ANTLR.Parser

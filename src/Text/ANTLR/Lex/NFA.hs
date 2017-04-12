@@ -139,7 +139,7 @@ nfaKleene from to
   = let
     mx1 = 1 + foldr (\(i0, _, i1) i -> from $ maximum [to i, i0, i1]) 0 _Δ1
 
-    s0' = to $ mx1
+    s0' = to mx1
     f0' = to $ mx1 + 1
 
     _Δ' =     _Δ1
