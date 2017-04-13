@@ -60,7 +60,7 @@ first g = let
     firstMany []   = singleton IconEps
     firstMany (ts:tss)
       | IconEps `member` ts = ts `union` firstMany tss
-      | otherwise        = ts
+      | otherwise           = ts
   in firstMany . map (firstOne empty)
 
 follow ::
@@ -243,4 +243,50 @@ predictiveParse g act w0 = let
         case asts of
           [Comp ast] -> Just ast
           _          -> Nothing
+
+{- Remove all epsilon productions, i.e. productions of the form "A -> eps",
+ - without affecting the language accepted -}
+removeEpsilons ::
+  forall s nt t. (Eq t, Eq nt)
+  => Grammar s nt t -> Grammar s nt t
+removeEpsilons g = let
+
+    epsNT :: Production s nt t -> [nt] -> [nt]
+    epsNT (nt, Prod [])    = (:) nt
+    epsNT (nt, Prod [Eps]) = (:) nt
+    epsNT prod             = id
+  
+    -- All NTs with an epsilon production
+    epsNTs :: [nt]
+    epsNTs = foldr epsNT [] (ps g)
+
+    --isEpsProd :: Production s nt t -> Bool
+    --isEpsProd []         = True
+    --isEpsProd [Prod Eps] = True
+    --isEPsProd _          = False
+
+    replicateProd :: nt -> Production s nt t -> [Production s nt t]
+    replicateProd nt0 (nt1, Prod es) = let
+        
+        rP :: ProdElems nt t -> ProdElems nt t -> [Production s nt t]
+        rP ys []   = [(nt1, Prod ys)]
+        rP ys (x:xs)
+          | NT nt0 == x 
+              = (nt1, Prod (reverse ys ++ xs))   -- Production with nt0 removed
+              : (nt1, Prod (reverse ys ++ x:xs)) -- Production without nt0 removed
+              : (  rP ys     xs  -- Recursively with nt0 removed
+                ++ rP (x:ys) xs) -- Recursively without nt0 removed
+          | otherwise = rP (x:ys) xs
+      in rP [] es
+
+    ps' :: [Production s nt t]
+    ps' = case epsNTs of
+      []       -> ps g
+      (nt:nts) -> ps $ removeEpsilons
+                    (g { ps = [ p' 
+                              | p  <- ps g
+                              , p' <- replicateProd nt p ]
+                    })
+
+  in g { ps = ps' }
 
