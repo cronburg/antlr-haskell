@@ -94,7 +94,7 @@ Test-Suite test-Template
   Type:           exitcode-stdio-1.0
   Main-Is:        Test/TestTemplate.hs
   build-depends:  base
-                , ANTLR4
+                , ANTLR4, set-monad
                 , QuickCheck
                 , HUnit
                 , Cabal
@@ -109,7 +109,7 @@ Test-Suite test-ATN
   other-modules:  Test.Text.ANTLR.Allstar.ATN
                 , Test.Text.ANTLR.Allstar.Grammar
   build-depends:  base
-                , ANTLR4
+                , ANTLR4, set-monad
                 , QuickCheck
                 , HUnit
                 , Cabal
@@ -124,7 +124,7 @@ Test-Suite test-G4
   Main-Is:          Test/G4.hs
   other-modules:    Test.Language.ANTLR4.G4
   build-depends:    base
-                  , ANTLR4
+                  , ANTLR4, set-monad
                   , QuickCheck
                   , HUnit
                   , Cabal
@@ -139,9 +139,8 @@ Test-Suite test-G4
 Test-Suite Stacks
   Type:           exitcode-stdio-1.0
   Main-Is:        Test/Stacks.hs
-  other-modules:  Test.Text.ANTLR.Allstar.Stacks
   build-depends:  base
-                , ANTLR4
+                , ANTLR4, set-monad
                 , QuickCheck
                 , HUnit
                 , Cabal
@@ -156,7 +155,7 @@ Test-Suite LL1
   Main-Is:        Test/LL1.hs
   other-modules:  Test.Text.ANTLR.Allstar.Grammar
   build-depends:  base
-                , ANTLR4
+                , ANTLR4, set-monad
                 , QuickCheck
                 , HUnit
                 , Cabal
@@ -171,7 +170,7 @@ Test-Suite LR1
   Main-Is:        Test/LR1.hs
   other-modules:  Test.Text.ANTLR.Allstar.Grammar
   build-depends:  base
-                , ANTLR4
+                , ANTLR4, set-monad
                 , QuickCheck
                 , HUnit
                 , Cabal
@@ -200,7 +199,7 @@ Test-Suite test-Allstar
   Main-Is:          Test/Allstar.hs
   other-modules:    Test.Text.ANTLR.Allstar.Grammar
   build-depends:    base
-                  , ANTLR4
+                  , ANTLR4, set-monad
                   , QuickCheck
                   , HUnit
                   , Cabal

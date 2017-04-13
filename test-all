@@ -1,0 +1,12 @@
+#!/bin/bash
+
+#  && stack test ANTLR4:Stacks \
+
+stack test ANTLR4:test-Template \
+  && stack test ANTLR4:test-ATN \
+  && stack test ANTLR4:test-G4 \
+  && stack test ANTLR4:LL1 \
+  && stack test ANTLR4:LR1 \
+  && stack test ANTLR4:lexer \
+  && stack test ANTLR4:test-Allstar --ghc-options "-Wmissing-fields" \
+

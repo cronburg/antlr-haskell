@@ -5,8 +5,8 @@ import Text.ANTLR.LR1
 import Text.ANTLR.AST
 import Text.ANTLR.Parser
 
-import Data.Set (fromList, union, empty, Set(..), (\\))
-import qualified Data.Set as S
+import Data.Set.Monad (fromList, union, empty, Set(..), (\\))
+import qualified Data.Set.Monad as S
 import qualified Data.Map.Strict as M
 
 import System.IO.Unsafe (unsafePerformIO)
@@ -54,6 +54,10 @@ newtype Item' = I' (Item () String String)
 
 instance Arbitrary Item' where
   arbitrary = (elements . map I' . S.toList . allSLRItems) grm
+
+instance (Ord a, Arbitrary a) => Arbitrary (Set a) where
+  arbitrary = fmap S.fromList arbitrary
+  shrink = map S.fromList . shrink . S.toList
 
 c' = slrClosure grm
 

@@ -6,8 +6,8 @@ import Text.ANTLR.Allstar.ATN
 import Text.ANTLR.Allstar.Stacks
 import qualified Text.ANTLR.Lex as Lex
 -- Set
-import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set.Monad (Set)
+import qualified Data.Set.Monad as Set
 import Control.Monad.State
 import Control.Monad (mapM)
 import Data.Map (Map)
@@ -259,11 +259,11 @@ llPredict _A start _γ0 =
         [i] -> return $ Just i
         _   -> do -- ambiguous case
            let altsets = getConflictSetsPerLoc _D'
-           if (Set.size altsets == 1) && (Set.size (Set.elemAt 0 altsets) > 1)
+           if (Set.size altsets == 1) && (Set.size (Set.findMin altsets) > 1)
              then do
-               let x = (Set.elemAt 0 altsets)
+               let x = (Set.findMin altsets)
                put $ p{amb2 = (start, cur, x) : a2}
-               return $ Just $ Set.elemAt 0 x
+               return $ Just $ Set.findMin x
              else do
                put $ p {tokens = rest}
                loop _D'
@@ -288,7 +288,7 @@ getATN = do
 
 --no fn dependencies
 closure ::
-  forall nt t s. (Referent nt, Referent t, Ord nt)
+  forall nt t s. (Referent nt, Referent t, Ord nt, Ord t)
   => Set (Transition s nt t) -> Set (Configuration nt) -> Configuration nt -> Set (Configuration nt)
 closure d busy (cfg@(p,i,gamma))
   | Set.member cfg busy = Set.empty

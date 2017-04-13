@@ -11,9 +11,9 @@ import Text.ANTLR.AST (AST(..))
 import Text.ANTLR.LR1 (lr1Parse)
 import Text.ANTLR.Parser
 
-import qualified Data.Set as Set
+import qualified Data.Set.Monad as Set
 
-import Data.Set
+import Data.Set.Monad
   ( fromList, member, (\\), empty, Set(..), toList
   , isSubsetOf, union, insert)
 import Data.Data (Data(..), Typeable(..), toConstr, dataTypeConstrs, dataTypeOf)

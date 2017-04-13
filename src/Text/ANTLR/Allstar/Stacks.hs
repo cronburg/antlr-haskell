@@ -8,8 +8,8 @@ module Text.ANTLR.Allstar.Stacks
   ) where
 import qualified Prelude as P
 import Prelude hiding (map, foldr, filter)
-import Data.Set (union, Set(..), foldr, map, filter, fromList, singleton)
-import qualified Data.Set as Set
+import Data.Set.Monad (union, Set(..), foldr, map, filter, fromList, singleton)
+import qualified Data.Set.Monad as Set
 import Data.List (nub)
 
 data Stacks a =
@@ -33,7 +33,7 @@ push a Wildcard     = Wildcard
 push a (Stacks _Γ)  = Stacks $ map ((:) a) _Γ
 
 -- Get heads of non-empty stacks / lists:
-heads :: Set [a] -> [a]
+heads :: Ord a => Set [a] -> [a]
 heads = let
     heads' :: [a] -> [a] -> [a]
     heads' []     bs = bs

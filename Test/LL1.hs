@@ -5,8 +5,9 @@ import Text.ANTLR.Parser
 import Text.ANTLR.AST
 import Text.ANTLR.LL1
 
-import Data.Set (fromList, union, empty, Set(..))
-import qualified Data.Set as S
+import Data.Set.Monad (fromList, union, empty, Set(..))
+import qualified Data.Set.Monad as Set
+
 import qualified Data.Map.Strict as M
 
 import System.IO.Unsafe (unsafePerformIO)
@@ -45,9 +46,9 @@ foldEpsTest = foldWhileEpsilon union empty
   fromList [Icon "(", Icon "id"]
 
 firstAll =
-  ( S.map ((\nt -> (nt, first grm [nt])) . NT) (ns grm)
+  ( Set.map ((\nt -> (nt, first grm [nt])) . NT) (ns grm)
     `union`
-    S.map ((\t  -> (t,  first grm [t]))  . T)  (ts grm)
+    Set.map ((\t  -> (t,  first grm [t]))  . T)  (ts grm)
   )
   @?=
   fromList
@@ -70,7 +71,7 @@ followAll :: IO ()
 followAll = let
     fncn :: LL1NonTerminal -> (ProdElem LL1NonTerminal LL1Terminal, Set (Icon LL1Terminal))
     fncn nt = (NT nt, follow grm' nt)
-  in S.map fncn (ns grm')
+  in Set.map fncn (ns grm')
   @?=
   fromList
     [ (NT "E",  fromList [Icon ")", IconEOF])
@@ -83,7 +84,7 @@ followAll = let
 parseTableTest =
   parseTable grm
   @?=
-  M.fromList (map (\((a,b),c) -> ((a,b), S.singleton c))
+  M.fromList (map (\((a,b),c) -> ((a,b), Set.singleton c))
     -- Figure 4.17 of dragon book:
     [ (("E",  Icon "id"), [NT "T", NT "E'"])
     , (("E",  Icon "("),  [NT "T", NT "E'"])
@@ -132,6 +133,61 @@ dragonPredParse =
                 ]
             ])
 
+singleLang = (defaultGrammar :: Grammar () String Char)
+  { s0 = "S"
+  , ns = fromList ["S", "X"]
+  , ts = fromList ['a']
+  , ps =  [ ("S", Prod [NT "X", T 'a'])
+          , ("X", Prod [Eps])
+          ]
+  }
+
+testRemoveEpsilons =
+  removeEpsilons singleLang
+  @?= singleLang
+    { ps =  [ ("S", Prod [NT "X", T 'a'])
+            , ("S", Prod [T 'a'])
+            ]
+    }
+
+singleLang2 = singleLang
+  { ts = fromList ['a', 'b']
+  , ps =  [ ("S", Prod [NT "X", T 'a', NT "X", T 'b', NT "X"])
+          , ("X", Prod [Eps])
+          ]
+  }
+
+testRemoveEpsilons2 =
+  (Set.fromList . ps . removeEpsilons) singleLang2
+  @?=
+  fromList
+    [ ("S", Prod [        T 'a',         T 'b'        ])
+    , ("S", Prod [        T 'a',         T 'b', NT "X"])
+    , ("S", Prod [        T 'a', NT "X", T 'b'        ])
+    , ("S", Prod [        T 'a', NT "X", T 'b', NT "X"])
+    , ("S", Prod [NT "X", T 'a',         T 'b'        ])
+    , ("S", Prod [NT "X", T 'a',         T 'b', NT "X"])
+    , ("S", Prod [NT "X", T 'a', NT "X", T 'b'        ])
+    , ("S", Prod [NT "X", T 'a', NT "X", T 'b', NT "X"])
+    ]
+
+testRemoveEpsilons3 =
+  removeEpsilons dragonBook428
+  @?= (defaultGrammar :: Grammar () String String)
+    { ns = fromList ["E", "E'", "T", "T'", "F"]
+    , ts = fromList ["+", "*", "(", ")", "id"]
+    , s0 = "E"
+    , ps = [ ("E",  Prod [NT "T", NT "E'"])
+           , ("E'", Prod [T "+", NT "T", NT "E'"])
+           , ("E'", Prod [Eps]) -- Implicitly epsilon
+           , ("T",  Prod [NT "F", NT "T'"])
+           , ("T'", Prod [T "*", NT "F", NT "T'"])
+           , ("T'", Prod [Eps])
+           , ("F",  Prod [T "(", NT "E", T ")"])
+           , ("F",  Prod [T "id"])
+           ]
+    } 
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "fold_epsilon" foldEpsTest
@@ -148,5 +204,7 @@ main = defaultMainWithOpts
   , testCase "dragonIsLL1" $ isLL1 grm @?= True
   , testCase "dragonParseTable" parseTableTest
   , testCase "dragonPredParse" dragonPredParse
+  , testCase "testRemoveEpsilons" testRemoveEpsilons
+  , testCase "testRemoveEpsilons2" testRemoveEpsilons2
   ] mempty
 
