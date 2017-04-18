@@ -226,6 +226,66 @@ tokenizeTest0 =
   , EOF
   ]
 
+{-
+dfaID = regex2dfa
+  (PosClos $ MultiUnion
+              [ Class ['a' .. 'z']
+              , Class ['A' .. 'Z']
+              , Symbol '_'
+              ])
+-}
+
+dfaID = regex2dfa
+  (PosClos $ MultiUnion [ Class ['a' .. 'g'] ])
+
+dfaIDTest =
+  dfaID
+  @?=
+  dfaID
+
+dfaEQ   = regex2dfa (Symbol '=')
+dfaSEMI = regex2dfa (Symbol ';')
+
+dfaINT  = regex2dfa (PosClos $ Class [ '0' .. '9' ])
+
+data TermSymbol = T_ID | T_INT | T_WS | T_EQ | T_SEMI
+  deriving (Eq, Ord, Show)
+
+dfa2symbol dfa
+  | dfa == dfaWS   = T_WS
+  | dfa == dfaID   = T_ID
+  | dfa == dfaINT  = T_INT
+  | dfa == dfaEQ   = T_EQ
+  | dfa == dfaSEMI = T_SEMI
+  | otherwise      = undefined -- Should never happen (always one of the DFAs given)
+
+data TermValue =
+    ID  String
+  | INT Int
+  | WS  String
+  | EQSIGN
+  | SEMI
+  deriving (Eq, Ord, Show)
+
+lexeme2value lexeme T_WS   = WS lexeme
+lexeme2value lexeme T_ID   = ID lexeme
+lexeme2value lexeme T_INT  = INT $ read lexeme
+lexeme2value lexeme T_EQ   = EQSIGN
+lexeme2value lexeme T_SEMI = SEMI
+
+tokenizeTest1 =
+--  tokenize [dfaWS, dfaID, dfaINT, dfaEQ, dfaSEMI] dfa2symbol lexeme2value "matt = 0;"
+  tokenize [dfaWS, dfaEQ, dfaSEMI, dfaID] dfa2symbol lexeme2value "matt = 0;"
+  @?=
+  [ Token T_ID (ID "matt")
+  , Token T_WS (WS " ")
+  , Token T_EQ EQSIGN
+  , Token T_WS (WS " ")
+  , Token T_INT (INT 0)
+  , Token T_SEMI SEMI
+  , EOF
+  ]
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "testValid0" testValid0
@@ -242,5 +302,7 @@ main = defaultMainWithOpts
   , testCase "regexTestKleene" regexTestKleene
   , testCase "regexTestPosclos" regexTestPosclos
   , testCase "tokenizeTest0" tokenizeTest0
+  , testCase "dfaIDTest" dfaIDTest
+--  , testCase "tokenizeTest1" tokenizeTest1
   ] mempty
 
