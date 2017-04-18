@@ -48,13 +48,17 @@ parse
   :: forall nt t v s. (Referent nt, Referent t, Ord nt, Ord v, Ord t, Eq t)
   => nt -> ParserS s nt t v (Maybe ())
 parse _S =
-  let 
-      --loop :: ATNState nt -> Gamma nt -> Int -> State (ParserS s nt t v (Maybe ())) (Maybe ())
+  let
+      -- loop :: ATNState nt -> Gamma nt -> Int -> State (ParserS s nt t v (Maybe ())) (Maybe ())
       loop p _γ0 i =
         case p of
           Accept _B -> if _B == _S
                         then return $ Just () --success
-                        else let ((q,_γ1):_) = pop _γ0
+                        else let [(q,_):_] = pop _γ0
+                                 _γ1 = case _γ0 of
+                                         Empty -> error "this can't happen"
+                                         Wildcard -> error "this can't happen"
+                                         Stacks ss -> map snd ss
                              in  loop q _γ1 i
           _          ->
            do
@@ -131,7 +135,7 @@ adaptivePredict _A _γ0 =
 
 --depends on: closure
 --startState ::
-startState 
+startState
   :: (Referent nt, Referent t, Ord nt, Ord v, Ord t)
   => nt -> Gamma nt -> ParserS s nt t v (Set (Configuration nt))
 startState a gamma = do
@@ -149,7 +153,7 @@ startState a gamma = do
 --depends on: target
 --            llPredict
 --sllPredict ::
-sllPredict 
+sllPredict
   :: forall nt t s v. (Referent nt, Ord nt, Referent t, Ord t, Ord v)
   => nt -> Set (Configuration nt) -> [Lex.Token t v] -> Gamma nt -> ParserS s nt t v (Maybe Int)
 sllPredict _A d0 start _γ0 = do
@@ -243,7 +247,7 @@ move d a = do
 --depends on: move
 --            closure
 --            getConflictSetsPerLoc
-llPredict 
+llPredict
   :: (Referent nt, Referent t, Ord nt, Ord v, Ord t)
   => nt -> [Lex.Token t v] -> Gamma nt -> ParserS s nt t v (Maybe Int)
 llPredict _A start _γ0 =

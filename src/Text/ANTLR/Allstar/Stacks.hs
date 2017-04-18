@@ -40,6 +40,7 @@ heads = let
     heads' (a:as) bs = a:bs
   in foldr heads' []
 
+
 -- TODO: pop on Empty or Wildcard?
 pop  :: Ord a => Stacks a -> [(a, Stacks a)]
 pop Empty = []
