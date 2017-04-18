@@ -49,8 +49,7 @@ slrClosure g is' = let
             | Item _A α rst@(pe@(NT _B) : β) () <- toList _J
             , not $ null rst
             , isNT pe
-            , (_, p@(Prod γ)) <- prodsFor g _B
-            , isProd p
+            , (_, Prod _ γ) <- prodsFor g _B
             ]
       in case size $ add \\ _J of
         0 -> _J `union` add
@@ -74,8 +73,7 @@ lr1Closure g is' = let
             | Item _A α rst@(pe@(NT _B) : β) a <- toList _J
             , not $ null rst
             , isNT pe
-            , (_, p@(Prod γ)) <- prodsFor g _B
-            , isProd p
+            , (_, Prod _ γ) <- prodsFor g _B
             , b <- toList $ LL.first g (β ++ tokenToProdElem a)
             ]
       in case size $ add \\ _J of
@@ -135,8 +133,7 @@ allSLRItems g = fromList
   fromList
     [ Item (ItemNT nt) (reverse $ take n γ) (drop n γ) ()
     | nt <- toList $ ns g
-    , (_, p@(Prod γ)) <- prodsFor g nt
-    , isProd p
+    , (_, Prod _ γ) <- prodsFor g nt
     , n <- [0..length γ]
     ]
 
@@ -180,7 +177,7 @@ slrTable g = let
                   M.singleton (_Ii, Icon a) (Shift $ slrGoto g _Ii $ T a)
         slr'' (Item (Init   nt) α (T a:β) ()) = M.singleton (_Ii, Icon a) (Shift $ slrGoto g _Ii $ T a)
         slr'' (Item (ItemNT nt) α [] ())      = M.fromList
-                                          [ ((_Ii, a), Reduce (nt, Prod $ reverse α))
+                                          [ ((_Ii, a), Reduce (nt, Prod Pass $ reverse α))
                                           | a <- (toList . LL.follow g) nt
                                           ]
         slr'' (Item (Init nt) α [] ())   = M.singleton (_Ii, IconEOF) Accept
@@ -201,7 +198,7 @@ lr1Table g = let
         lr1'' (Item (ItemNT nt) α (T a:β) _) = --uPIO (print ("TABLE:", a, slrGoto g _Ii $ T a, _Ii)) `seq`
                   M.singleton (_Ii, Icon a) (Shift $ lr1Goto g _Ii $ T a)
         lr1'' (Item (Init   nt) α (T a:β) _) = M.singleton (_Ii, Icon a) (Shift $ lr1Goto g _Ii $ T a)
-        lr1'' (Item (ItemNT nt) α [] a)      = M.singleton (_Ii,       a) (Reduce (nt, Prod $ reverse α))
+        lr1'' (Item (ItemNT nt) α [] a)      = M.singleton (_Ii,       a) (Reduce (nt, Prod Pass $ reverse α))
         lr1'' (Item (Init nt) α [] IconEOF)  = M.singleton (_Ii, IconEOF) Accept
         lr1'' _ = M.empty
       in S.fold M.union M.empty (S.map lr1'' _Ii)
@@ -232,7 +229,7 @@ lrParse g tbl goto closure s_0 act w = let
               _ -> Nothing
         lr' (Just Error)     = Nothing
         lr' (Just (Shift t)) = lr (t:s:states, ws) $ act (TermE a) : asts
-        lr' (Just (Reduce (_A, Prod β))) = let
+        lr' (Just (Reduce (_A, Prod _ β))) = let
               ss'@(t:_) = drop (length β) (s:states)
             in lr (goto t (NT _A) : ss', a:ws)
                   ((act $ NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)

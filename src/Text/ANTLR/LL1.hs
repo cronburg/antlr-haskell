@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, MonadComprehensions #-}
 module Text.ANTLR.LL1
   ( recognize
   , first, follow
@@ -14,6 +14,8 @@ import Data.Set.Monad
   ( Set(..), singleton, fromList, union, empty, member, size, toList
   , insert, delete, intersection, findMin --elemAt
   )
+import Data.List (maximumBy)
+import Data.Ord (comparing)
 
 import qualified Data.Map.Strict as M
 
@@ -53,11 +55,9 @@ first g = let
       | otherwise = foldr union empty
             [ foldWhileEpsilon union empty
               [ firstOne (insert nt busy) y
-              | y <- (\(Prod ss) -> ss) rhs
+              | y <- (\(Prod _ ss) -> ss) rhs
               ]
-            | (_, rhs) <- prodsFor g x
-            , isProd rhs
-            ]
+            | (_, rhs) <- prodsFor g x ]
     
     firstMany :: [Set (Icon t)] -> Set (Icon t)
     firstMany []   = singleton IconEps
@@ -104,7 +104,7 @@ follow g = let
           `union`
           foldr union empty
             [ followProd lhs_nt ss
-            | (lhs_nt, Prod ss) <- filter (isProd . snd) . ps $ g
+            | (lhs_nt, Prod _ ss) <- ps g
             ]
   in follow' empty
 
@@ -119,8 +119,8 @@ isLL1 g =
       && (not (IconEps `member` first g α)
          || ((first g α `intersection` follow g nt) == empty))
       | nt       <- toList $ ns g
-      , (Prod α) <- map snd $ prodsFor g nt
-      , (Prod β) <- map snd $ prodsFor g nt
+      , (Prod _ α) <- map snd $ prodsFor g nt
+      , (Prod _ β) <- map snd $ prodsFor g nt
       , α /= β
       ]
 
@@ -149,7 +149,7 @@ parseTable' fncn g = let
     foldr insertMe M.empty
       -- For each terminal a `member` FIRST(α), add A -> α to M[A,α]
       [ (_A, Icon a, α)
-      | (_A, Prod α) <- ps g
+      | (_A, Prod _ α) <- ps g
       , Icon a <- toList $ first g α
       ]
     `M.union`
@@ -157,7 +157,7 @@ parseTable' fncn g = let
       -- If Eps `member` FIRST(α), add A -> α to M[A,b]
       -- for each b `member` FOLLOW(A)
       [ (_A, Icon b, α)
-      | (_A, Prod α) <- ps g
+      | (_A, Prod _ α) <- ps g
       , IconEps `member` first g α
       , Icon b <- toList $ follow g _A
       ]
@@ -167,7 +167,7 @@ parseTable' fncn g = let
       -- , AND IconEOF `member` FOLLOW(_A)
       -- add A -> α to M[A,IconEOF]
       [ (_A, IconEOF, α)
-      | (_A, Prod α) <- ps g
+      | (_A, Prod _ α) <- ps g
       , IconEps `member` first g α
       , IconEOF  `member` follow g _A
       ]
@@ -255,8 +255,8 @@ removeEpsilons ::
 removeEpsilons g = let
 
     epsNT :: Production s nt t -> [nt] -> [nt]
-    epsNT (nt, Prod [])    = (:) nt
-    epsNT (nt, Prod [Eps]) = (:) nt
+    epsNT (nt, Prod _ [])    = (:) nt
+    epsNT (nt, Prod _ [Eps]) = (:) nt
     epsNT prod             = id
   
     -- All NTs with an epsilon production
@@ -271,14 +271,14 @@ removeEpsilons g = let
     -}
 
     replicateProd :: nt -> Production s nt t -> [Production s nt t]
-    replicateProd nt0 (nt1, Prod es) = let
+    replicateProd nt0 (nt1, Prod sf es) = let
         
         rP :: ProdElems nt t -> ProdElems nt t -> [Production s nt t]
-        rP ys []   = [(nt1, Prod $ reverse ys)]
+        rP ys []   = [(nt1, Prod sf $ reverse ys)]
         rP ys (x:xs)
           | NT nt0 == x
-              = (nt1, Prod (reverse ys ++ xs))   -- Production with nt0 removed
-              : (nt1, Prod (reverse ys ++ x:xs)) -- Production without nt0 removed
+              = (nt1, Prod sf (reverse ys ++ xs))   -- Production with nt0 removed
+              : (nt1, Prod sf (reverse ys ++ x:xs)) -- Production without nt0 removed
               : (  rP ys     xs  -- Recursively with nt0 removed
                 ++ rP (x:ys) xs) -- Recursively without nt0 removed
           | otherwise = rP (x:ys) xs
@@ -296,9 +296,68 @@ removeEpsilons g = let
                           [ p' 
                           | p  <- ps g
                           , p' <- replicateProd nt p
-                          , p' /= (nt, Prod [])
-                          , p' /= (nt, Prod [Eps])]
+                          , p' /= (nt, Prod Pass [])
+                          , p' /= (nt, Prod Pass [Eps])]
                     })
 
   in g { ps = ps' }
+
+newtype Prime nt = Prime (nt, Int)
+  deriving (Eq, Ord, Show)
+
+leftFactor ::
+  forall s nt t. (Eq t, Eq nt, Show t, Show nt, Ord t, Ord nt)
+  => Grammar s nt t -> Grammar s (Prime nt) t
+leftFactor = let
+
+  primeify :: Grammar s nt t -> Grammar s (Prime nt) t
+  primeify g = G
+    { ns = [ Prime (nt, 0) | nt <- ns g ]
+    , ts = ts g
+    , ps = [ (Prime (nt, 0), Prod sf $ map prmPE ss)
+           | (nt, Prod sf ss) <- ps g ]
+    , s0 = Prime (s0 g, 0)
+    , _πs = _πs g
+    , _μs = _μs g
+    }
+
+  prmPE :: ProdElem nt t -> ProdElem (Prime nt) t
+  prmPE (NT nt) = NT $ Prime (nt, 0)
+  prmPE (T x)   = T x
+  prmPE Eps     = Eps
+  
+  lF :: Grammar s (Prime nt) t -> Grammar s (Prime nt) t
+  lF g = let
+    -- Longest common prefix of two lists
+    lcp :: ProdElems (Prime nt) t -> ProdElems (Prime nt) t -> ProdElems (Prime nt) t
+    lcp [] ys = []
+    lcp xs [] = []
+    lcp (x:xs) (y:ys)
+      | x == y    = x : lcp xs ys
+      | otherwise = []
+
+    lcps :: [(Prime nt, ProdElems (Prime nt) t)]
+    lcps = [ (nt0, maximumBy (comparing length)
+                   [ lcp xs ys
+                   | (_, Prod _ xs) <- filter ((== nt0) . fst) (ps g)
+                   , (_, Prod _ ys) <- filter ((== nt0) . fst) (ps g)
+                   , xs /= ys
+                   ])
+           | nt0 <- toList $ ns g ]
+
+    --longest_lcps :: [(nt, ProdElems nt t)]
+    --longest_lcps = filter (not . null . snd) lcps
+
+    ps' :: [Production s (Prime nt) t]
+    ps' = case lcps of
+      []           -> ps g
+      ((nt, xs):_) -> undefined
+  
+  {- [ (prime nt, drop (length xs) ys)
+                    | (nt1, ys) <- ps g
+                    , nt1 == nt
+                    , xs `isPrefixOf` ys -}
+                    
+    in g { ps = ps' }
+  in lF . primeify
 

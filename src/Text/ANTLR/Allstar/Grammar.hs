@@ -2,11 +2,11 @@
 module Text.ANTLR.Allstar.Grammar
   ( Referent(..), sameNTs, sameTerminals
   , ProdElem(..), ProdElems
-  , Production(..), ProdRHS(..)
+  , Production(..), ProdRHS(..), StateFncn(..)
   , Predicate(..), Mutator(..)
   , Grammar(..)
   , defaultGrammar
-  , isProd, isSem, isAction
+  , isSem, isAction
   , isNT, isT, isEps, getNTs, getTs, getEps
   , prodsFor, getProds
   , validGrammar, hasAllNonTerms, hasAllTerms, startIsNonTerm
@@ -62,22 +62,22 @@ getEps = map (\Eps -> Eps) . filter isEps -- no
 
 type ProdElems nt t = [ProdElem nt t]
 
-data ProdRHS s nt t =
-    Prod    (ProdElems nt t)
-  | Sem     (Predicate s) (ProdElems nt t)
-  | Action  (Mutator s)
+data StateFncn s =
+    Pass                   -- No predicate or mutator
+  | Sem    (Predicate s)   -- Semantic predicate
+  | Action (Mutator s)     -- Mutator, ProdElems is always empty in this one
   deriving (Eq, Ord, Show)
 
-isProd (Prod _) = True
-isProd _ = False
+data ProdRHS s nt t = Prod (StateFncn s) (ProdElems nt t)
+  deriving (Eq, Ord, Show)
 
-isSem (Sem _ _) = True
+isSem (Prod (Sem _) _) = True
 isSem _ = False
 
-isAction (Action _) = True
+isAction (Prod (Action _) _) = True
 isAction _ = False
 
-getProds = map (\(Prod ss) -> ss) . filter isProd
+getProds = map (\(Prod _ ss) -> ss)
 
 type Production s nt t = (nt, ProdRHS s nt t)
 

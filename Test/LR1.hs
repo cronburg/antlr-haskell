@@ -138,12 +138,12 @@ _I5  = fromList  [ slrItem (ItemNT "F") [T "id"] []]
 _I3  = fromList  [ slrItem (ItemNT "T") [NT "F"] []]
 _I10 = fromList  [ slrItem (ItemNT "T") [NT "F",T "*",NT "T"] []]
 
-r1 = Reduce ("E", Prod [NT "E", T "+", NT "T"])
-r2 = Reduce ("E", Prod [NT "T"])
-r3 = Reduce ("T", Prod [NT "T", T "*", NT "F"])
-r4 = Reduce ("T", Prod [NT "F"])
-r5 = Reduce ("F", Prod [T "(", NT "E", T ")"])
-r6 = Reduce ("F", Prod [T "id"])
+r1 = Reduce ("E", Prod Pass [NT "E", T "+", NT "T"])
+r2 = Reduce ("E", Prod Pass [NT "T"])
+r3 = Reduce ("T", Prod Pass [NT "T", T "*", NT "F"])
+r4 = Reduce ("T", Prod Pass [NT "F"])
+r5 = Reduce ("F", Prod Pass [T "(", NT "E", T ")"])
+r6 = Reduce ("F", Prod Pass [T "id"])
 
 -- Easier to debug when shown separately:
 testSLRTable =
@@ -268,10 +268,10 @@ lr1TableExp = M.fromList
   , ((i9, IconEOF),       r2')
   ]
 
---r5 = Reduce ("F", Prod [T "(", NT "E", T ")"])
-r1' = Reduce ("S", Prod [NT "C", NT "C"])
-r2' = Reduce ("C", Prod [T "c", NT "C"])
-r3' = Reduce ("C", Prod [T "d"])
+--r5 = Reduce ("F", Prod Pass [T "(", NT "E", T ")"])
+r1' = Reduce ("S", Prod Pass [NT "C", NT "C"])
+r2' = Reduce ("C", Prod Pass [T "c", NT "C"])
+r3' = Reduce ("C", Prod Pass [T "d"])
 
 testLR1Items =
   lr1Items dragonBook455

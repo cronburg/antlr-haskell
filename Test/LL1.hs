@@ -137,23 +137,23 @@ singleLang = (defaultGrammar :: Grammar () String Char)
   { s0 = "S"
   , ns = fromList ["S", "X"]
   , ts = fromList ['a']
-  , ps =  [ ("S", Prod [NT "X", T 'a'])
-          , ("X", Prod [Eps])
+  , ps =  [ ("S", Prod Pass [NT "X", T 'a'])
+          , ("X", Prod Pass [Eps])
           ]
   }
 
 testRemoveEpsilons =
   removeEpsilons singleLang
   @?= singleLang
-    { ps =  [ ("S", Prod [NT "X", T 'a'])
-            , ("S", Prod [T 'a'])
+    { ps =  [ ("S", Prod Pass [NT "X", T 'a'])
+            , ("S", Prod Pass [T 'a'])
             ]
     }
 
 singleLang2 = singleLang
   { ts = fromList ['a', 'b']
-  , ps =  [ ("S", Prod [NT "X", T 'a', NT "X", T 'b', NT "X"])
-          , ("X", Prod [Eps])
+  , ps =  [ ("S", Prod Pass [NT "X", T 'a', NT "X", T 'b', NT "X"])
+          , ("X", Prod Pass [Eps])
           ]
   }
 
@@ -161,14 +161,14 @@ testRemoveEpsilons2 =
   (Set.fromList . ps . removeEpsilons) singleLang2
   @?=
   fromList
-    [ ("S", Prod [        T 'a',         T 'b'        ])
-    , ("S", Prod [        T 'a',         T 'b', NT "X"])
-    , ("S", Prod [        T 'a', NT "X", T 'b'        ])
-    , ("S", Prod [        T 'a', NT "X", T 'b', NT "X"])
-    , ("S", Prod [NT "X", T 'a',         T 'b'        ])
-    , ("S", Prod [NT "X", T 'a',         T 'b', NT "X"])
-    , ("S", Prod [NT "X", T 'a', NT "X", T 'b'        ])
-    , ("S", Prod [NT "X", T 'a', NT "X", T 'b', NT "X"])
+    [ ("S", Prod Pass [        T 'a',         T 'b'        ])
+    , ("S", Prod Pass [        T 'a',         T 'b', NT "X"])
+    , ("S", Prod Pass [        T 'a', NT "X", T 'b'        ])
+    , ("S", Prod Pass [        T 'a', NT "X", T 'b', NT "X"])
+    , ("S", Prod Pass [NT "X", T 'a',         T 'b'        ])
+    , ("S", Prod Pass [NT "X", T 'a',         T 'b', NT "X"])
+    , ("S", Prod Pass [NT "X", T 'a', NT "X", T 'b'        ])
+    , ("S", Prod Pass [NT "X", T 'a', NT "X", T 'b', NT "X"])
     ]
 
 testRemoveEpsilons3 =
@@ -177,14 +177,14 @@ testRemoveEpsilons3 =
     { ns = fromList ["E", "E'", "T", "T'", "F"]
     , ts = fromList ["+", "*", "(", ")", "id"]
     , s0 = "E"
-    , ps = [ ("E",  Prod [NT "T", NT "E'"])
-           , ("E'", Prod [T "+", NT "T", NT "E'"])
-           , ("E'", Prod [Eps]) -- Implicitly epsilon
-           , ("T",  Prod [NT "F", NT "T'"])
-           , ("T'", Prod [T "*", NT "F", NT "T'"])
-           , ("T'", Prod [Eps])
-           , ("F",  Prod [T "(", NT "E", T ")"])
-           , ("F",  Prod [T "id"])
+    , ps = [ ("E",  Prod Pass [NT "T", NT "E'"])
+           , ("E'", Prod Pass [T "+", NT "T", NT "E'"])
+           , ("E'", Prod Pass [Eps]) -- Implicitly epsilon
+           , ("T",  Prod Pass [NT "F", NT "T'"])
+           , ("T'", Prod Pass [T "*", NT "F", NT "T'"])
+           , ("T'", Prod Pass [Eps])
+           , ("F",  Prod Pass [T "(", NT "E", T ")"])
+           , ("F",  Prod Pass [T "id"])
            ]
     } 
 

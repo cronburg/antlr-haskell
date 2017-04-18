@@ -90,9 +90,9 @@ atnOf g = let
     fϵ_mut _μ = (Middle lhs i 0, ME _μ, Accept lhs)
 
     in  (case rhs of
-          (Prod _α)   -> [sϵ, fϵ _α]                 ++ zipWith _Δ' [1..(length _α)] _α
-          (Sem _π _α) -> sϵ_sem _π _α ++ [fϵ_sem _α] ++ zipWith _Δ' [1..(length _α)] _α
-          (Action _μ) -> [sϵ_mut, fϵ_mut _μ]
+          (Prod Pass _α)        -> [sϵ, fϵ _α]                 ++ zipWith _Δ' [1..(length _α)] _α
+          (Prod (Sem _π) _α)    -> sϵ_sem _π _α ++ [fϵ_sem _α] ++ zipWith _Δ' [1..(length _α)] _α
+          (Prod (Action _μ) _)  -> [sϵ_mut, fϵ_mut _μ]
         )
 
   in ATN
