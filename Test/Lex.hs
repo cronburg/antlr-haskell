@@ -6,6 +6,8 @@ import Text.ANTLR.Lex.Automata
 import Text.ANTLR.Lex.NFA as NFA
 import qualified Text.ANTLR.Lex.DFA as DFA
 
+import Text.ANTLR.Lex.Regex
+
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Monoid
 import Test.Framework
@@ -51,7 +53,7 @@ testClosureWith0 =
 testClosureWith1 =
   closureWith (NFAEpsilon ==) nfa0 (singleton 0)
   @?=
-  fromList []
+  fromList [0]
 
 testClosureWith2 =
   closureWith (const True) nfa0 (singleton 0)
@@ -94,7 +96,7 @@ nfa334 = Automata
 _A = fromList [0,1,2,4,7]
 _B = fromList [1,2,3,4,6,7,8]
 _C = fromList [1,2,4,5,6,7]
-_D = fromList [1,2,4,5,6,9]
+_D = fromList [1,2,4,5,6,7,9]
 _E = fromList [1,2,4,5,6,7,10]
 
 a = 'a'
@@ -120,6 +122,110 @@ nfa2dfa0 =
  @?=
  dfa336
 
+nfa334Eps0 =
+  NFA.epsClosure nfa334
+
+epsilonNFA = 
+  Automata
+    { _S = fL [0, 1]
+    , _Σ = fL ""
+    , s0 = 0
+    , _F = fL [1]
+    , _Δ = fL [ (0, NFAEpsilon, 1) ]
+    }
+
+regexTest0 =
+  regex2nfa Epsilon
+  @?=
+  epsilonNFA
+
+regexTest1 =
+  regex2nfa (Symbol 'a')
+  @?=
+  epsilonNFA { _Σ = fL "a", _Δ = fL [ (0, Edge 'a', 1) ] }
+
+regexTestUnion =
+  regex2nfa (Union (Symbol 'a') (Symbol 'b'))
+  @?= Automata
+    { _S = fL [0..5]
+    , _Σ = fL "ab"
+    , s0 = 4
+    , _F = fL [5]
+    , _Δ = fL [ (0, Edge 'a', 1)
+              , (2, Edge 'b', 3)
+              , (4, NFAEpsilon, 0)
+              , (4, NFAEpsilon, 2)
+              , (1, NFAEpsilon, 5)
+              , (3, NFAEpsilon, 5) ]
+    }
+
+regexTestConcat =
+  regex2nfa (Concat [Symbol 'a', Symbol 'b'])
+  @?= Automata
+    { _S = fL [0..3]
+    , _Σ = fL "ab"
+    , s0 = 0
+    , _F = fL [3]
+    , _Δ = fL [ (0, Edge 'a', 1)
+              , (1, NFAEpsilon, 2)
+              , (2, Edge 'b', 3) ]
+    }
+
+regexTestKleene =
+  regex2nfa (Kleene (Concat [Symbol 'a', Symbol 'b']))
+  @?= Automata
+    { _S = fL [0..5]
+    , _Σ = fL "ab"
+    , s0 = 4
+    , _F = fL [5]
+    , _Δ = fL [ (0, Edge 'a', 1)
+              , (1, NFAEpsilon, 2)
+              , (2, Edge 'b', 3)
+              , (4, NFAEpsilon, 0)
+              , (4, NFAEpsilon, 5)
+              , (3, NFAEpsilon, 0)
+              , (3, NFAEpsilon, 5)]
+    }
+
+regexTestPosclos =
+  regex2nfa (PosClos (Concat [Symbol 'a', Symbol 'b']))
+  @?= Automata
+    { _S = fL [0..9]
+    , _Σ = fL "ab"
+    , s0 = 0
+    , _F = fL [9]
+    , _Δ = fL [ (0, Edge 'a', 1)
+              , (1, NFAEpsilon, 2)
+              , (2, Edge 'b', 3)
+              , (3, NFAEpsilon, 8)
+              , (4, Edge 'a', 5)
+              , (5, NFAEpsilon, 6)
+              , (6, Edge 'b', 7)
+              , (8, NFAEpsilon, 4)
+              , (8, NFAEpsilon, 9)
+              , (7, NFAEpsilon, 4)
+              , (7, NFAEpsilon, 9)]
+    }
+
+dfaABPlus = regex2dfa (PosClos (Concat [Symbol 'a', Symbol 'b']))
+dfaWS     = regex2dfa (PosClos (Symbol ' '))
+
+dfaGetName x
+  | x == dfaWS     = "ws"
+  | x == dfaABPlus = "ab+"
+  | otherwise      = "ERROR"
+
+tokenizeTest0 =
+  tokenize [dfaABPlus, dfaWS] dfaGetName const "abab ab ababab"
+  @?=
+  [ Token "ab+" "abab"
+  , Token "ws"  " "
+  , Token "ab+" "ab"
+  , Token "ws"  " "
+  , Token "ab+" "ababab"
+  , EOF
+  ]
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "testValid0" testValid0
@@ -129,5 +235,12 @@ main = defaultMainWithOpts
   , testCase "testClosureWith3" testClosureWith3
   , testCase "testMove0" testMove0
   , testCase "nfa2dfa0" nfa2dfa0
+  , testCase "regexTest0" regexTest0
+  , testCase "regexTest1" regexTest1
+  , testCase "regexTestUnion" regexTestUnion
+  , testCase "regexTestConcat" regexTestConcat
+  , testCase "regexTestKleene" regexTestKleene
+  , testCase "regexTestPosclos" regexTestPosclos
+  , testCase "tokenizeTest0" tokenizeTest0
   ] mempty
 

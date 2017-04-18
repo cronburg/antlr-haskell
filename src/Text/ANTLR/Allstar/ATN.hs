@@ -4,7 +4,7 @@ module Text.ANTLR.Allstar.ATN where
 import Text.ANTLR.Allstar.Grammar
 --import Text.ANTLR.Allstar.GSS hiding (Edge, Node)
 import Text.ANTLR.Allstar.Stacks
-import Data.Set (Set(..), empty, fromList, toList)
+import Data.Set.Monad (Set(..), empty, fromList, toList)
 
 type Gamma nt = Stacks (ATNState nt)
 
@@ -16,7 +16,7 @@ data ATN s nt t = ATN
   { _Δ :: Set (Transition s nt t)
   } deriving (Eq, Ord)
 
-instance (Show nt, Show t) => Show (ATN s nt t) where
+instance (Referent nt, Referent t, Ord nt, Ord t, Show nt, Show t) => Show (ATN s nt t) where
   show ATN {_Δ = _Δ} = "\n[" ++ (concatMap (\s -> "\n, " ++ show s) (toList _Δ)) ++ "\n]"
 
 -- Tuple corresponding to a distinct transition in the ATN:

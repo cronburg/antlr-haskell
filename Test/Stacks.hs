@@ -1,9 +1,8 @@
 module Main where
 -- Allstar imports go here, e.g.:
 -- import Text.Allstar.ATN (..)
-import Text.ANTLR.Allstar.GSS
-import Test.Text.ANTLR.Allstar.Stacks
-import Data.Set (size, empty, fromList, (\\), Set)
+import Text.ANTLR.Allstar.Stacks
+import Data.Set.Monad (size, empty, fromList, (\\), Set)
 import Data.List(nub)
 
 import System.IO.Unsafe (unsafePerformIO)
@@ -17,6 +16,34 @@ import Test.QuickCheck
   , elements
   )
 import qualified Test.QuickCheck.Monadic as TQM
+
+stacks :: Set [Int]
+stacks = fromList
+  [ [0, 1, 3, 7]
+  , [0, 1, 4, 7]
+  , [0, 2, 5, 7]
+  , [0, 2, 6, 8]
+  ]
+
+gss :: Stacks Int
+gss = Stacks stacks
+--gss = Stacks.fromStacks stacks
+
+gssExp =
+  ( fromList  [ (7,3), (3,1), (1,0)
+              , (7,4), (4,1), (1,0)
+              , (7,5), (5,2), (2,0)
+              , (8,6), (6,2), (2,0)
+              ]
+  , fromList  [0])
+
+gssPopExp =
+  ( fromList  [ (7,3), (3,1), (1,0)
+              , (7,4), (4,1), (1,0)
+              , (7,5), (5,2), (2,0)
+              , (8,6), (6,2), (2,0)
+              ]
+  , fromList  [1,2])
 
 test_wikiGSS = pop gss @?= gssPopExp
 

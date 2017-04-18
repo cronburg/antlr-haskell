@@ -11,10 +11,10 @@ import Text.ANTLR.Allstar.Grammar
 import qualified Text.ANTLR.LL1 as LL
 import Text.ANTLR.Parser
 
-import Data.Set ( Set(..), fromList, empty, member, toList, size
+import Data.Set.Monad ( Set(..), fromList, empty, member, toList, size
   , union, (\\), insert, toList, singleton
   )
-import qualified Data.Set as S
+import qualified Data.Set.Monad as S
 import Data.Map ( Map(..) )
 import qualified Data.Map as M
 
@@ -116,7 +116,7 @@ items g goto closure s0 = let
   in items' $ singleton $ closure s0
 --  singleton (Item (Init $ s0 g) [] [NT $ s0 g])
 
-kernel :: Set (Item a nt t) -> Set (Item a nt t)
+kernel :: (Ord a, Ord t, Ord nt) => Set (Item a nt t) -> Set (Item a nt t)
 kernel = let
     kernel' (Item (Init   _) _  _ _) = True
     kernel' (Item (ItemNT _) [] _ _) = False
@@ -155,10 +155,10 @@ type SLRItem  nt t = Item    () nt t
 type SLRState nt t = LRState () nt t
 type SLRTable nt t = LRTable () nt t
 
-lrS0 :: a -> Grammar () nt t -> LRState a nt t
+lrS0 :: (Ord a, Ord t, Ord nt) => a -> Grammar () nt t -> LRState a nt t
 lrS0 a g = singleton $ Item (Init $ s0 g) [] [NT $ s0 g] a
 
-slrS0 :: Grammar () nt t -> SLRState nt t
+slrS0 :: (Ord t, Ord nt) => Grammar () nt t -> SLRState nt t
 slrS0 = lrS0 ()
 
 slrItems ::
@@ -261,7 +261,7 @@ lr1Goto g = goto g (lr1Closure g)
 
 type LR1State nt t = LRState (LR1LookAhead t) nt t
 
-lr1S0 :: Grammar () nt t -> LRState (LR1LookAhead t) nt t
+lr1S0 :: (Referent t, Ord t, Ord nt) => Grammar () nt t -> LRState (LR1LookAhead t) nt t
 lr1S0 = lrS0 IconEOF
 
 lr1Items :: (Referent nt, Referent t, Ord nt, Ord t)

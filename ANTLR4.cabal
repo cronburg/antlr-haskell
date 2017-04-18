@@ -56,6 +56,8 @@ library
                   , Text.ANTLR.Lex.NFA
                   , Text.ANTLR.Lex.DFA
                   , Text.ANTLR.Lex.Automata
+                  , Text.ANTLR.Lex.Regex
+                  , Text.ANTLR.Lex.Tokenizer
                   , Text.ANTLR.LL1
                   , Text.ANTLR.LR1
                   , Text.ANTLR.Parser
@@ -65,6 +67,7 @@ library
                   , Language.ANTLR4.Parser
                   , Language.ANTLR4.Quote
                   , Language.ANTLR4.Syntax
+                  , Language.ANTLR4.Regex
 
   -- Modules included in this library but not exported.
   -- other-modules:
@@ -73,11 +76,12 @@ library
   other-extensions:    QuasiQuotes
                      , TemplateHaskell
                      , ScopedTypeVariables
+                     , DeriveLift
 
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.8 && <4.9, containers, mtl, parsec
+  build-depends:       base, containers, mtl, parsec
                      , parsec, template-haskell, haskell-src-meta >= 0.4
-                     , set-monad
+                     , set-monad, th-lift
 
   -- Directories containing source files.
   hs-source-dirs:      src
@@ -90,7 +94,7 @@ Test-Suite test-Template
   Type:           exitcode-stdio-1.0
   Main-Is:        Test/TestTemplate.hs
   build-depends:  base
-                , ANTLR4
+                , ANTLR4, set-monad
                 , QuickCheck
                 , HUnit
                 , Cabal
@@ -105,7 +109,7 @@ Test-Suite test-ATN
   other-modules:  Test.Text.ANTLR.Allstar.ATN
                 , Test.Text.ANTLR.Allstar.Grammar
   build-depends:  base
-                , ANTLR4
+                , ANTLR4, set-monad
                 , QuickCheck
                 , HUnit
                 , Cabal
@@ -120,7 +124,7 @@ Test-Suite test-G4
   Main-Is:          Test/G4.hs
   other-modules:    Test.Language.ANTLR4.G4
   build-depends:    base
-                  , ANTLR4
+                  , ANTLR4, set-monad
                   , QuickCheck
                   , HUnit
                   , Cabal
@@ -135,9 +139,8 @@ Test-Suite test-G4
 Test-Suite Stacks
   Type:           exitcode-stdio-1.0
   Main-Is:        Test/Stacks.hs
-  other-modules:  Test.Text.ANTLR.Allstar.Stacks
   build-depends:  base
-                , ANTLR4
+                , ANTLR4, set-monad
                 , QuickCheck
                 , HUnit
                 , Cabal
@@ -152,7 +155,7 @@ Test-Suite LL1
   Main-Is:        Test/LL1.hs
   other-modules:  Test.Text.ANTLR.Allstar.Grammar
   build-depends:  base
-                , ANTLR4
+                , ANTLR4, set-monad
                 , QuickCheck
                 , HUnit
                 , Cabal
@@ -167,7 +170,7 @@ Test-Suite LR1
   Main-Is:        Test/LR1.hs
   other-modules:  Test.Text.ANTLR.Allstar.Grammar
   build-depends:  base
-                , ANTLR4
+                , ANTLR4, set-monad
                 , QuickCheck
                 , HUnit
                 , Cabal
@@ -196,7 +199,7 @@ Test-Suite test-Allstar
   Main-Is:          Test/Allstar.hs
   other-modules:    Test.Text.ANTLR.Allstar.Grammar
   build-depends:    base
-                  , ANTLR4
+                  , ANTLR4, set-monad
                   , QuickCheck
                   , HUnit
                   , Cabal

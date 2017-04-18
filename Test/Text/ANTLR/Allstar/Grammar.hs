@@ -1,8 +1,10 @@
+{-# LANGUAGE ExplicitForAll #-}
 module Test.Text.ANTLR.Allstar.Grammar where
-import Data.Set (fromList, member, (\\), empty)
+import Data.Set.Monad (fromList, member, (\\), empty)
 import Text.ANTLR.Allstar.Grammar
 
-mattToolG = defaultGrammar
+mattToolG :: Grammar () String String
+mattToolG = (defaultGrammar :: Grammar () String String)
   { ns = fromList ["A", "B", "C"]
   , ts = fromList ["a", "b", "c"]
   , s0 = "C"
@@ -15,7 +17,8 @@ mattToolG = defaultGrammar
           ]
   }
 
-dragonBook428 = defaultGrammar
+dragonBook428 :: Grammar () String String
+dragonBook428 = (defaultGrammar :: Grammar () String String)
   { ns = fromList ["E", "E'", "T", "T'", "F"]
   , ts = fromList ["+", "*", "(", ")", "id"]
   , s0 = "E"
@@ -30,7 +33,8 @@ dragonBook428 = defaultGrammar
          ]
   }
 
-dragonBook41 = defaultGrammar
+dragonBook41 :: Grammar () String String
+dragonBook41 = (defaultGrammar :: Grammar () String String)
   { ns = fromList ["E'", "E", "T", "F"]
   , ts = fromList ["+", "*", "(", ")", "id"]
   , s0 = "E"
@@ -43,7 +47,8 @@ dragonBook41 = defaultGrammar
           ]
   }
 
-dragonBook455 = defaultGrammar
+dragonBook455 :: Grammar () String String
+dragonBook455 = (defaultGrammar :: Grammar () String String)
   { ns = fromList ["S", "C"]
   , ts = fromList ["c", "d"]
   , s0 = "S"
@@ -53,7 +58,8 @@ dragonBook455 = defaultGrammar
           ]
   }
 
-dumbGrammar = defaultGrammar
+dumbGrammar :: Grammar () String String
+dumbGrammar = (defaultGrammar :: Grammar () String String)
   { ns = fromList ["S", "A", "B", "I", "D"]
   , ts = fromList ["1","2","3","+","-","*"]
   , s0 = "S"

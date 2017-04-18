@@ -1,8 +1,8 @@
 module Language.ANTLR4.Language
   ( Alphabet(..), ascii, isASCII
   ) where
-import Data.Set (Set(..))
-import qualified Data.Set as Set
+import Data.Set.Monad (Set(..))
+import qualified Data.Set.Monad as Set
 
 import Data.Char
 

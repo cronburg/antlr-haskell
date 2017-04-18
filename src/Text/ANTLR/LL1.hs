@@ -5,16 +5,19 @@ module Text.ANTLR.LL1
   , foldWhileEpsilon
   , isLL1, parseTable
   , predictiveParse
+  , removeEpsilons
   ) where
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Parser
 import Text.ANTLR.Allstar.ATN
-import Data.Set ( Set(..), singleton, fromList, union, empty, member, size, toList
-                , insert, delete, intersection, elemAt
-                )
+import Data.Set.Monad
+  ( Set(..), singleton, fromList, union, empty, member, size, toList
+  , insert, delete, intersection, findMin --elemAt
+  )
 
 import qualified Data.Map.Strict as M
 
+import qualified Debug.Trace as D
 import System.IO.Unsafe (unsafePerformIO)
 uPIO = unsafePerformIO
 
@@ -60,7 +63,7 @@ first g = let
     firstMany []   = singleton IconEps
     firstMany (ts:tss)
       | IconEps `member` ts = ts `union` firstMany tss
-      | otherwise        = ts
+      | otherwise           = ts
   in firstMany . map (firstOne empty)
 
 follow ::
@@ -127,20 +130,19 @@ type Key nt t = (nt, Icon t)
 -- singleton implies unambiguous entry, multiple implies ambiguous:
 type Value nt t = Set (ProdElems nt t)
 
-ambigVal :: Value nt t -> Bool
+ambigVal :: (Ord nt, Ord t) => Value nt t -> Bool
 ambigVal = (1 >) . size
 
 -- M[A,s] = α for each symbol s `member` FIRST(α)
 type ParseTable nt t = M.Map (Key nt t) (Value nt t)
 
 parseTable' ::
-  forall nt. forall t. (Referent nt, Referent t, Ord nt, Ord t, Eq t, Eq nt)
+  forall nt t. (Referent nt, Referent t, Ord nt, Ord t, Eq t, Eq nt)
   => (Value nt t -> Value nt t -> Value nt t) -> Grammar () nt t-> ParseTable nt t
 parseTable' fncn g = let
 
     insertMe ::
-      (Referent nt, Referent t)
-      => (nt, Icon t, ProdElems nt t) -> (ParseTable nt t -> ParseTable nt t)
+      (nt, Icon t, ProdElems nt t) -> (ParseTable nt t -> ParseTable nt t)
     insertMe (_A, a, α) = M.insertWith fncn (_A, a) $ singleton α
 
   in
@@ -233,7 +235,7 @@ predictiveParse g act w0 = let
     parse' ws@(a:_) (NT _X:xs) asts =
         case (_X, a) `M.lookup` _M of
           Nothing -> Nothing
-          Just ss -> case (size ss, 0 `elemAt` ss) of
+          Just ss -> case (size ss, {-0 `elemAt`-} findMin ss) of
               (1,ss') -> parse' ws (ss' ++ xs) (pushStack (NT _X) ss' asts)
               _       -> Nothing
     parse' ws (Eps:xs) asts = parse' ws xs (pushStack Eps [] asts)
@@ -244,4 +246,59 @@ predictiveParse g act w0 = let
         case asts of
           [Comp ast] -> Just ast
           _          -> Nothing
+
+{- Remove all epsilon productions, i.e. productions of the form "A -> eps",
+ - without affecting the language accepted -}
+removeEpsilons ::
+  forall s nt t. (Eq t, Eq nt, Show t, Show nt, Ord t, Ord nt)
+  => Grammar s nt t -> Grammar s nt t
+removeEpsilons g = let
+
+    epsNT :: Production s nt t -> [nt] -> [nt]
+    epsNT (nt, Prod [])    = (:) nt
+    epsNT (nt, Prod [Eps]) = (:) nt
+    epsNT prod             = id
+  
+    -- All NTs with an epsilon production
+    epsNTs :: [nt]
+    epsNTs = foldr epsNT [] (ps g)
+
+    {-
+    isEpsProd :: Production s nt t -> Bool
+    isEpsProd []         = True
+    isEpsProd [Prod Eps] = True
+    isEPsProd _          = False
+    -}
+
+    replicateProd :: nt -> Production s nt t -> [Production s nt t]
+    replicateProd nt0 (nt1, Prod es) = let
+        
+        rP :: ProdElems nt t -> ProdElems nt t -> [Production s nt t]
+        rP ys []   = [(nt1, Prod $ reverse ys)]
+        rP ys (x:xs)
+          | NT nt0 == x
+              = (nt1, Prod (reverse ys ++ xs))   -- Production with nt0 removed
+              : (nt1, Prod (reverse ys ++ x:xs)) -- Production without nt0 removed
+              : (  rP ys     xs  -- Recursively with nt0 removed
+                ++ rP (x:ys) xs) -- Recursively without nt0 removed
+          | otherwise = rP (x:ys) xs
+      in rP [] es
+
+    orderNub ps p1
+      | p1 `elem` ps = ps
+      | otherwise    = p1 : ps
+
+    ps' :: [Production s nt t]
+    ps' = case epsNTs of
+      []       -> ps g
+      (nt:nts) -> ps $ removeEpsilons $ D.traceShowId
+                    (g { ps = foldl orderNub []
+                          [ p' 
+                          | p  <- ps g
+                          , p' <- replicateProd nt p
+                          , p' /= (nt, Prod [])
+                          , p' /= (nt, Prod [Eps])]
+                    })
+
+  in g { ps = ps' }
 

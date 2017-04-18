@@ -13,10 +13,10 @@ module Text.ANTLR.Allstar.Grammar
   , symbols
   ) where
 import Prelude hiding (pi)
-import Data.Set (Set(..), empty, fromList, member, (\\), intersection
+import Data.Set.Monad (Set(..), empty, fromList, member, (\\), intersection
   , union
   )
-import qualified Data.Set as S
+import qualified Data.Set.Monad as S
 
 ----------------------------------------------------------------
 -- When we *Show* production elements, they should contain source location
@@ -125,6 +125,7 @@ data Grammar s nt t = G
 symbols :: (Referent nt, Referent t, Ord nt, Ord t) => Grammar s nt t -> Set (ProdElem nt t)
 symbols g = S.insert Eps $ S.map NT (ns g) `union` S.map T (ts g)
 
+defaultGrammar :: forall s nt t. (Ord t) => Grammar s String t
 defaultGrammar = G
   { ns  = empty
   , ts  = empty

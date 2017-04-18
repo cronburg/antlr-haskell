@@ -2,14 +2,14 @@ module Test.Text.ANTLR.Allstar.ATN where
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.ATN
 import Test.Text.ANTLR.Allstar.Grammar
-import Data.Set (fromList, union)
+import Data.Set.Monad (fromList, union)
 import System.IO.Unsafe (unsafePerformIO)
 
 -- This is the Grammar from page 6 of the
 -- 'Adaptive LL(*) Parsing: The Power of Dynamic Analysis'
 -- paper, namely the expected transitions based on Figures
 -- 5 through 8:
-paperATNGrammar = defaultGrammar
+paperATNGrammar = (defaultGrammar :: Grammar () String String)
   { ns = fromList ["S", "A"]
   , ts = fromList ["a", "b", "c", "d"]
   , s0 = "C"
