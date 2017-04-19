@@ -277,7 +277,7 @@ lexeme2value lexeme T_SEMI = SEMI
 tokenizeTest1 =
   tokenize [dfaWS, dfaID, dfaINT, dfaEQ, dfaSEMI] dfa2symbol lexeme2value "_matt = 0;"
   @?=
-  [ Token T_ID (ID "matt")
+  [ Token T_ID (ID "_matt")
   , Token T_WS (WS " ")
   , Token T_EQ EQSIGN
   , Token T_WS (WS " ")
