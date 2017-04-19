@@ -238,6 +238,7 @@ dfaID = regex2dfa
 dfaID = regex2dfa
   (PosClos $ Class $ '_' : ['a' .. 'z'] ++ ['A' .. 'Z'])
 
+-- For profiling runtime of DFA subset construction (nfa2dfa):
 dfaIDTest =
   dfaID
   @?=
@@ -274,8 +275,7 @@ lexeme2value lexeme T_EQ   = EQSIGN
 lexeme2value lexeme T_SEMI = SEMI
 
 tokenizeTest1 =
---  tokenize [dfaWS, dfaID, dfaINT, dfaEQ, dfaSEMI] dfa2symbol lexeme2value "matt = 0;"
-  tokenize [dfaWS, dfaEQ, dfaSEMI, dfaID] dfa2symbol lexeme2value "matt = 0;"
+  tokenize [dfaWS, dfaID, dfaINT, dfaEQ, dfaSEMI] dfa2symbol lexeme2value "_matt = 0;"
   @?=
   [ Token T_ID (ID "matt")
   , Token T_WS (WS " ")
@@ -303,6 +303,6 @@ main = defaultMainWithOpts
   , testCase "regexTestPosclos" regexTestPosclos
   , testCase "tokenizeTest0" tokenizeTest0
   , testCase "dfaIDTest" dfaIDTest
---  , testCase "tokenizeTest1" tokenizeTest1
+  , testCase "tokenizeTest1" tokenizeTest1
   ] mempty
 
