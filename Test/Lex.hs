@@ -236,7 +236,7 @@ dfaID = regex2dfa
 -}
 
 dfaID = regex2dfa
-  (PosClos $ Class ['a' .. 'z'])
+  (PosClos $ Class $ '_' : ['a' .. 'z'] ++ ['A' .. 'Z'])
 
 dfaIDTest =
   dfaID
