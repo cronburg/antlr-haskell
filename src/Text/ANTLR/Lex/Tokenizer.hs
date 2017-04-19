@@ -3,8 +3,8 @@ module Text.ANTLR.Lex.Tokenizer where
 import Text.ANTLR.Lex.Automata
 import Text.ANTLR.Lex.DFA
 
-import qualified Data.Set.Monad as Set
-import Data.Set.Monad (member)
+import qualified Text.ANTLR.Set as Set
+import Text.ANTLR.Set (Hashable, member)
 
 import qualified Debug.Trace as D
 
@@ -38,7 +38,7 @@ type Lexeme s = [s]
  -    matched (e.g. 'varName') and the associated token name (e.g. 'id')
  -}
 tokenize ::
-  forall s i n v. (Ord i, Eq i, Ord s, Eq s, Show s, Show i, Show n, Show v)
+  forall s i n v. (Eq i, Ord s, Eq s, Show s, Show i, Show n, Show v, Hashable i, Hashable s)
   => [DFA s i] -> (DFA s i -> n) -> (Lexeme s -> n -> v) -> [s] -> [Token n v]
 tokenize dfas0 dfaName fncn input0 = let
     allTok :: [(DFA s i, State i)] -> [s] -> [Token n v]

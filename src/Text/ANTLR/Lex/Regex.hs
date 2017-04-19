@@ -1,6 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Text.ANTLR.Lex.Regex where
 
+import Text.ANTLR.Set (Hashable)
 import Text.ANTLR.Lex.NFA
 import qualified Text.ANTLR.Lex.DFA as DFA
 
@@ -14,7 +15,9 @@ data Regex s =
   | Class      [s]
   | MultiUnion [Regex s]
 
-regex2nfa' :: forall s i. (Ord i, Ord s) => (i -> Int) -> (Int -> i) -> Regex s -> NFA s i
+regex2nfa' ::
+  forall s i. (Hashable i, Ord i, Hashable s, Eq s)
+  => (i -> Int) -> (Int -> i) -> Regex s -> NFA s i
 regex2nfa' from to r = let
     r2n :: Regex s -> NFA s i
     r2n Epsilon         = list2nfa [ (to 0, NFAEpsilon, to 1) ]
@@ -30,9 +33,9 @@ regex2nfa' from to r = let
     r2n (MultiUnion (r:rs)) = r2n $ foldl Union r rs
   in r2n r 
 
-regex2nfa :: Ord s => Regex s -> NFA s Int
+regex2nfa :: (Hashable s, Ord s) => Regex s -> NFA s Int
 regex2nfa = regex2nfa' id id
 
-regex2dfa :: Ord s => Regex s -> DFA.DFA s (DFAState Int)
+regex2dfa :: (Hashable s, Ord s) => Regex s -> DFA.DFA s (DFAState Int)
 regex2dfa = nfa2dfa . regex2nfa
 

@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, MonadComprehensions #-}
 module Text.ANTLR.Lex.Automata where
-import Data.Set.Monad (Set(..), member, toList, union, notMember)
-import qualified Data.Set.Monad as Set
+import Text.ANTLR.Set (Set(..), member, toList, union, notMember, Hashable(..))
+import qualified Text.ANTLR.Set as Set
 
 -- e = edge type, s = symbols, i = state indices
 data Automata e s i = Automata
@@ -12,7 +12,7 @@ data Automata e s i = Automata
   , _F :: Set i                  -- Accepting states
   } deriving (Eq)
 
-instance (Eq e, Eq s, Eq i, Ord e, Ord s, Ord i, Show e, Show s, Show i) => Show (Automata e s i) where
+instance (Eq e, Eq s, Eq i, Hashable e, Hashable s, Hashable i, Show e, Show s, Show i) => Show (Automata e s i) where
   show (Automata s sigma delta s0 f) =
     show s
     ++ "\n  Σ:  " ++ show sigma
@@ -37,7 +37,9 @@ validStartState nfa = s0 nfa `member` _S nfa
 
 validFinalStates nfa = and [s `member` _S nfa | s <- toList $ _F nfa]
 
-validTransitions :: forall e s i. (Ord e, Ord i) => Automata e s i -> Bool
+validTransitions ::
+  forall e s i. (Hashable e, Hashable i, Eq e, Eq i)
+  => Automata e s i -> Bool
 validTransitions nfa = let
     vT :: [Transition e i] -> Bool
     vT [] = True
@@ -52,7 +54,7 @@ type Config i = Set i
 -- Generic closure function so that *someone* never asks "what's a closure?" ever
 -- again.
 closureWith
-  :: forall e s i. (Ord e, Ord i)
+  :: forall e s i. (Hashable e, Hashable i, Eq e, Eq i)
   => (e -> Bool) -> Automata e s i -> Config i -> Config i
 closureWith fncn Automata{_S = _S, _Δ = _Δ'} states = let
 
@@ -72,7 +74,7 @@ closureWith fncn Automata{_S = _S, _Δ = _Δ'} states = let
   --in Set.foldr (\a b -> union (cl a) b) Set.empty states
 
 move
-  :: forall e s i. (Ord e, Ord i)
+  :: forall e s i. (Hashable e, Hashable i, Eq i, Eq e)
   => Automata e s i -> Config i -> e -> Config i
 move Automata{_S = _S, _Δ = _Δ} _T a =
   [ s'  | s  <- _T

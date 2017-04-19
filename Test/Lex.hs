@@ -17,9 +17,9 @@ import Test.HUnit
 import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
-import Data.Set.Monad (fromList, Set(..), singleton)
+import Text.ANTLR.Set (fromList, Set(..), singleton, Hashable)
 
-fL :: Ord a => [a] -> Set a
+fL :: (Hashable a, Eq a) => [a] -> Set a
 fL = fromList
 
 nfa0 :: NFA Char Int
