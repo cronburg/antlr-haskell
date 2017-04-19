@@ -29,11 +29,11 @@ nfa0 = Automata
   , s0 = 0
   , _F = fL [3]
   , _Δ = fL
-    [ (0, Edge 'a', 0)
-    , (0, Edge 'a', 1)
-    , (0, Edge 'b', 0)
-    , (1, Edge 'b', 2)
-    , (2, Edge 'b', 3)
+    [ (0, singleton $ Edge 'a', 0)
+    , (0, singleton $ Edge 'a', 1)
+    , (0, singleton $ Edge 'b', 0)
+    , (1, singleton $ Edge 'b', 2)
+    , (2, singleton $ Edge 'b', 3)
     ]
   }
 
@@ -77,19 +77,19 @@ nfa334 = Automata
   , s0 = 0
   , _F = fL [10]
   , _Δ = fL
-    [ (0, NFAEpsilon, 1)
-    , (0, NFAEpsilon, 7)
-    , (1, NFAEpsilon, 2)
-    , (1, NFAEpsilon, 4)
-    , (2, Edge 'a', 3)
-    , (3, NFAEpsilon, 6)
-    , (4, Edge 'b', 5)
-    , (5, NFAEpsilon, 6)
-    , (6, NFAEpsilon, 1)
-    , (6, NFAEpsilon, 7)
-    , (7, Edge 'a', 8)
-    , (8, Edge 'b', 9)
-    , (9, Edge 'b', 10)
+    [ (0, singleton NFAEpsilon, 1)
+    , (0, singleton NFAEpsilon, 7)
+    , (1, singleton NFAEpsilon, 2)
+    , (1, singleton NFAEpsilon, 4)
+    , (2, singleton $ Edge 'a', 3)
+    , (3, singleton NFAEpsilon, 6)
+    , (4, singleton $ Edge 'b', 5)
+    , (5, singleton NFAEpsilon, 6)
+    , (6, singleton NFAEpsilon, 1)
+    , (6, singleton NFAEpsilon, 7)
+    , (7, singleton $ Edge 'a', 8)
+    , (8, singleton $ Edge 'b', 9)
+    , (9, singleton $ Edge 'b', 10)
     ]
   }
 
@@ -99,8 +99,8 @@ _C = fromList [1,2,4,5,6,7]
 _D = fromList [1,2,4,5,6,7,9]
 _E = fromList [1,2,4,5,6,7,10]
 
-a = 'a'
-b = 'b'
+a = singleton 'a'
+b = singleton 'b'
 
 dfa336 :: DFA.DFA Char (Set Int)
 dfa336 = Automata
@@ -131,7 +131,7 @@ epsilonNFA =
     , _Σ = fL ""
     , s0 = 0
     , _F = fL [1]
-    , _Δ = fL [ (0, NFAEpsilon, 1) ]
+    , _Δ = fL [ (0, singleton NFAEpsilon, 1) ]
     }
 
 regexTest0 =
@@ -142,7 +142,7 @@ regexTest0 =
 regexTest1 =
   regex2nfa (Symbol 'a')
   @?=
-  epsilonNFA { _Σ = fL "a", _Δ = fL [ (0, Edge 'a', 1) ] }
+  epsilonNFA { _Σ = fL "a", _Δ = fL [ (0, singleton $ Edge 'a', 1) ] }
 
 regexTestUnion =
   regex2nfa (Union (Symbol 'a') (Symbol 'b'))
@@ -151,12 +151,12 @@ regexTestUnion =
     , _Σ = fL "ab"
     , s0 = 4
     , _F = fL [5]
-    , _Δ = fL [ (0, Edge 'a', 1)
-              , (2, Edge 'b', 3)
-              , (4, NFAEpsilon, 0)
-              , (4, NFAEpsilon, 2)
-              , (1, NFAEpsilon, 5)
-              , (3, NFAEpsilon, 5) ]
+    , _Δ = fL [ (0, singleton $ Edge 'a', 1)
+              , (2, singleton $ Edge 'b', 3)
+              , (4, singleton NFAEpsilon, 0)
+              , (4, singleton NFAEpsilon, 2)
+              , (1, singleton NFAEpsilon, 5)
+              , (3, singleton NFAEpsilon, 5) ]
     }
 
 regexTestConcat =
@@ -166,9 +166,9 @@ regexTestConcat =
     , _Σ = fL "ab"
     , s0 = 0
     , _F = fL [3]
-    , _Δ = fL [ (0, Edge 'a', 1)
-              , (1, NFAEpsilon, 2)
-              , (2, Edge 'b', 3) ]
+    , _Δ = fL [ (0, singleton $ Edge 'a', 1)
+              , (1, singleton NFAEpsilon, 2)
+              , (2, singleton $ Edge 'b', 3) ]
     }
 
 regexTestKleene =
@@ -178,13 +178,13 @@ regexTestKleene =
     , _Σ = fL "ab"
     , s0 = 4
     , _F = fL [5]
-    , _Δ = fL [ (0, Edge 'a', 1)
-              , (1, NFAEpsilon, 2)
-              , (2, Edge 'b', 3)
-              , (4, NFAEpsilon, 0)
-              , (4, NFAEpsilon, 5)
-              , (3, NFAEpsilon, 0)
-              , (3, NFAEpsilon, 5)]
+    , _Δ = fL [ (0, singleton $ Edge 'a', 1)
+              , (1, singleton NFAEpsilon, 2)
+              , (2, singleton $ Edge 'b', 3)
+              , (4, singleton NFAEpsilon, 0)
+              , (4, singleton NFAEpsilon, 5)
+              , (3, singleton NFAEpsilon, 0)
+              , (3, singleton NFAEpsilon, 5)]
     }
 
 regexTestPosclos =
@@ -194,17 +194,17 @@ regexTestPosclos =
     , _Σ = fL "ab"
     , s0 = 0
     , _F = fL [9]
-    , _Δ = fL [ (0, Edge 'a', 1)
-              , (1, NFAEpsilon, 2)
-              , (2, Edge 'b', 3)
-              , (3, NFAEpsilon, 8)
-              , (4, Edge 'a', 5)
-              , (5, NFAEpsilon, 6)
-              , (6, Edge 'b', 7)
-              , (8, NFAEpsilon, 4)
-              , (8, NFAEpsilon, 9)
-              , (7, NFAEpsilon, 4)
-              , (7, NFAEpsilon, 9)]
+    , _Δ = fL [ (0, singleton $ Edge 'a', 1)
+              , (1, singleton NFAEpsilon, 2)
+              , (2, singleton $ Edge 'b', 3)
+              , (3, singleton NFAEpsilon, 8)
+              , (4, singleton $ Edge 'a', 5)
+              , (5, singleton NFAEpsilon, 6)
+              , (6, singleton $ Edge 'b', 7)
+              , (8, singleton NFAEpsilon, 4)
+              , (8, singleton NFAEpsilon, 9)
+              , (7, singleton NFAEpsilon, 4)
+              , (7, singleton NFAEpsilon, 9)]
     }
 
 dfaABPlus = regex2dfa (PosClos (Concat [Symbol 'a', Symbol 'b']))
@@ -236,7 +236,7 @@ dfaID = regex2dfa
 -}
 
 dfaID = regex2dfa
-  (PosClos $ MultiUnion [ Class ['a' .. 'g'] ])
+  (PosClos $ Class ['a' .. 'z'])
 
 dfaIDTest =
   dfaID

@@ -49,9 +49,9 @@ tokenize dfas0 dfaName fncn input0 = let
         oneTok dfaSims (s:ss) = let
             dfaSims' =
               [ (dfa, stop)
-              | (dfa, cursor)    <- dfaSims
-              , (start, e, stop) <- Set.toList $ _Δ dfa
-              , start == cursor && e == s ]
+              | (dfa, cursor)     <- dfaSims
+              , (start, es, stop) <- Set.toList $ _Δ dfa
+              , start == cursor && s `member` es ]
 
             accepting = [ dfa | (dfa, cursor) <- dfaSims', cursor `member` _F dfa ]
 

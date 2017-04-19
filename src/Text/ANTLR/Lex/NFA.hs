@@ -41,7 +41,7 @@ nfa2dfa_slow nfa@Automata{s0 = s0, _Σ = _Σ, _F = _F0} = let
       | Set.null ts = Set.empty
       | otherwise = let
         
-          _Δ  = [ (_T, a, epsCl (mv _T (Edge a)))
+          _Δ  = [ (_T, singleton a, epsCl (mv _T (Edge a)))
                 | _T <- ts
                 , _T `notMember` marked
                 , a  <- _Σ
@@ -77,7 +77,7 @@ nfa2dfa nfa@Automata{s0 = s0, _Σ = _Σ, _F = _F0} = let
       | otherwise = let
         
           _Δ  = Set.fromList
-                [ (_T, a, epsCl (mv _T (Edge a)))
+                [ (_T, singleton a, epsCl (mv _T (Edge a)))
                 | _T <- Set.toList ts
                 , _T `notMember` marked
                 , a  <- Set.toList _Σ
@@ -95,7 +95,7 @@ nfa2dfa nfa@Automata{s0 = s0, _Σ = _Σ, _F = _F0} = let
   in Automata
       { _S = [ tFrom x | x <- _Δ' ] `union` [ tTo x | x <- _Δ' ]
       , _Σ = _Σ
-      , _Δ = _Δ'
+      , _Δ = compress _Δ'
       , s0 = s0'
       , _F = [nfaState | (_,_,nfaState) <- _Δ', c <- nfaState, c `member` _F0]
       }
@@ -112,7 +112,10 @@ list2nfa :: forall s i. (Hashable i, Eq i, Hashable s, Eq s) => [Transition (Edg
 list2nfa [] = undefined
 list2nfa ((t@(n1,_,_)):ts) = Automata
   { _S = allStates $ Set.fromList (t:ts)
-  , _Σ = Set.fromList [ s | (_, Edge s, _) <- filter (\(_,e,_) -> isEdge e) (t:ts) ]
+  , _Σ = Set.fromList [ e
+          | (_, es, _) <- t:ts
+          , Edge e     <- filter isEdge (Set.toList es)
+          ]
   , s0 = n1
   , _F = Set.fromList [ (\(_,_,c) -> c) $ last (t:ts) ]
   , _Δ = Set.fromList $ t:ts
@@ -143,17 +146,21 @@ nfaUnion from to
 
     _Δ' =     _Δ1
       `union` _Δ2
-      `union` Set.singleton (s0', NFAEpsilon, s1_0)
-      `union` Set.singleton (s0', NFAEpsilon, s2_0)
-      `union` [ (f1_0, NFAEpsilon, f0') | f1_0 <- _F1 ]
-      `union` [ (f2_0, NFAEpsilon, f0') | f2_0 <- _F2 ]
+      `union` Set.singleton (s0', singleton NFAEpsilon, s1_0)
+      `union` Set.singleton (s0', singleton NFAEpsilon, s2_0)
+      `union` [ (f1_0, singleton NFAEpsilon, f0') | f1_0 <- _F1 ]
+      `union` [ (f2_0, singleton NFAEpsilon, f0') | f2_0 <- _F2 ]
 
     s0' = to mx2
     f0' = to $ mx2 + 1
 
   in Automata
     { _S = allStates _Δ'
-    , _Σ = [ e | (_, Edge e, _) <- Set.filter (\(_,e,_) -> isEdge e) _Δ' ]
+    , _Σ =
+            [ e
+            | (_, es, _) <- _Δ'
+            , Edge e     <- Set.filter isEdge es
+            ]
     , s0 = s0'
     , _F = Set.fromList [f0']
     , _Δ = _Δ'
@@ -168,11 +175,15 @@ nfaConcat from to
     
     _Δ' =     _Δ1
       `union` _Δ2
-      `union` [ (f1_0, NFAEpsilon, s2_0) | f1_0 <- _F1 ]
+      `union` [ (f1_0, singleton NFAEpsilon, s2_0) | f1_0 <- _F1 ]
   
   in Automata
     { _S = allStates _Δ'
-    , _Σ = [ e | (_, Edge e, _) <- Set.filter (\(_,e,_) -> isEdge e) _Δ' ]
+    , _Σ =
+            [ e
+            | (_, es, _) <- _Δ'
+            , Edge e     <- Set.filter isEdge es
+            ]
     , s0 = s1_0
     , _F = _F2
     , _Δ = _Δ'
@@ -188,14 +199,18 @@ nfaKleene from to
     f0' = to $ mx1 + 1
 
     _Δ' =     _Δ1
-      `union` Set.singleton (s0', NFAEpsilon, s1_0)
-      `union` Set.singleton (s0', NFAEpsilon, f0')
-      `union` [ (f1_0, NFAEpsilon, s1_0) | f1_0 <- _F1 ]
-      `union` [ (f1_0, NFAEpsilon, f0')  | f1_0 <- _F1 ]
+      `union` Set.singleton (s0', singleton NFAEpsilon, s1_0)
+      `union` Set.singleton (s0', singleton NFAEpsilon, f0')
+      `union` [ (f1_0, singleton NFAEpsilon, s1_0) | f1_0 <- _F1 ]
+      `union` [ (f1_0, singleton NFAEpsilon, f0')  | f1_0 <- _F1 ]
 
   in Automata
     { _S = allStates _Δ'
-    , _Σ = [ e | (_, Edge e, _) <- Set.filter (\(_,e,_) -> isEdge e) _Δ' ]
+    , _Σ =
+            [ e
+            | (_, es, _) <- _Δ'
+            , Edge e     <- Set.filter isEdge es
+            ]
     , s0 = s0'
     , _F = Set.fromList [f0']
     , _Δ = _Δ'
