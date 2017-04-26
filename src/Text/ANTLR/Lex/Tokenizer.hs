@@ -51,7 +51,7 @@ tokenize dfas0 dfaName fncn input0 = let
               [ (dfa, stop)
               | (dfa, cursor)     <- dfaSims
               , (start, es, stop) <- Set.toList $ _Δ dfa
-              , start == cursor && s `member` es ]
+              , start == cursor && s `edgeMember` es ]
 
             accepting = [ dfa | (dfa, cursor) <- dfaSims', cursor `member` _F dfa ]
 

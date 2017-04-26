@@ -20,7 +20,9 @@ instance (Eq e, Eq s, Eq i, Hashable e, Hashable s, Hashable i, Show e, Show s, 
     ++ "\n  s0: " ++ show s0
     ++ "\n  F:  " ++ show f
 
-type Transition e i = (i, Set e, i)
+type AutomataEdge e = (Bool, Set e)
+
+type Transition e i = (i, AutomataEdge e, i)
 
 tFrom :: Transition e i -> i
 tFrom (a,b,c) = a
@@ -29,12 +31,12 @@ tTo   :: Transition e i -> i
 tTo (a,b,c) = c
 
 tEdge :: Transition e i -> Set e
-tEdge (a,b,c) = b
+tEdge (a,(comp, b),c) = b
 
 transitionAlphabet __Δ =
   [ e
-  | (_, es, _) <- __Δ
-  , e          <- es
+  | (_, (c, es), _) <- __Δ
+  , e               <- es
   ]
 
 -- Compress a set of transitions such that every pair of (start,end) states
@@ -43,24 +45,29 @@ compress ::
   (Eq i)
   => Set (Transition e i) -> Set (Transition e i)
 compress __Δ =
-  [ (a, [ e 
-        | (a', es', b') <- __Δ
-        , a' == a && b' == b
-        , e <- es'
-        ], b)
-  | (a, es, b) <- __Δ
+  [ ( a, (c, [ e
+             | (a', (c', es'), b') <- __Δ
+             , a' == a && b' == b && c' == c
+             , e <- es'
+             ])
+    , b)
+  | (a, (c, es), b) <- __Δ
   ]
+
+xor a b = (not a && b) || (not b && a)
 
 transitionMember ::
   (Eq i, Hashable e, Eq e)
   => (i, e, i) -> Set (Transition e i) -> Bool
 transitionMember (a, e, b) _Δ =
   or
-      [ e `member` es
-      | (a', es, b') <- _Δ
+      [ xor complement (e `member` es)
+      | (a', (complement, es), b') <- _Δ
       , a' == a
       , b' == b
       ]
+
+edgeMember s (complement, es) = xor complement (s `member` es)
 
 data Result = Accept | Reject
 
@@ -90,7 +97,7 @@ closureWith
 closureWith fncn Automata{_S = _S, _Δ = _Δ'} states = let
 
     -- Check which edges are "epsilons" (or something else).
-    _Δ = Set.map (\(a,b,c) -> (a, Set.map fncn b, c)) _Δ'
+    _Δ = Set.map (\(a,(comp, b),c) -> (a, (comp, Set.map fncn b), c)) _Δ'
 
     cl :: Config i -> Config i -> Config i
     cl busy ss
