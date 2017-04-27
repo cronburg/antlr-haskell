@@ -47,6 +47,7 @@ nfa2dfa_slow nfa@Automata{s0 = s0, _Σ = _Σ, _F = _F0} = let
                 , _T `notMember` marked
                 , a  <- _Σ
                 ]
+
           _Us = [ c | (a,b,c) <- _Δ ]
           fromStates = [ a | (a,b,c) <- _Δ ]
 
@@ -67,7 +68,7 @@ nfa2dfa_slow nfa@Automata{s0 = s0, _Σ = _Σ, _F = _F0} = let
 
 nfa2dfa :: forall s i. (Hashable s, Eq s, Hashable i, Eq i, Ord i)
   => NFA s i -> DFA s (Set (State i))
-nfa2dfa nfa@Automata{s0 = s0, _Σ = _Σ, _F = _F0} = let
+nfa2dfa nfa@Automata{s0 = s0, _Σ = _Σ, _S = _S, _F = _F0} = let
     
     epsCl = epsClosure nfa
     mv    = move nfa
@@ -77,26 +78,35 @@ nfa2dfa nfa@Automata{s0 = s0, _Σ = _Σ, _F = _F0} = let
       | Set.null ts = Set.empty
       | otherwise = let
         
-          _Δ  = Set.fromList
+          _Δ  =
+            Set.fromList
                 [ (_T, (False, singleton a), epsCl (mv _T (Edge a)))
                 | _T <- Set.toList ts
                 , _T `notMember` marked
                 , a  <- Set.toList _Σ
                 ]
+            `union`
+            Set.fromList
+                [ (_T, (True, _Σ), epsCl $ moveComplement nfa _T)
+                | _T <- Set.toList ts
+                , _T `notMember` marked
+                ]
+
           _Us = [ c | (a,b,c) <- _Δ ]
           fromStates = [ a | (a,b,c) <- _Δ ]
 
         in _Δ `union` dS (fromStates `union` marked) _Us
     
     _Δ' :: Set (Transition (DFA.Edge s) (DFAState i))
-    _Δ' = dS Set.empty (singleton s0')
+    _Δ' = let run_dS = dS Set.empty (singleton s0')
+          in  Set.filter (\(_, _, b) -> not $ Set.null b) $ compress run_dS
 
     s0' = epsCl $ singleton s0
 
   in Automata
       { _S = [ tFrom x | x <- _Δ' ] `union` [ tTo x | x <- _Δ' ]
       , _Σ = _Σ
-      , _Δ = compress _Δ'
+      , _Δ = _Δ'
       , s0 = s0'
       , _F = [nfaState | (_,_,nfaState) <- _Δ', c <- nfaState, c `member` _F0]
       }

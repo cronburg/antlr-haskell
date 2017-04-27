@@ -119,3 +119,19 @@ move Automata{_S = _S, _Δ = _Δ} _T a =
         , s' <- _S
         , (s, a, s') `transitionMember` _Δ ]
 
+-- Whether or not (a, (True, _), b) is a transition
+complementMember
+  :: (Hashable i, Eq i, Hashable e, Eq e)
+  => (i, i) -> Set (Transition e i) -> Bool
+complementMember (a, b) =
+  not . null . Set.filter (\(a', (c, _), b') -> a' == a && b' == b && c)
+
+-- Set of states you can move to if you see a letter not in the alphabet
+moveComplement
+  :: forall e s i. (Hashable e, Hashable i, Eq i, Eq e)
+  => Automata e s i -> Config i -> Config i
+moveComplement Automata{_S = _S, _Δ = _Δ} _T =
+  [ s'  | s  <- _T
+        , s' <- _S
+        , (s, s') `complementMember` _Δ ]
+

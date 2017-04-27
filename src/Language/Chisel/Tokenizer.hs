@@ -2,7 +2,7 @@ module Language.Chisel.Tokenizer
   ( Name(..), Value(..), Primitive(..)
   , tokenize
   , lowerID, upperID, prim, int, arrow, lparen, rparen, pound, vertbar, colon
-  , comma, atsymbol, linecomm, ws
+  , comma, atsymbol, carrot, dot, linecomm, ws
   ) where
 import qualified Text.ANTLR.Lex.Tokenizer as T
 import Text.ANTLR.Lex.Regex
@@ -21,6 +21,8 @@ data Name =
   | T_Colon
   | T_Comma
   | T_AtSymbol
+  | T_Carrot
+  | T_Dot
   | T_LineComment
   | T_WS
   deriving (Eq, Ord, Enum, Show, Bounded)
@@ -38,6 +40,8 @@ data Value =
   | Colon
   | Comma
   | AtSymbol
+  | Carrot
+  | Dot
   | LineComment String
   | WS          String
   deriving (Show)
@@ -54,16 +58,19 @@ vertbar   = T.Token T_VerticalBar VerticalBar
 colon     = T.Token T_Colon       Colon
 comma     = T.Token T_Comma       Comma
 atsymbol  = T.Token T_AtSymbol    AtSymbol
+carrot    = T.Token T_Carrot      Carrot
+dot       = T.Token T_Dot         Dot
 linecomm x = T.Token T_LineComment $ LineComment x
 ws       x = T.Token T_WS          $ WS x
 
 prims = ["page", "pages", "word", "words", "byte", "bytes", "bit", "bits"]
 
+idCharacters = Kleene $ Class $ '_' : ['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9']
+
 regexes =
-  [ (T_LowerID,     Concat [Class ['a' .. 'z'], Kleene $ Class $ '_' : ['a' .. 'z'] ++ ['A' .. 'Z']])
-  , (T_UpperID,     Concat [Class ['A' .. 'Z'], Kleene $ Class $ '_' : ['a' .. 'z'] ++ ['A' .. 'Z']])
-  , (T_WS,          Class " \t\n\r\f\v")
-  , (T_Prim,        MultiUnion $ map Literal prims)
+  [ (T_Prim,        MultiUnion $ map Literal prims)
+  , (T_LowerID,     Concat [Class ['a' .. 'z'], idCharacters])
+  , (T_UpperID,     Concat [Class ['A' .. 'Z'], idCharacters])
   , (T_INT,         Class ['0' .. '9'])
   , (T_Arrow,       Literal "->")
   , (T_LParen,      Symbol '(')
@@ -73,7 +80,10 @@ regexes =
   , (T_Colon,       Symbol ':')
   , (T_Comma,       Symbol ',')
   , (T_AtSymbol,    Symbol '@')
+  , (T_Carrot,      Symbol '^')
+  , (T_Dot,         Symbol '.')
   , (T_LineComment, Concat [Literal "//", Kleene $ NotClass ['\n'], Symbol '\n'])
+  , (T_WS,          Kleene $ Class " \t\n\r\f\v")
   ]
 
 dfas = map (fst &&& regex2dfa . snd) regexes
@@ -111,6 +121,8 @@ lexeme2value l n = case n of
   T_Colon       -> Colon
   T_Comma       -> Comma
   T_AtSymbol    -> AtSymbol
+  T_Carrot      -> Carrot
+  T_Dot         -> Dot
   T_LineComment -> LineComment l
   T_WS          -> WS l
 

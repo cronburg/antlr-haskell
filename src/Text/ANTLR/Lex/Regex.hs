@@ -16,6 +16,7 @@ data Regex s =
   | PosClos    (Regex s)            -- Positive closure
   | MultiUnion [Regex s]            -- Union of two or more arbitrary regexs
   | NotClass   [s]                  -- Complement of a character class
+  deriving (Show)
 
 regex2nfa' ::
   forall s i. (Hashable i, Ord i, Hashable s, Eq s)

@@ -288,6 +288,16 @@ tokenizeTest1 =
   , EOF
   ]
 
+lineCommentDFA = regex2dfa $ Concat [Literal "//", Kleene $ NotClass ['\n'], Symbol '\n']
+
+lineCommentTest =
+  tokenize [lineCommentDFA] (const "LineComment") const
+  "// This is a line comment.\n"
+  @?=
+  [ Token "LineComment" "// This is a line comment.\n"
+  , EOF
+  ]
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "testValid0" testValid0
@@ -306,5 +316,6 @@ main = defaultMainWithOpts
   , testCase "tokenizeTest0" tokenizeTest0
   , testCase "dfaIDTest" dfaIDTest
   , testCase "tokenizeTest1" tokenizeTest1
+  , testCase "lineCommentTest" lineCommentTest
   ] mempty
 
