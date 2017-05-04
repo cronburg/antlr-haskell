@@ -1,10 +1,10 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, DeriveAnyClass, DeriveGeneric #-}
 module Text.ANTLR.Allstar.ATN where
 -- Augmented Transition Network
 import Text.ANTLR.Allstar.Grammar
 --import Text.ANTLR.Allstar.GSS hiding (Edge, Node)
 import Text.ANTLR.Allstar.Stacks
-import Data.Set.Monad (Set(..), empty, fromList, toList)
+import Text.ANTLR.Set (Set(..), empty, fromList, toList)
 
 type Gamma nt = Stacks (ATNState nt)
 
@@ -16,7 +16,7 @@ data ATN s nt t = ATN
   { _Δ :: Set (Transition s nt t)
   } deriving (Eq, Ord)
 
-instance (Referent nt, Referent t, Ord nt, Ord t, Show nt, Show t) => Show (ATN s nt t) where
+instance (Show s, Referent nt, Referent t, Hashable nt, Hashable t, Show nt, Show t) => Show (ATN s nt t) where
   show ATN {_Δ = _Δ} = "\n[" ++ (concatMap (\s -> "\n, " ++ show s) (toList _Δ)) ++ "\n]"
 
 -- Tuple corresponding to a distinct transition in the ATN:
@@ -26,7 +26,12 @@ type Transition s nt t = (ATNState nt, Edge s nt t, ATNState nt)
 data ATNState nt  = Start  nt
                   | Middle nt Int Int
                   | Accept nt
-  deriving (Ord, Show)
+  deriving (Ord, Generic, Hashable)
+
+instance (Show nt) => Show (ATNState nt) where
+  show (Start nt)         = "s_"  ++ show nt
+  show (Middle nt i0 i1)  = "m_{" ++ show nt ++ "," ++ show i0 ++ "," ++ show i1 ++ "}"
+  show (Accept nt)        = "a_"  ++ show nt
 
 {- ATNs do not leak the Terminal and NonTerminal abstractions -}
 instance (Referent nt) => Eq (ATNState nt) where
@@ -49,7 +54,14 @@ data Edge s nt t = NTE nt
                  | PE  (Predicate s)
                  | ME  (Mutator   s)
                  | Epsilon
-  deriving (Ord, Show)
+  deriving (Ord, Generic, Hashable)
+
+instance (Show s, Show nt, Show t) => Show (Edge s nt t) where
+  show (NTE nt) = "E(" ++ show nt ++ ")"
+  show (TE   t) = "E(" ++ show t  ++ ")"
+  show (PE   p) = "E(" ++ show p  ++ ")"
+  show (ME   m) = "E(" ++ show m  ++ ")"
+  show Epsilon  = "E(ϵ)"
 
 {- ATNs do not leak the Terminal and NonTerminal abstractions -}
 instance (Referent nt, Referent t) => Eq (Edge s nt t) where
@@ -61,7 +73,9 @@ instance (Referent nt, Referent t) => Eq (Edge s nt t) where
   x == y = False
 
 -- atnOf :: Grammar -> (ATNState,Edge) -> Maybe ATNState
-atnOf :: forall nt. forall t. forall s. (Referent nt, Referent t, Ord nt, Ord t) => Grammar s nt t -> ATN s nt t
+atnOf
+  :: forall nt t s. (Referent nt, Referent t, Hashable nt, Hashable t)
+  => Grammar s nt t -> ATN s nt t
 atnOf g = let
 
   _Δ :: Int -> Production s nt t -> [Transition s nt t]

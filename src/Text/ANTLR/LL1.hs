@@ -1,4 +1,5 @@
-{-# LANGUAGE ScopedTypeVariables, MonadComprehensions #-}
+{-# LANGUAGE ScopedTypeVariables, MonadComprehensions, DeriveGeneric
+ , DeriveAnyClass #-}
 module Text.ANTLR.LL1
   ( recognize
   , first, follow
@@ -6,15 +7,17 @@ module Text.ANTLR.LL1
   , isLL1, parseTable
   , predictiveParse
   , removeEpsilons
+  , leftFactor, Prime(..)
   ) where
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Parser
 import Text.ANTLR.Allstar.ATN
-import Data.Set.Monad
+--import Data.Set.Monad
+import Text.ANTLR.Set
   ( Set(..), singleton, fromList, union, empty, member, size, toList
-  , insert, delete, intersection, findMin --elemAt
+  , insert, delete, intersection, Hashable(..), Generic(..), findMin
   )
-import Data.List (maximumBy)
+import Data.List (maximumBy, isPrefixOf)
 import Data.Ord (comparing)
 
 import qualified Data.Map.Strict as M
@@ -44,7 +47,7 @@ foldWhileEpsilon fncn b0 (a:as)
   | otherwise  = fncn a b0
 
 first ::
-  forall t nt. (Referent nt, Referent t, Ord nt, Ord t)
+  forall t nt. (Referent nt, Referent t, Ord nt, Ord t, Hashable nt, Hashable t)
   => Grammar () nt t -> [ProdElem nt t] -> Set (Icon t)
 first g = let
     firstOne :: Set (ProdElem nt t) -> ProdElem nt t -> Set (Icon t)
@@ -67,7 +70,7 @@ first g = let
   in firstMany . map (firstOne empty)
 
 follow ::
-  forall nt t. (Referent nt, Referent t, Ord nt, Ord t)
+  forall nt t. (Referent nt, Referent t, Ord nt, Ord t, Hashable nt, Hashable t)
   => Grammar () nt t -> nt -> Set (Icon t)
 follow g = let
     follow' busy _B
@@ -112,7 +115,9 @@ follow g = let
 --      first(α) `intersection` first(β) == empty
 -- and if epsilon is in α, then
 --      first(α) `intersection` follow(A) == empty
-isLL1 :: (Referent nt, Referent t, Eq nt, Ord nt, Eq t, Ord t) => Grammar () nt t -> Bool
+isLL1
+  :: (Referent nt, Referent t, Eq nt, Ord nt, Eq t, Ord t, Hashable nt, Hashable t)
+  => Grammar () nt t -> Bool
 isLL1 g =
   validGrammar g && and
       [  (first g α `intersection` first  g β  == empty)
@@ -130,14 +135,16 @@ type Key nt t = (nt, Icon t)
 -- singleton implies unambiguous entry, multiple implies ambiguous:
 type Value nt t = Set (ProdElems nt t)
 
-ambigVal :: (Ord nt, Ord t) => Value nt t -> Bool
+ambigVal
+  :: (Ord nt, Ord t, Hashable nt, Hashable t)
+  => Value nt t -> Bool
 ambigVal = (1 >) . size
 
 -- M[A,s] = α for each symbol s `member` FIRST(α)
 type ParseTable nt t = M.Map (Key nt t) (Value nt t)
 
 parseTable' ::
-  forall nt t. (Referent nt, Referent t, Ord nt, Ord t, Eq t, Eq nt)
+  forall nt t. (Referent nt, Referent t, Ord nt, Ord t, Eq t, Eq nt, Hashable t, Hashable nt)
   => (Value nt t -> Value nt t -> Value nt t) -> Grammar () nt t-> ParseTable nt t
 parseTable' fncn g = let
 
@@ -173,14 +180,18 @@ parseTable' fncn g = let
       ]
 
 parseTable :: 
-  forall nt. forall t. (Referent nt, Referent t, Ord nt, Ord t, Eq t, Eq nt)
+  forall nt. forall t. (Referent nt, Referent t, Ord nt, Ord t, Eq t, Eq nt, Hashable t, Hashable nt)
   => Grammar () nt t -> ParseTable nt t
 parseTable = parseTable' union
 
 data TreeNode ast nt t =
     Comp   ast
   | InComp nt (ProdElems nt t) [ast] Int
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord)
+
+instance (Show ast, Show nt, Show t) => Show (TreeNode ast nt t) where
+  show (Comp ast)            = "(Complete " ++ show ast ++ ")"
+  show (InComp nt es asts i) = "(Incomplete " ++ show nt ++ show es ++ show asts ++ show i ++ ")"
 
 type StackTree ast nt t = [TreeNode ast nt t]
 
@@ -189,12 +200,13 @@ isComp _ = False
 isInComp = not . isComp
 
 recognize ::
-  (Referent nt, Referent t, Ord nt, Ord t, Show nt, Show t)
+  (Referent nt, Referent t, Ord nt, Ord t, Show nt, Show t, Hashable t, Hashable nt)
   => Grammar () nt t -> [Icon t] -> Bool
 recognize g = (Nothing /=) . predictiveParse g (const ())
 
-predictiveParse ::
-  forall nt t ast. (Show nt, Show t, Show ast, Referent nt, Referent t, Ord nt, Ord t)
+predictiveParse
+  :: forall nt t ast.
+  (Show nt, Show t, Show ast, Referent nt, Referent t, Ord nt, Ord t, Hashable t, Hashable nt)
   => Grammar () nt t -> Action ast nt t -> [Icon t] ->  Maybe ast
 predictiveParse g act w0 = let
 
@@ -250,7 +262,7 @@ predictiveParse g act w0 = let
 {- Remove all epsilon productions, i.e. productions of the form "A -> eps",
  - without affecting the language accepted -}
 removeEpsilons ::
-  forall s nt t. (Eq t, Eq nt, Show t, Show nt, Ord t, Ord nt)
+  forall s nt t. (Eq t, Eq nt, Show t, Show nt, Show s, Ord t, Ord nt, Hashable t, Hashable nt)
   => Grammar s nt t -> Grammar s nt t
 removeEpsilons g = let
 
@@ -303,10 +315,13 @@ removeEpsilons g = let
   in g { ps = ps' }
 
 newtype Prime nt = Prime (nt, Int)
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Generic, Hashable)
+
+instance (Show nt) => Show (Prime nt) where
+  show (Prime (nt,i)) = show nt ++ replicate i '\''
 
 leftFactor ::
-  forall s nt t. (Eq t, Eq nt, Show t, Show nt, Ord t, Ord nt)
+  forall s nt t. (Eq t, Eq nt, Show t, Show nt, Ord t, Ord nt, Hashable nt)
   => Grammar s nt t -> Grammar s (Prime nt) t
 leftFactor = let
 
@@ -348,16 +363,35 @@ leftFactor = let
     --longest_lcps :: [(nt, ProdElems nt t)]
     --longest_lcps = filter (not . null . snd) lcps
 
-    ps' :: [Production s (Prime nt) t]
-    ps' = case lcps of
-      []           -> ps g
-      ((nt, xs):_) -> undefined
-  
+    incr :: Prime nt -> Prime nt
+    incr (Prime (nt, i)) = Prime (nt, i + 1)
+
+    ps' :: [(Prime nt, ProdElems (Prime nt) t)] -> [Production s (Prime nt) t]
+    ps' []           = ps g
+    ps' ((nt, xs):_) =
+        -- Unaffected productions
+        [ (nt0, Prod v rhs)
+        | (nt0, Prod v rhs) <- ps g
+        , nt0 /= nt
+        ]
+      ++
+        -- Unaffected productions
+        [ (nt0, Prod v rhs)
+        | (nt0, Prod v rhs) <- ps g
+        , nt == nt0 && not (xs `isPrefixOf` rhs)
+        ]
+      ++
+        -- Affected productions
+        [ (incr nt0, Prod v (drop (length xs) rhs))
+        | (nt0, Prod v rhs) <- ps g
+        , nt == nt0 && xs `isPrefixOf` rhs
+        ]
+      ++ [(nt, Prod Pass $ xs ++ [NT $ incr nt])]
   {- [ (prime nt, drop (length xs) ys)
                     | (nt1, ys) <- ps g
                     , nt1 == nt
                     , xs `isPrefixOf` ys -}
                     
-    in g { ps = ps' }
+    in g { ps = ps' lcps }
   in lF . primeify
 

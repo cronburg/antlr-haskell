@@ -5,14 +5,15 @@ import Text.ANTLR.Parser
 import Text.ANTLR.AST
 import Text.ANTLR.LL1
 
-import Data.Set.Monad (fromList, union, empty, Set(..))
-import qualified Data.Set.Monad as Set
+import Text.ANTLR.Set (fromList, union, empty, Set(..))
+import qualified Text.ANTLR.Set as Set
 
 import qualified Data.Map.Strict as M
 
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Monoid
 import Test.Framework
+import Test.Framework (defaultMainWithOpts)
 import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
 import Test.HUnit
@@ -188,6 +189,34 @@ testRemoveEpsilons3 =
            ]
     } 
 
+leftGrammar0 = (defaultGrammar :: Grammar () String String)
+  { ns = fromList "SABC"
+  , ts = fromList "defg"
+  , s0 = 'S'
+  , ps = [ ('S', Prod Pass [NT 'A'])
+         , ('A', Prod Pass [T 'd', T 'e', NT 'B'])
+         , ('A', Prod Pass [T 'd', T 'e', NT 'C'])
+         , ('B', Prod Pass [T 'f'])
+         , ('C', Prod Pass [T 'g'])
+         ]
+  }
+
+testLeftFactor =
+  leftFactor leftGrammar0
+  @?= G
+  { ns = fromList $ map Prime [('S', 0), ('A', 0), ('B', 0), ('C', 0)]
+  , ts = fromList "defg"
+  , s0 = Prime ('S', 0)
+  , ps = [ (Prime ('S', 0), Prod Pass [NT $ Prime ('A', 0)])
+         , (Prime ('A', 0), Prod Pass [T 'd', T 'e', NT $ Prime ('B', 0)])
+         , (Prime ('A', 0), Prod Pass [T 'd', T 'e', NT $ Prime ('C', 0)])
+         , (Prime ('B', 0), Prod Pass [T 'f'])
+         , (Prime ('C', 0), Prod Pass [T 'g'])
+         ]
+  , _πs = fromList []
+  , _μs = fromList []
+  }
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "fold_epsilon" foldEpsTest
@@ -206,5 +235,6 @@ main = defaultMainWithOpts
   , testCase "dragonPredParse" dragonPredParse
   , testCase "testRemoveEpsilons" testRemoveEpsilons
   , testCase "testRemoveEpsilons2" testRemoveEpsilons2
+--  , testCase "testLeftFactor" testLeftFactor
   ] mempty
 

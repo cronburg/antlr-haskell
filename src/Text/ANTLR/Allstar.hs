@@ -1,13 +1,15 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, DeriveAnyClass, DeriveGeneric #-}
 module Text.ANTLR.Allstar where
 import Text.ANTLR.Allstar.Grammar
 --import Text.ANTLR.Allstar.GSS
 import Text.ANTLR.Allstar.ATN
 import Text.ANTLR.Allstar.Stacks
 import qualified Text.ANTLR.Lex as Lex
+
 -- Set
-import Data.Set.Monad (Set)
-import qualified Data.Set.Monad as Set
+import Text.ANTLR.Set (Set)
+import qualified Text.ANTLR.Set as Set
+
 import Control.Monad.State
 import Control.Monad (mapM)
 import Data.Map (Map)
@@ -29,12 +31,12 @@ data Parser s nt t v = Parser
 type ParserS s nt t v a = State (Parser s nt t v) a
 
 data DFAEdge nt t = DFAE (DFAState nt) t (DFAState nt)
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, Hashable)
 
 data DFAState nt  = ErrorState
                   | ConfState (Set (Configuration nt))
                   | FinalState Int -- production index
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, Hashable)
 type Error = String
 -- configuration
 type Configuration nt = (ATNState nt, Int, Gamma nt)
@@ -45,7 +47,7 @@ type Configuration nt = (ATNState nt, Int, Gamma nt)
 --depends on: adaptivePredict
 --parse ::
 parse
-  :: forall nt t v s. (Referent nt, Referent t, Ord nt, Ord v, Ord t, Eq t)
+  :: forall nt t v s. (Referent nt, Referent t, Hashable nt, Hashable v, Hashable t, Eq t, Eq nt, Ord nt)
   => nt -> ParserS s nt t v (Maybe ())
 parse _S =
   let 
@@ -96,7 +98,7 @@ parse _S =
 --            startState
 --adaptivePredict ::
 adaptivePredict
-  :: forall s nt t v. (Referent nt, Referent t, Ord nt, Ord v, Ord t)
+  :: forall s nt t v. (Referent nt, Referent t, Hashable nt, Hashable v, Hashable t, Ord nt, Eq t)
   => nt -> Gamma nt -> ParserS s nt t v (Maybe Int)
 adaptivePredict _A _γ0 =
   let hasPredForA :: [Production s nt t] -> Bool
@@ -132,7 +134,7 @@ adaptivePredict _A _γ0 =
 --depends on: closure
 --startState ::
 startState 
-  :: (Referent nt, Referent t, Ord nt, Ord v, Ord t)
+  :: (Referent nt, Referent t, Hashable nt, Hashable v, Hashable t)
   => nt -> Gamma nt -> ParserS s nt t v (Set (Configuration nt))
 startState a gamma = do
   ATN {_Δ = delta} <-  getATN
@@ -150,7 +152,7 @@ startState a gamma = do
 --            llPredict
 --sllPredict ::
 sllPredict 
-  :: forall nt t s v. (Referent nt, Ord nt, Referent t, Ord t, Ord v)
+  :: forall nt t s v. (Referent nt, Hashable nt, Referent t, Hashable t, Hashable v, Eq t, Eq nt, Ord nt)
   => nt -> Set (Configuration nt) -> [Lex.Token t v] -> Gamma nt -> ParserS s nt t v (Maybe Int)
 sllPredict _A d0 start _γ0 = do
 
@@ -190,7 +192,7 @@ sllPredict _A d0 start _γ0 = do
 --target ::
 target ::
   forall nt t s v.
-  (Referent nt, Ord nt, Referent t, Ord t, Ord v)
+  (Referent nt, Hashable nt, Referent t, Hashable t, Hashable v, Ord nt, Eq t)
   => Set (Configuration nt) -> t -> ParserS s nt t v (DFAState nt)
 target d0 a = do
   mv <- move d0 a
@@ -225,7 +227,7 @@ target d0 a = do
 -- no dependencies
 -- set of all (q,i,Gamma) s.t. p -a> q and (p,i,Gamma) in State d
 move ::
-  forall nt t s v. (Referent nt, Referent t, Ord nt, Ord v, Ord t)
+  forall nt t s v. (Referent nt, Referent t, Hashable nt, Hashable v, Hashable t)
   => Set (Configuration nt) -> t -> ParserS s nt t v (Set (Configuration nt))
 move d a = do
   ATN {_Δ = delta} <- getATN
@@ -244,7 +246,7 @@ move d a = do
 --            closure
 --            getConflictSetsPerLoc
 llPredict 
-  :: (Referent nt, Referent t, Ord nt, Ord v, Ord t)
+  :: (Referent nt, Referent t, Hashable nt, Hashable v, Hashable t, Ord nt)
   => nt -> [Lex.Token t v] -> Gamma nt -> ParserS s nt t v (Maybe Int)
 llPredict _A start _γ0 =
   let
@@ -279,7 +281,7 @@ llPredict _A start _γ0 =
 
 --getATN = return $ ATN { _Δ = Set.empty }
 getATN
-  :: (Referent nt, Referent t, Ord nt, Ord t, Ord v)
+  :: (Referent nt, Referent t, Hashable nt, Hashable t, Hashable v)
   => ParserS s nt t v (ATN s nt t)
 getATN = do
   Parser { g = grammar} <- get
@@ -288,7 +290,7 @@ getATN = do
 
 --no fn dependencies
 closure ::
-  forall nt t s. (Referent nt, Referent t, Ord nt, Ord t)
+  forall nt t s. (Referent nt, Referent t, Hashable nt, Hashable t)
   => Set (Transition s nt t) -> Set (Configuration nt) -> Configuration nt -> Set (Configuration nt)
 closure d busy (cfg@(p,i,gamma))
   | Set.member cfg busy = Set.empty
@@ -351,7 +353,9 @@ closure d busy (cfg@(p,i,gamma))
 -- no dependencies
 -- for each p,Gamma: get set of alts {i} from (p,-,Gamma) in D Confs
 --getConflictSetsPerLoc ::
-getConflictSetsPerLoc :: forall nt. (Referent nt, Ord nt) => Set (Configuration nt) -> Set (Set Int)
+getConflictSetsPerLoc
+  :: forall nt. (Referent nt, Hashable nt, Ord nt)
+  => Set (Configuration nt) -> Set (Set Int)
 getConflictSetsPerLoc d =
   let m = Set.foldr updateEntry (Map.empty) d
       updateEntry :: Configuration nt -> (Map (ATNState nt, Gamma nt) (Set Int)) -> (Map (ATNState nt, Gamma nt) (Set Int))
@@ -366,7 +370,9 @@ getConflictSetsPerLoc d =
 -- no dependencies
 -- for each p return set of alts i from (p,-,-) in D Confs
 --getProdSetsPerState ::
-getProdSetsPerState :: forall nt. (Referent nt, Ord nt) => Set (Configuration nt) -> Set (Set Int)
+getProdSetsPerState
+  :: forall nt. (Referent nt, Hashable nt, Ord nt)
+  => Set (Configuration nt) -> Set (Set Int)
 getProdSetsPerState d =
   let m = Set.foldr updateEntry (Map.empty) d
       updateEntry :: Configuration nt -> (Map (ATNState nt) (Set Int)) -> (Map (ATNState nt) (Set Int))

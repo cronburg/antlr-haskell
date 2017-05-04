@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric #-}
 module Main where
 import Test.Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.Grammar
@@ -5,8 +6,8 @@ import Text.ANTLR.LR1
 import Text.ANTLR.AST
 import Text.ANTLR.Parser
 
-import Data.Set.Monad (fromList, union, empty, Set(..), (\\))
-import qualified Data.Set.Monad as S
+import Text.ANTLR.Set (fromList, union, empty, Set(..), (\\))
+import qualified Text.ANTLR.Set as S
 import qualified Data.Map.Strict as M
 
 import System.IO.Unsafe (unsafePerformIO)
@@ -50,12 +51,12 @@ type LR1Terminal = String
 type LR1NonTerminal = String
 
 newtype Item' = I' (Item () String String)
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Show, Generic, Hashable)
 
 instance Arbitrary Item' where
   arbitrary = (elements . map I' . S.toList . allSLRItems) grm
 
-instance (Ord a, Arbitrary a) => Arbitrary (Set a) where
+instance (Eq a, Hashable a, Arbitrary a) => Arbitrary (Set a) where
   arbitrary = fmap S.fromList arbitrary
   shrink = map S.fromList . shrink . S.toList
 
@@ -66,7 +67,7 @@ propClosureClosure items' = let items = S.map (\(I' is) -> is) items' in True ==
   (c' . c') items == c' items
 
 newtype Grammar' = G' (Grammar () String String)
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Show)
 
 instance Arbitrary Grammar' where
   arbitrary = return $ G' grm
@@ -91,10 +92,10 @@ instance Arbitrary Grammar' where
 -}
 
 closedItems :: Grammar' -> Property
-closedItems (G' g) = True ==> null (S.fold union empty (slrItems g) \\ allSLRItems g)
+closedItems (G' g) = True ==> null (S.foldr union empty (slrItems g) \\ allSLRItems g)
 
 closedItems0 =
-  S.fold union empty (slrItems grm) \\ allSLRItems grm
+  S.foldr union empty (slrItems grm) \\ allSLRItems grm
   @?=
   empty
 
@@ -147,17 +148,18 @@ r6 = Reduce ("F", Prod Pass [T "id"])
 
 -- Easier to debug when shown separately:
 testSLRTable =
-  (slrTable grm
+  M.size (slrTable grm
   `M.difference`
   testSLRExp)
   @?=
-  M.empty
+  0
+
 testSLRTable2 =
-  (testSLRExp 
+  M.size (testSLRExp 
   `M.difference`
   slrTable grm)
   @?=
-  M.empty
+  0
 
 testSLRTable3 = 
   slrTable grm

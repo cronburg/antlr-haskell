@@ -16,7 +16,18 @@ data Regex s =
   | PosClos    (Regex s)            -- Positive closure
   | MultiUnion [Regex s]            -- Union of two or more arbitrary regexs
   | NotClass   [s]                  -- Complement of a character class
-  deriving (Show)
+
+instance (Show s) => Show (Regex s) where
+  show Epsilon       = "ϵ"
+  show (Symbol s)    = show s
+  show (Literal s)   = show s
+  show (Class s)     = "[" ++ show s ++ "]"
+  show (Union r1 r2) = "(" ++ show r1 ++ "|" ++ show r2 ++ ")"
+  show (Concat rs)   = concatMap show rs
+  show (Kleene r)    = "(" ++ show r ++ ")*"
+  show (PosClos r)   = "(" ++ show r ++ ")+"
+  show (MultiUnion rs) = tail $ concatMap (\r -> "|" ++ show r) rs
+  show (NotClass rs)   = "[^" ++ tail (concatMap show rs) ++ "]"
 
 regex2nfa' ::
   forall s i. (Hashable i, Ord i, Hashable s, Eq s)

@@ -14,8 +14,8 @@ import qualified Language.ANTLR4.Syntax as G4S
 import qualified Language.ANTLR4.Parser as G4P
 import qualified Text.ANTLR.Allstar.Grammar as AG
 
-import Data.Set.Monad (Set(..))
-import qualified Data.Set.Monad as Set
+import Text.ANTLR.Set (Set(..))
+import qualified Text.ANTLR.Set as Set
 
 antlr4 :: QuasiQuoter
 antlr4 =  QuasiQuoter aparse

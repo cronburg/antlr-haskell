@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveLift #-}
+{-# LANGUAGE DeriveLift, DeriveGeneric, DeriveAnyClass #-}
 module Language.ANTLR4.Regex (Regex(..), parseRegex, regexP) where
 import Language.Haskell.TH.Lift (Lift(..))
 import Text.ParserCombinators.Parsec
@@ -10,6 +10,8 @@ import qualified Text.Parsec.Combinator as PC
 import Data.Char (ord)
 import Text.ParserCombinators.Parsec.Language
 import qualified Debug.Trace as D -- trace, traceM
+
+import Text.ANTLR.Set ( Hashable(..), Generic(..) )
 
 --traceM s = D.traceM ("[Regex] " ++ s)
 traceM = return
@@ -23,7 +25,7 @@ data Regex s =
   | PosClos   (Regex s)
   | Question  (Regex s)
   | CharSet   [s] -- TODO: Set s, and ranges of characters
-  deriving (Lift, Eq, Show)
+  deriving (Lift, Eq, Show, Generic, Hashable)
 -- TODO: Lex regexs (e.g. complement sets, escape chars, ...)
 
 (<||>) a b = try a <|> try b

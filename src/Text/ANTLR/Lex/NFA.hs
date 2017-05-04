@@ -12,7 +12,11 @@ import Data.List (maximumBy)
 import GHC.Generics (Generic)
 
 data Edge s = Edge s | NFAEpsilon
-  deriving (Ord, Eq, Show, Hashable, Generic)
+  deriving (Ord, Eq, Hashable, Generic)
+
+instance (Show s) => Show (Edge s) where
+  show NFAEpsilon = "ϵ"
+  show (Edge s)   = "E(" ++ show s ++ ")"
 
 isEdge :: Edge s -> Bool
 isEdge (Edge _) = True

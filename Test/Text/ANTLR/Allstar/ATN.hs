@@ -2,7 +2,7 @@ module Test.Text.ANTLR.Allstar.ATN where
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.ATN
 import Test.Text.ANTLR.Allstar.Grammar
-import Data.Set.Monad (fromList, union)
+import Text.ANTLR.Set (fromList, union)
 import System.IO.Unsafe (unsafePerformIO)
 
 -- This is the Grammar from page 6 of the

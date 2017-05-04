@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 module Text.ANTLR.Parser where
 import Text.ANTLR.Allstar.Grammar
 
@@ -18,7 +19,12 @@ data Icon t =
     Icon t
   | IconEps
   | IconEOF -- End of input really, but EOF is ubiquitous.
-  deriving (Ord, Show)
+  deriving (Ord, Hashable, Generic)
+
+instance (Show t) => Show (Icon t) where
+  show IconEps  = "iϵ"
+  show IconEOF  = "iEOF"
+  show (Icon t) = "i " ++ show t
 
 -- Icon equivalence only cares about the symbol (not the terminal value attached
 -- to the icon)

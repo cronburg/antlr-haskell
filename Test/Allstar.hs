@@ -14,8 +14,8 @@ module Main where
   import Text.ANTLR.Allstar.Stacks (Stacks(..))
   import Text.ANTLR.Allstar
   import Control.Monad.State
-  import Data.Set.Monad (Set(..), fromList)
-  import qualified Data.Set.Monad as Set
+  import Text.ANTLR.Set (Set(..), fromList)
+  import qualified Text.ANTLR.Set as Set
 
   getATN' :: ParserS () String String String (ATN () String String)
   getATN' = getATN

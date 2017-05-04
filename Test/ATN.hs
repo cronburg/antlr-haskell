@@ -1,7 +1,7 @@
 module Main where
 import Text.ANTLR.Allstar.ATN
 import Test.Text.ANTLR.Allstar.ATN
-import Data.Set.Monad (fromList, (\\))
+import Text.ANTLR.Set (fromList, (\\))
 
 import System.IO.Unsafe (unsafePerformIO)           
 import Data.Monoid                                  

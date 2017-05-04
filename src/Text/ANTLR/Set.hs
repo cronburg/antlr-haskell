@@ -1,13 +1,15 @@
 {-# LANGUAGE GADTs, DeriveAnyClass, DeriveGeneric #-}
 module Text.ANTLR.Set
-  ( Set
-  , member, toList, union, notMember
-  , null, empty, map, singleton
-  , fromList, filter
-  , Hashable(..)
+  ( Set, null, size, member, notMember
+  , empty, singleton, insert, delete, union, unions
+  , difference, intersection, filter, map, foldr, foldl', fold
+  , toList, fromList, (\\), findMin
+  , Hashable(..), Generic(..)
   ) where
 --import Data.Set.Monad
+
 import qualified Data.HashSet as S
+--import qualified Data.HashSet as S
   {-( HashSet(..), member, toList, union
   , null, empty, map
   )
@@ -37,11 +39,21 @@ import Control.DeepSeq
 
 import Data.Hashable (Hashable(..))
 import GHC.Generics (Generic, Rep)
+import Control.DeepSeq (NFData(..))
+
+import Data.Map ( Map(..) )
+import qualified Data.Map as M
+
+import Text.ANTLR.Pretty
+
+instance (Hashable k, Hashable v) => Hashable (Map k v) where
+  hashWithSalt salt mp = salt `hashWithSalt` M.toList mp
 
 instance (Hashable a, Eq a) => Hashable (Set a) where
   hashWithSalt salt set = salt `hashWithSalt` S.toList (run set)
 
---instance (Hashable a, Eq a) => Ord (Set a)
+instance (Hashable a, Ord a) => Ord (Set a) where
+  s1 <= s2 = S.toList (run s1) <= S.toList (run s2)
 
 data Set a where
   Prim   :: (Hashable a, Eq a) => S.HashSet a -> Set a
@@ -167,6 +179,9 @@ map f s = Prim (S.map f (run s))
 foldr :: (Hashable a, Eq a) => (a -> b -> b) -> b -> Set a -> b
 foldr f z s = S.foldr f z (run s)
 
+fold :: (Hashable a, Eq a) => (a -> b -> b) -> b -> Set a -> b
+fold f z s = S.foldr f z (run s)
+
 foldl' :: (Hashable a, Eq a) => (b -> a -> b) -> b -> Set a -> b
 foldl' f z s = S.foldl' f z (run s)
 
@@ -175,4 +190,7 @@ toList = S.toList . run
 
 fromList :: (Hashable a, Eq a) => [a] -> Set a
 fromList as = Prim (S.fromList as)
+
+findMin :: (Ord a, Hashable a) => Set a -> a
+findMin = minimum . toList
 

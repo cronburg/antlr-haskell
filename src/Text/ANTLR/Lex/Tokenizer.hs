@@ -13,7 +13,11 @@ data Token n v =
     Token n v
   | EOF
   | Error String -- TODO
-  deriving (Show)
+
+instance (Show n, Show v) => Show (Token n v) where
+  show (Token n v) = (show n) ++ "(" ++ show v ++ ")"
+  show EOF = "EOF"
+  show (Error s) = "Error: " ++ s
 
 instance Eq n => Eq (Token n v) where
   Token s _ == Token s1 _ = s == s1

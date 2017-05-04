@@ -1,6 +1,6 @@
 {-# LANGUAGE ExplicitForAll #-}
 module Test.Text.ANTLR.Allstar.Grammar where
-import Data.Set.Monad (fromList, member, (\\), empty)
+import Text.ANTLR.Set (fromList, member, (\\), empty)
 import Text.ANTLR.Allstar.Grammar
 
 mattToolG :: Grammar () String String
