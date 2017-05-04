@@ -60,7 +60,7 @@ first g = let
               [ firstOne (insert nt busy) y
               | y <- (\(Prod _ ss) -> ss) rhs
               ]
-            | (_, rhs) <- prodsFor g x ]
+            | Production _ rhs <- prodsFor g x ]
     
     firstMany :: [Set (Icon t)] -> Set (Icon t)
     firstMany []   = singleton IconEps
@@ -107,7 +107,7 @@ follow g = let
           `union`
           foldr union empty
             [ followProd lhs_nt ss
-            | (lhs_nt, Prod _ ss) <- ps g
+            | Production lhs_nt (Prod _ ss) <- ps g
             ]
   in follow' empty
 
@@ -124,8 +124,8 @@ isLL1 g =
       && (not (IconEps `member` first g α)
          || ((first g α `intersection` follow g nt) == empty))
       | nt       <- toList $ ns g
-      , (Prod _ α) <- map snd $ prodsFor g nt
-      , (Prod _ β) <- map snd $ prodsFor g nt
+      , (Prod _ α) <- map getRHS $ prodsFor g nt
+      , (Prod _ β) <- map getRHS $ prodsFor g nt
       , α /= β
       ]
 
@@ -156,7 +156,7 @@ parseTable' fncn g = let
     foldr insertMe M.empty
       -- For each terminal a `member` FIRST(α), add A -> α to M[A,α]
       [ (_A, Icon a, α)
-      | (_A, Prod _ α) <- ps g
+      | Production _A (Prod _ α) <- ps g
       , Icon a <- toList $ first g α
       ]
     `M.union`
@@ -164,7 +164,7 @@ parseTable' fncn g = let
       -- If Eps `member` FIRST(α), add A -> α to M[A,b]
       -- for each b `member` FOLLOW(A)
       [ (_A, Icon b, α)
-      | (_A, Prod _ α) <- ps g
+      | Production _A (Prod _ α) <- ps g
       , IconEps `member` first g α
       , Icon b <- toList $ follow g _A
       ]
@@ -174,7 +174,7 @@ parseTable' fncn g = let
       -- , AND IconEOF `member` FOLLOW(_A)
       -- add A -> α to M[A,IconEOF]
       [ (_A, IconEOF, α)
-      | (_A, Prod _ α) <- ps g
+      | Production _A (Prod _ α) <- ps g
       , IconEps `member` first g α
       , IconEOF  `member` follow g _A
       ]
@@ -267,8 +267,8 @@ removeEpsilons ::
 removeEpsilons g = let
 
     epsNT :: Production s nt t -> [nt] -> [nt]
-    epsNT (nt, Prod _ [])    = (:) nt
-    epsNT (nt, Prod _ [Eps]) = (:) nt
+    epsNT (Production nt (Prod _ []))    = (:) nt
+    epsNT (Production nt (Prod _ [Eps])) = (:) nt
     epsNT prod             = id
   
     -- All NTs with an epsilon production
@@ -283,14 +283,14 @@ removeEpsilons g = let
     -}
 
     replicateProd :: nt -> Production s nt t -> [Production s nt t]
-    replicateProd nt0 (nt1, Prod sf es) = let
+    replicateProd nt0 (Production nt1 (Prod sf es)) = let
         
         rP :: ProdElems nt t -> ProdElems nt t -> [Production s nt t]
-        rP ys []   = [(nt1, Prod sf $ reverse ys)]
+        rP ys []   = [Production nt1 (Prod sf $ reverse ys)]
         rP ys (x:xs)
           | NT nt0 == x
-              = (nt1, Prod sf (reverse ys ++ xs))   -- Production with nt0 removed
-              : (nt1, Prod sf (reverse ys ++ x:xs)) -- Production without nt0 removed
+              = Production nt1 (Prod sf (reverse ys ++ xs))   -- Production with nt0 removed
+              : Production nt1 (Prod sf (reverse ys ++ x:xs)) -- Production without nt0 removed
               : (  rP ys     xs  -- Recursively with nt0 removed
                 ++ rP (x:ys) xs) -- Recursively without nt0 removed
           | otherwise = rP (x:ys) xs
@@ -308,8 +308,8 @@ removeEpsilons g = let
                           [ p' 
                           | p  <- ps g
                           , p' <- replicateProd nt p
-                          , p' /= (nt, Prod Pass [])
-                          , p' /= (nt, Prod Pass [Eps])]
+                          , p' /= Production nt (Prod Pass [])
+                          , p' /= Production nt (Prod Pass [Eps])]
                     })
 
   in g { ps = ps' }
@@ -329,8 +329,8 @@ leftFactor = let
   primeify g = G
     { ns = [ Prime (nt, 0) | nt <- ns g ]
     , ts = ts g
-    , ps = [ (Prime (nt, 0), Prod sf $ map prmPE ss)
-           | (nt, Prod sf ss) <- ps g ]
+    , ps = [ Production (Prime (nt, 0)) (Prod sf $ map prmPE ss)
+           | Production nt (Prod sf ss) <- ps g ]
     , s0 = Prime (s0 g, 0)
     , _πs = _πs g
     , _μs = _μs g
@@ -354,8 +354,8 @@ leftFactor = let
     lcps :: [(Prime nt, ProdElems (Prime nt) t)]
     lcps = [ (nt0, maximumBy (comparing length)
                    [ lcp xs ys
-                   | (_, Prod _ xs) <- filter ((== nt0) . fst) (ps g)
-                   , (_, Prod _ ys) <- filter ((== nt0) . fst) (ps g)
+                   | Production _ (Prod _ xs) <- filter ((== nt0) . getLHS) (ps g)
+                   , Production _ (Prod _ ys) <- filter ((== nt0) . getLHS) (ps g)
                    , xs /= ys
                    ])
            | nt0 <- toList $ ns g ]
@@ -370,23 +370,23 @@ leftFactor = let
     ps' []           = ps g
     ps' ((nt, xs):_) =
         -- Unaffected productions
-        [ (nt0, Prod v rhs)
-        | (nt0, Prod v rhs) <- ps g
+        [ Production nt0 (Prod v rhs)
+        | Production nt0 (Prod v rhs) <- ps g
         , nt0 /= nt
         ]
       ++
         -- Unaffected productions
-        [ (nt0, Prod v rhs)
-        | (nt0, Prod v rhs) <- ps g
+        [ Production nt0 (Prod v rhs)
+        | Production nt0 (Prod v rhs) <- ps g
         , nt == nt0 && not (xs `isPrefixOf` rhs)
         ]
       ++
         -- Affected productions
-        [ (incr nt0, Prod v (drop (length xs) rhs))
-        | (nt0, Prod v rhs) <- ps g
+        [ Production (incr nt0) (Prod v (drop (length xs) rhs))
+        | Production nt0 (Prod v rhs) <- ps g
         , nt == nt0 && xs `isPrefixOf` rhs
         ]
-      ++ [(nt, Prod Pass $ xs ++ [NT $ incr nt])]
+      ++ [Production nt (Prod Pass $ xs ++ [NT $ incr nt])]
   {- [ (prime nt, drop (length xs) ys)
                     | (nt1, ys) <- ps g
                     , nt1 == nt

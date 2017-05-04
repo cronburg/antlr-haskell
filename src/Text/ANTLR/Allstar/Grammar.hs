@@ -5,7 +5,7 @@ module Text.ANTLR.Allstar.Grammar
   , ProdElem(..), ProdElems
   , Production(..), ProdRHS(..), StateFncn(..)
   , Predicate(..), Mutator(..)
-  , Grammar(..)
+  , Grammar(..), getRHS, getLHS
   , defaultGrammar
   , isSem, isAction
   , isNT, isT, isEps, getNTs, getTs, getEps
@@ -97,7 +97,17 @@ isAction _ = False
 
 getProds = map (\(Prod _ ss) -> ss)
 
-type Production s nt t = (nt, ProdRHS s nt t)
+data Production s nt t = Production nt (ProdRHS s nt t)
+  deriving (Eq, Ord, Generic, Hashable)
+
+instance (Show s, Show nt, Show t) => Show (Production s nt t) where
+  show (Production nt rhs) = show nt ++ " -> " ++ show rhs
+
+getRHS :: Production s nt t -> ProdRHS s nt t
+getRHS (Production lhs rhs) = rhs
+
+getLHS :: Production s nt t -> nt
+getLHS (Production lhs rhs) = lhs
 
 -- Get only the productions for the given nonterminal nt:
 prodsFor ::
@@ -105,7 +115,7 @@ prodsFor ::
   => Grammar s nt t -> nt -> [Production s nt t]
 prodsFor g nt = let
     matchesNT :: Production s nt t -> Bool
-    matchesNT (nt', _) = sameNTs nt' nt
+    matchesNT (Production nt' _) = sameNTs nt' nt
   in filter matchesNT (ps g)
 
 -- TODO: boiler plate auto deriving for "named" of a user defined type?
@@ -154,12 +164,12 @@ data Grammar s nt t = G
 
 instance (Show s, Show nt, Show t, Hashable t, Eq t, Hashable nt, Eq nt) => Show (Grammar s nt t) where
   show G {ns = ns, ts = ts, ps = ps, s0 = s0, _πs = _πs, _μs = _μs}
-    =    "Grammar: { ns = " ++ show ns
-      ++ "           ts = " ++ show ts
-      ++ "           ps = " ++ show ps
-      ++ "           s0 = " ++ show s0
-      ++ "           πs = " ++ show _πs
-      ++ "           μs = " ++ show _μs
+    =      "Grammar: { ns = " ++ show ns
+      ++ "\n           ts = " ++ show ts
+      ++ "\n           ps = " ++ show ps
+      ++ "\n           s0 = " ++ show s0
+      ++ "\n           πs = " ++ show _πs
+      ++ "\n           μs = " ++ show _μs
 
 symbols
   :: (Referent nt, Referent t, Ord nt, Ord t, Hashable s, Hashable nt, Hashable t)
@@ -191,13 +201,13 @@ hasAllNonTerms
   :: (Referent nt, Referent t, Eq nt, Ord nt, Hashable nt, Hashable t)
   => Grammar s nt t -> Bool
 hasAllNonTerms g =
-  ns g == (fromList . getNTs . concat . getProds . map snd $ ps g)
+  ns g == (fromList . getNTs . concat . getProds . map getRHS $ ps g)
 
 hasAllTerms
   :: (Referent nt, Referent t, Eq t, Ord t, Hashable nt, Hashable t)
   => Grammar s nt t -> Bool
 hasAllTerms g =
-  ts g == (fromList . getTs . concat . getProds . map snd $ ps g)
+  ts g == (fromList . getTs . concat . getProds . map getRHS $ ps g)
 
 startIsNonTerm
   :: (Referent nt, Referent t, Ord nt, Hashable nt)

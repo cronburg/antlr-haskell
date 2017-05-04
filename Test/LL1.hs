@@ -16,9 +16,11 @@ import Test.Framework
 import Test.Framework (defaultMainWithOpts)
 import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
-import Test.HUnit
+import Test.HUnit hiding ((@?=), assertEqual)
 import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
+
+import Test.Text.ANTLR.HUnit
 
 type LL1NonTerminal = String
 type LL1Terminal    = String
@@ -138,23 +140,23 @@ singleLang = (defaultGrammar :: Grammar () String Char)
   { s0 = "S"
   , ns = fromList ["S", "X"]
   , ts = fromList ['a']
-  , ps =  [ ("S", Prod Pass [NT "X", T 'a'])
-          , ("X", Prod Pass [Eps])
+  , ps =  [ Production "S" $ Prod Pass [NT "X", T 'a']
+          , Production "X" $ Prod Pass [Eps]
           ]
   }
 
 testRemoveEpsilons =
   removeEpsilons singleLang
   @?= singleLang
-    { ps =  [ ("S", Prod Pass [NT "X", T 'a'])
-            , ("S", Prod Pass [T 'a'])
+    { ps =  [ Production "S" $ Prod Pass [NT "X", T 'a']
+            , Production "S" $ Prod Pass [T 'a']
             ]
     }
 
 singleLang2 = singleLang
   { ts = fromList ['a', 'b']
-  , ps =  [ ("S", Prod Pass [NT "X", T 'a', NT "X", T 'b', NT "X"])
-          , ("X", Prod Pass [Eps])
+  , ps =  [ Production "S" $ Prod Pass [NT "X", T 'a', NT "X", T 'b', NT "X"]
+          , Production "X" $ Prod Pass [Eps]
           ]
   }
 
@@ -162,14 +164,14 @@ testRemoveEpsilons2 =
   (Set.fromList . ps . removeEpsilons) singleLang2
   @?=
   fromList
-    [ ("S", Prod Pass [        T 'a',         T 'b'        ])
-    , ("S", Prod Pass [        T 'a',         T 'b', NT "X"])
-    , ("S", Prod Pass [        T 'a', NT "X", T 'b'        ])
-    , ("S", Prod Pass [        T 'a', NT "X", T 'b', NT "X"])
-    , ("S", Prod Pass [NT "X", T 'a',         T 'b'        ])
-    , ("S", Prod Pass [NT "X", T 'a',         T 'b', NT "X"])
-    , ("S", Prod Pass [NT "X", T 'a', NT "X", T 'b'        ])
-    , ("S", Prod Pass [NT "X", T 'a', NT "X", T 'b', NT "X"])
+    [ Production "S" $ Prod Pass [        T 'a',         T 'b'        ]
+    , Production "S" $ Prod Pass [        T 'a',         T 'b', NT "X"]
+    , Production "S" $ Prod Pass [        T 'a', NT "X", T 'b'        ]
+    , Production "S" $ Prod Pass [        T 'a', NT "X", T 'b', NT "X"]
+    , Production "S" $ Prod Pass [NT "X", T 'a',         T 'b'        ]
+    , Production "S" $ Prod Pass [NT "X", T 'a',         T 'b', NT "X"]
+    , Production "S" $ Prod Pass [NT "X", T 'a', NT "X", T 'b'        ]
+    , Production "S" $ Prod Pass [NT "X", T 'a', NT "X", T 'b', NT "X"]
     ]
 
 testRemoveEpsilons3 =
@@ -178,14 +180,14 @@ testRemoveEpsilons3 =
     { ns = fromList ["E", "E'", "T", "T'", "F"]
     , ts = fromList ["+", "*", "(", ")", "id"]
     , s0 = "E"
-    , ps = [ ("E",  Prod Pass [NT "T", NT "E'"])
-           , ("E'", Prod Pass [T "+", NT "T", NT "E'"])
-           , ("E'", Prod Pass [Eps]) -- Implicitly epsilon
-           , ("T",  Prod Pass [NT "F", NT "T'"])
-           , ("T'", Prod Pass [T "*", NT "F", NT "T'"])
-           , ("T'", Prod Pass [Eps])
-           , ("F",  Prod Pass [T "(", NT "E", T ")"])
-           , ("F",  Prod Pass [T "id"])
+    , ps = [ Production "E"  $ Prod Pass [NT "T", NT "E'"]
+           , Production "E'" $ Prod Pass [T "+", NT "T", NT "E'"]
+           , Production "E'" $ Prod Pass [Eps] -- Implicitly epsilon
+           , Production "T"  $ Prod Pass [NT "F", NT "T'"]
+           , Production "T'" $ Prod Pass [T "*", NT "F", NT "T'"]
+           , Production "T'" $ Prod Pass [Eps]
+           , Production "F"  $ Prod Pass [T "(", NT "E", T ")"]
+           , Production "F"  $ Prod Pass [T "id"]
            ]
     } 
 
@@ -193,11 +195,11 @@ leftGrammar0 = (defaultGrammar :: Grammar () String String)
   { ns = fromList "SABC"
   , ts = fromList "defg"
   , s0 = 'S'
-  , ps = [ ('S', Prod Pass [NT 'A'])
-         , ('A', Prod Pass [T 'd', T 'e', NT 'B'])
-         , ('A', Prod Pass [T 'd', T 'e', NT 'C'])
-         , ('B', Prod Pass [T 'f'])
-         , ('C', Prod Pass [T 'g'])
+  , ps = [ Production 'S' $ Prod Pass [NT 'A']
+         , Production 'A' $ Prod Pass [T 'd', T 'e', NT 'B']
+         , Production 'A' $ Prod Pass [T 'd', T 'e', NT 'C']
+         , Production 'B' $ Prod Pass [T 'f']
+         , Production 'C' $ Prod Pass [T 'g']
          ]
   }
 
@@ -207,11 +209,11 @@ testLeftFactor =
   { ns = fromList $ map Prime [('S', 0), ('A', 0), ('B', 0), ('C', 0)]
   , ts = fromList "defg"
   , s0 = Prime ('S', 0)
-  , ps = [ (Prime ('S', 0), Prod Pass [NT $ Prime ('A', 0)])
-         , (Prime ('A', 0), Prod Pass [T 'd', T 'e', NT $ Prime ('B', 0)])
-         , (Prime ('A', 0), Prod Pass [T 'd', T 'e', NT $ Prime ('C', 0)])
-         , (Prime ('B', 0), Prod Pass [T 'f'])
-         , (Prime ('C', 0), Prod Pass [T 'g'])
+  , ps = [ Production (Prime ('S', 0)) $ Prod Pass [NT $ Prime ('A', 0)]
+         , Production (Prime ('A', 0)) $ Prod Pass [T 'd', T 'e', NT $ Prime ('B', 0)]
+         , Production (Prime ('A', 0)) $ Prod Pass [T 'd', T 'e', NT $ Prime ('C', 0)]
+         , Production (Prime ('B', 0)) $ Prod Pass [T 'f']
+         , Production (Prime ('C', 0)) $ Prod Pass [T 'g']
          ]
   , _πs = fromList []
   , _μs = fromList []
@@ -235,6 +237,6 @@ main = defaultMainWithOpts
   , testCase "dragonPredParse" dragonPredParse
   , testCase "testRemoveEpsilons" testRemoveEpsilons
   , testCase "testRemoveEpsilons2" testRemoveEpsilons2
---  , testCase "testLeftFactor" testLeftFactor
+  , testCase "testLeftFactor" testLeftFactor
   ] mempty
 

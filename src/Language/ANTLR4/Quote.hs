@@ -63,7 +63,7 @@ toAllstarGrammar grammarMems =
         let fn' (G4S.PRHS alphas Nothing Nothing) (g',c') =
               (g' { AG.ns = (AG.ns g') `Set.union` (Set.singleton $ G4S.GNonTerm pName)
                   , AG.ts = (AG.ts g') `Set.union` (Set.fromList $ getJustTerms alphas)
-                  , AG.ps = (G4S.GNonTerm pName, AG.Prod AG.Pass $ toElems alphas) : (AG.ps g')
+                  , AG.ps = AG.Production (G4S.GNonTerm pName) (AG.Prod AG.Pass $ toElems alphas) : (AG.ps g')
                   }, c)
             fn' (G4S.PRHS alphas (Just pre) Nothing) (g',c') = (g',c')    -- TODO
             fn' (G4S.PRHS alphas Nothing (Just mut)) (g',c') = (g',c')    -- TODO

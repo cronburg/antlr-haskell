@@ -102,7 +102,7 @@ adaptivePredict
   => nt -> Gamma nt -> ParserS s nt t v (Maybe Int)
 adaptivePredict _A _γ0 =
   let hasPredForA :: [Production s nt t] -> Bool
-      hasPredForA ((_,Prod (Sem _) _):_) = True
+      hasPredForA ((Production _ (Prod (Sem _) _)):_) = True
       hasPredForA [] = False
       hasPredForA (prod:prods) = hasPredForA prods
 

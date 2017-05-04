@@ -79,7 +79,7 @@ atnOf
 atnOf g = let
 
   _Δ :: Int -> Production s nt t -> [Transition s nt t]
-  _Δ i (lhs, rhs) = let
+  _Δ i (Production lhs rhs) = let
   --(Prod _α)) = let
 
     -- Construct an internal production state from the given ATN identifier

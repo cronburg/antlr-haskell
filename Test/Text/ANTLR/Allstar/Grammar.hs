@@ -9,11 +9,11 @@ mattToolG = (defaultGrammar :: Grammar () String String)
   , ts = fromList ["a", "b", "c"]
   , s0 = "C"
   , ps =
-          [ ("A", Prod Pass [T "a", T "b"])
-          , ("A", Prod Pass [T "a"])
-          , ("B", Prod Pass [NT "A", T "b"])
-          , ("B", Prod Pass [T "b"])
-          , ("C", Prod Pass [NT "A", NT "B", NT "C"])
+          [ Production "A" $ Prod Pass [T "a", T "b"]
+          , Production "A" $ Prod Pass [T "a"]
+          , Production "B" $ Prod Pass [NT "A", T "b"]
+          , Production "B" $ Prod Pass [T "b"]
+          , Production "C" $ Prod Pass [NT "A", NT "B", NT "C"]
           ]
   }
 
@@ -22,14 +22,14 @@ dragonBook428 = (defaultGrammar :: Grammar () String String)
   { ns = fromList ["E", "E'", "T", "T'", "F"]
   , ts = fromList ["+", "*", "(", ")", "id"]
   , s0 = "E"
-  , ps = [ ("E",  Prod Pass [NT "T", NT "E'"])
-         , ("E'", Prod Pass [T "+", NT "T", NT "E'"])
-         , ("E'", Prod Pass [Eps]) -- Implicitly epsilon
-         , ("T",  Prod Pass [NT "F", NT "T'"])
-         , ("T'", Prod Pass [T "*", NT "F", NT "T'"])
-         , ("T'", Prod Pass [Eps])
-         , ("F",  Prod Pass [T "(", NT "E", T ")"])
-         , ("F",  Prod Pass [T "id"])
+  , ps = [ Production "E"  $ Prod Pass [NT "T", NT "E'"]
+         , Production "E'" $ Prod Pass [T "+", NT "T", NT "E'"]
+         , Production "E'" $ Prod Pass [Eps] -- Implicitly epsilon
+         , Production "T"  $ Prod Pass [NT "F", NT "T'"]
+         , Production "T'" $ Prod Pass [T "*", NT "F", NT "T'"]
+         , Production "T'" $ Prod Pass [Eps]
+         , Production "F"  $ Prod Pass [T "(", NT "E", T ")"]
+         , Production "F"  $ Prod Pass [T "id"]
          ]
   }
 
@@ -38,12 +38,12 @@ dragonBook41 = (defaultGrammar :: Grammar () String String)
   { ns = fromList ["E'", "E", "T", "F"]
   , ts = fromList ["+", "*", "(", ")", "id"]
   , s0 = "E"
-  , ps =  [ ("E", Prod Pass [NT "E", T "+", NT "T"])
-          , ("E", Prod Pass [NT "T"])
-          , ("T", Prod Pass [NT "T", T "*", NT "F"])
-          , ("T", Prod Pass [NT "F"])
-          , ("F", Prod Pass [T "(", NT "E", T ")"])
-          , ("F", Prod Pass [T "id"])
+  , ps =  [ Production "E" $ Prod Pass [NT "E", T "+", NT "T"]
+          , Production "E" $ Prod Pass [NT "T"]
+          , Production "T" $ Prod Pass [NT "T", T "*", NT "F"]
+          , Production "T" $ Prod Pass [NT "F"]
+          , Production "F" $ Prod Pass [T "(", NT "E", T ")"]
+          , Production "F" $ Prod Pass [T "id"]
           ]
   }
 
@@ -52,9 +52,9 @@ dragonBook455 = (defaultGrammar :: Grammar () String String)
   { ns = fromList ["S", "C"]
   , ts = fromList ["c", "d"]
   , s0 = "S"
-  , ps =  [ ("S", Prod Pass [NT "C", NT "C"])
-          , ("C", Prod Pass [T "c", NT "C"])
-          , ("C", Prod Pass [T "d"])
+  , ps =  [ Production "S" $ Prod Pass [NT "C", NT "C"]
+          , Production "C" $ Prod Pass [T "c", NT "C"]
+          , Production "C" $ Prod Pass [T "d"]
           ]
   }
 
@@ -63,15 +63,15 @@ dumbGrammar = (defaultGrammar :: Grammar () String String)
   { ns = fromList ["S", "A", "B", "I", "D"]
   , ts = fromList ["1","2","3","+","-","*"]
   , s0 = "S"
-  , ps = [ ("S", Prod Pass [NT "A"])
-         , ("S", Prod Pass [NT "B"])
-         , ("S", Prod Pass [NT "D"])
-         , ("A", Prod Pass [NT "I", T "+", NT "I"])
-         , ("B", Prod Pass [NT "I", T "-", NT "I"])
-         , ("I", Prod Pass [T "1"])
-         , ("I", Prod Pass [T "2"])
-         , ("I", Prod Pass [T "3"])
-         , ("D", Prod Pass [NT "I", T "*", NT "I"])
+  , ps = [ Production "S" $ Prod Pass [NT "A"]
+         , Production "S" $ Prod Pass [NT "B"]
+         , Production "S" $ Prod Pass [NT "D"]
+         , Production "A" $ Prod Pass [NT "I", T "+", NT "I"]
+         , Production "B" $ Prod Pass [NT "I", T "-", NT "I"]
+         , Production "I" $ Prod Pass [T "1"]
+         , Production "I" $ Prod Pass [T "2"]
+         , Production "I" $ Prod Pass [T "3"]
+         , Production "D" $ Prod Pass [NT "I", T "*", NT "I"]
          ]
   --, us = [(\_ -> True)]
   }
