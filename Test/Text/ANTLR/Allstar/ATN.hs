@@ -14,10 +14,10 @@ paperATNGrammar = (defaultGrammar :: Grammar () String String)
   , ts = fromList ["a", "b", "c", "d"]
   , s0 = "C"
   , ps =
-          [ ("S", Prod Pass [NT "A", T "c"])
-          , ("S", Prod Pass [NT "A", T "d"])
-          , ("A", Prod Pass [T "a", NT "A"])
-          , ("A", Prod Pass [T "b"])
+          [ Production "S" $ Prod Pass [NT "A", T "c"]
+          , Production "S" $ Prod Pass [NT "A", T "d"]
+          , Production "A" $ Prod Pass [T "a", NT "A"]
+          , Production "A" $ Prod Pass [T "b"]
           ]
   }
 
@@ -69,9 +69,9 @@ never  _ = False
 addPredicates = paperATNGrammar
   { ps =
     ps paperATNGrammar ++
-    [ ("A", Prod (Sem (Predicate "always" always))    [T "a"])
-    , ("A", Prod (Sem (Predicate "never"  never))     [])
-    , ("A", Prod (Sem (Predicate "always2" always))   [NT "A", T "a"])
+    [ Production "A" $ Prod (Sem (Predicate "always" always))    [T "a"]
+    , Production "A" $ Prod (Sem (Predicate "never"  never))     []
+    , Production "A" $ Prod (Sem (Predicate "always2" always))   [NT "A", T "a"]
     ]
   }
 
@@ -116,8 +116,8 @@ fireZeMissiles state = seq
 
 addMutators = addPredicates
   { ps = ps addPredicates ++
-    [ ("A", Prod (Action (Mutator "fireZeMissiles" fireZeMissiles)) [])
-    , ("S", Prod (Action (Mutator "identity"       id)) [])
+    [ Production "A" $ Prod (Action (Mutator "fireZeMissiles" fireZeMissiles)) []
+    , Production "S" $ Prod (Action (Mutator "identity"       id)) []
     ]
   }
 

@@ -90,7 +90,7 @@ library
   build-depends:       base, containers, mtl, parsec
                      , parsec, template-haskell, haskell-src-meta >= 0.4
                      , set-monad, th-lift, unordered-containers, deepseq
-                     , hashable, text, pretty
+                     , hashable, text, pretty, transformers
 
   -- Directories containing source files.
   hs-source-dirs:      src

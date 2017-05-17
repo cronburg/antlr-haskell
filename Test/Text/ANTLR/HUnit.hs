@@ -20,7 +20,7 @@ location = case reverse callStack of
 --
 -- If the prefix is the empty string (i.e., @\"\"@), then the prefix is omitted
 -- and only the expected and actual values are output.
-assertEqual :: (HasCallStack, Eq a, PrettyShow a)
+assertEqual :: (HasCallStack, Eq a, Prettify a)
                               => String -- ^ The message prefix
                               -> a      -- ^ The expected value
                               -> a      -- ^ The actual value
@@ -32,12 +32,12 @@ assertEqual preface expected actual =
     prefaceMsg
       | null preface = Nothing
       | otherwise = Just preface
-    expectedMsg = runPretty $ pshow expected
-    actualMsg   = runPretty $ pshow actual
+    expectedMsg = pshow expected
+    actualMsg   = pshow actual
 
 -- | Asserts that the specified actual value is equal to the expected value
 --   (with the actual value on the left-hand side).
-(@?=) :: (HasCallStack, Eq a, PrettyShow a)
+(@?=) :: (HasCallStack, Eq a, Prettify a)
                         => a -- ^ The actual value
                         -> a -- ^ The expected value
                         -> Assertion
