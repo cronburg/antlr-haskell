@@ -211,8 +211,9 @@ testLeftFactor =
   , ts = fromList "defg"
   , s0 = Prime ('S', 0)
   , ps = [ Production (Prime ('S', 0)) $ Prod Pass [NT $ Prime ('A', 0)]
-         , Production (Prime ('A', 0)) $ Prod Pass [T 'd', T 'e', NT $ Prime ('B', 0)]
-         , Production (Prime ('A', 0)) $ Prod Pass [T 'd', T 'e', NT $ Prime ('C', 0)]
+         , Production (Prime ('A', 0)) $ Prod Pass [T 'd', T 'e', NT $ Prime ('A', 1)]
+         , Production (Prime ('A', 1)) $ Prod Pass [NT $ Prime ('B', 0)]
+         , Production (Prime ('A', 1)) $ Prod Pass [NT $ Prime ('C', 0)]
          , Production (Prime ('B', 0)) $ Prod Pass [T 'f']
          , Production (Prime ('C', 0)) $ Prod Pass [T 'g']
          ]

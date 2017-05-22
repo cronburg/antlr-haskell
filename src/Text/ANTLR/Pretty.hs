@@ -205,7 +205,7 @@ instance (Prettify a, Prettify b, Prettify c, Prettify d) => Prettify (a,b,c,d) 
     pStr ")"
 
 sepBy s [] = return ()
-sepBy s (v:vs) = foldr (_sepBy s) v vs
+sepBy s (v:vs) = foldl (_sepBy s) v vs
 
 _sepBy s ma mb = ma >> s >> mb 
 

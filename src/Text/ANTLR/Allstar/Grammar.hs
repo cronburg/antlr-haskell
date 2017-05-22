@@ -14,6 +14,10 @@ module Text.ANTLR.Allstar.Grammar
   , symbols, Hashable(..), Generic(..)
   ) where
 import Prelude hiding (pi)
+import Data.List (nub, sort)
+
+import System.IO.Unsafe (unsafePerformIO)
+import qualified Debug.Trace as D
 
 import qualified Text.ANTLR.Set as S
 import Text.ANTLR.Set
@@ -22,6 +26,9 @@ import Text.ANTLR.Set
   )
 
 import Text.ANTLR.Pretty
+
+uPIO :: IO a -> a
+uPIO = unsafePerformIO
 
 ----------------------------------------------------------------
 -- When we *Show* production elements, they should contain source location
@@ -179,20 +186,33 @@ data Grammar s nt t = G
   , s0  :: nt
   , _πs :: Set (Predicate s)
   , _μs :: Set (Mutator   s)
-  } deriving (Eq)
+  }
 
-instance (Prettify s, Prettify nt, Prettify t, Hashable t, Eq t, Hashable nt, Eq nt)
+instance (Eq s, Eq nt, Eq t, Hashable nt, Hashable t, Prettify s, Prettify nt, Prettify t) => Eq (Grammar s nt t) where
+  g1 == g2 = ns g1 == ns g2
+          && ts g1 == ts g2
+          && eqLists (nub $ ps g1) (nub $ ps g2)
+          && s0 g1 == s0 g2
+          && _πs g1 == _πs g2
+          && _μs g1 == _μs g2
+
+eqLists [] [] = True
+eqLists [] vs = False
+eqLists vs [] = False
+eqLists (v1:vs) vs2 = eqLists vs (filter (/= v1) vs2)
+
+instance (Prettify s, Prettify nt, Prettify t, Hashable t, Eq t, Hashable nt, Eq nt, Ord t, Ord nt)
   => Prettify (Grammar s nt t) where
   prettify G {ns = ns, ts = ts, ps = ps, s0 = s0, _πs = _πs, _μs = _μs} = do
     pLine "Grammar:"
     pStr "{ "
     incrIndent 2
-    pStr  "ns = "      ; prettify ns; pLine ""
-    pStr  "ts = "      ; prettify ts; pLine ""
-    pStr  "ps = "      ; pListLines ps; pLine ""
-    pStr  "s0 = "      ; prettify s0; pLine ""
-    pStr  "_πs = "     ; prettify _πs ; pLine ""
-    pStr  "_μs = "     ; prettify _μs ; pLine ""
+    pStr  "  ns = "      ; prettify ns; pLine ""
+    pStr  ", ts = "      ; prettify ts; pLine ""
+    pStr  ", ps = "      ; pListLines $ sort ps; pLine ""
+    pStr  ", s0 = "      ; prettify s0; pLine ""
+    pStr  ", _πs = "     ; prettify _πs ; pLine ""
+    pStr  ", _μs = "     ; prettify _μs ; pLine ""
     incrIndent (-2)
     pStr "}"
 
