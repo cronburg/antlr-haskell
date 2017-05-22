@@ -123,6 +123,12 @@ instance (Hashable a, Eq a) => Eq (Set a) where
 instance (Show a, Hashable a, Eq a) => Show (Set a) where
   show = show . run
 
+instance (Prettify a, Hashable a, Eq a) => Prettify (Set a) where
+  prettify s = do
+    pStr "Set: "; incrIndent 5
+    prettify $ toList s
+    incrIndent (-5)
+
 instance (Read a, Hashable a, Eq a) => Read (Set a) where
   readsPrec i s = L.map (first Prim) (readsPrec i s)
 

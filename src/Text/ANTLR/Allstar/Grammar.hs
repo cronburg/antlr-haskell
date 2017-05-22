@@ -50,12 +50,12 @@ data ProdElem nt t =
     NT nt
   | T  t
   | Eps
-  deriving (Eq, Ord, Generic, Hashable)
+  deriving (Eq, Ord, Generic, Hashable, Show)
 
-instance (Show nt, Show t) => Show (ProdElem nt t) where
-  show (NT nt) = show nt
-  show (T   t) = show  t
-  show Eps     = "ε"
+instance (Prettify nt, Prettify t) => Prettify (ProdElem nt t) where
+  prettify (NT nt) = prettify nt
+  prettify (T   t) = prettify  t
+  prettify Eps     = pStr "ε"
 
 isNT (NT _) = True
 isNT _      = False
@@ -76,18 +76,20 @@ data StateFncn s =
     Pass                   -- No predicate or mutator
   | Sem    (Predicate s)   -- Semantic predicate
   | Action (Mutator s)     -- Mutator, ProdElems is always empty in this one
-  deriving (Eq, Ord, Generic, Hashable)
+  deriving (Eq, Ord, Generic, Hashable, Show)
 
-instance Show (StateFncn s) where
-  show Pass       = ""
-  show (Sem p)    = show p
-  show (Action a) = show a
+instance Prettify (StateFncn s) where
+  prettify Pass       = return ()
+  prettify (Sem p)    = prettify p
+  prettify (Action a) = prettify a
 
 data ProdRHS s nt t = Prod (StateFncn s) (ProdElems nt t)
-  deriving (Eq, Ord, Generic, Hashable)
+  deriving (Eq, Ord, Generic, Hashable, Show)
 
-instance (Show s, Show nt, Show t) => Show (ProdRHS s nt t) where
-  show (Prod sf ps) = show sf ++ ":" ++ show ps
+instance (Prettify s, Prettify nt, Prettify t) => Prettify (ProdRHS s nt t) where
+  prettify (Prod sf ps) = do
+    prettify sf
+    prettify ps
 
 isSem (Prod (Sem _) _) = True
 isSem _ = False
@@ -99,6 +101,17 @@ getProds = map (\(Prod _ ss) -> ss)
 
 data Production s nt t = Production nt (ProdRHS s nt t)
   deriving (Eq, Ord, Generic, Hashable)
+
+instance (Prettify s, Prettify nt, Prettify t) => Prettify (Production s nt t) where
+  prettify (Production nt (Prod sf ps)) = do
+    len <- pCount nt
+    -- Put the indentation level after the nonterminal, or just incr by 2 if
+    -- lazy...
+    incrIndent (len + 4)
+    pStr " -> "
+    prettify sf
+    prettify ps
+    incrIndent (-4)
 
 instance (Show s, Show nt, Show t) => Show (Production s nt t) where
   show (Production nt rhs) = show nt ++ " -> " ++ show rhs
@@ -139,6 +152,12 @@ instance Show (Predicate s) where
 instance Hashable (Predicate s) where
   hashWithSalt salt (Predicate p1 _) = salt `hashWithSalt` p1
 
+instance Prettify (Predicate s) where
+  prettify (Predicate n _) = pStr n
+
+instance Prettify (Mutator s) where
+  prettify (Mutator n _) = pStr n
+
 data Mutator   s = Mutator String (s -> s)
 
 instance Eq (Mutator s) where
@@ -162,14 +181,20 @@ data Grammar s nt t = G
   , _μs :: Set (Mutator   s)
   } deriving (Eq)
 
-instance (Show s, Show nt, Show t, Hashable t, Eq t, Hashable nt, Eq nt) => Show (Grammar s nt t) where
-  show G {ns = ns, ts = ts, ps = ps, s0 = s0, _πs = _πs, _μs = _μs}
-    =      "Grammar: { ns = " ++ show ns
-      ++ "\n           ts = " ++ show ts
-      ++ "\n           ps = " ++ show ps
-      ++ "\n           s0 = " ++ show s0
-      ++ "\n           πs = " ++ show _πs
-      ++ "\n           μs = " ++ show _μs
+instance (Prettify s, Prettify nt, Prettify t, Hashable t, Eq t, Hashable nt, Eq nt)
+  => Prettify (Grammar s nt t) where
+  prettify G {ns = ns, ts = ts, ps = ps, s0 = s0, _πs = _πs, _μs = _μs} = do
+    pLine "Grammar:"
+    pStr "{ "
+    incrIndent 2
+    pStr  "ns = "      ; prettify ns; pLine ""
+    pStr  "ts = "      ; prettify ts; pLine ""
+    pStr  "ps = "      ; pListLines ps; pLine ""
+    pStr  "s0 = "      ; prettify s0; pLine ""
+    pStr  "_πs = "     ; prettify _πs ; pLine ""
+    pStr  "_μs = "     ; prettify _μs ; pLine ""
+    incrIndent (-2)
+    pStr "}"
 
 symbols
   :: (Referent nt, Referent t, Ord nt, Ord t, Hashable s, Hashable nt, Hashable t)

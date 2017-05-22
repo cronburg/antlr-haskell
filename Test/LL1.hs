@@ -2,6 +2,7 @@ module Main where
 import Test.Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Parser
+import Text.ANTLR.Pretty
 import Text.ANTLR.AST
 import Text.ANTLR.LL1
 
@@ -110,8 +111,8 @@ action0 EpsE                    = LeafEps
 action0 (TermE (Icon t))        = Leaf t
 action0 (NonTE (nt, ss, us))    = AST nt ss us
 
-action1 (NonTE (nt, ss, trees)) = uPIO (print ("Act:", nt, ss, trees)) `seq` action0 $ NonTE (nt,ss,trees)
-action1 (TermE x) = uPIO (print ("Act:", x)) `seq` action0 $ TermE x
+action1 (NonTE (nt, ss, trees)) = uPIO (putStrLn $ pshow ("Act:", nt, ss, trees)) `seq` action0 $ NonTE (nt,ss,trees)
+action1 (TermE x) = uPIO (putStrLn $ pshow ("Act:", x)) `seq` action0 $ TermE x
 action1 EpsE      = action0 EpsE
 
 dragonPredParse =

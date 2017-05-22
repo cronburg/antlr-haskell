@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 module Text.ANTLR.Parser where
 import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Pretty
 
 -- Action function is given the nonterminal we just matched on, and the
 -- corresponding list of production elements (grammar symbols) in the RHS of the matched production
@@ -9,6 +10,7 @@ data ParseEvent ast nt t =
     TermE (Icon t)
   | NonTE (nt, ProdElems nt t, [ast])
   | EpsE
+  deriving (Show)
 
 type Action ast nt t = ParseEvent ast nt t -> ast
 
@@ -19,12 +21,14 @@ data Icon t =
     Icon t
   | IconEps
   | IconEOF -- End of input really, but EOF is ubiquitous.
-  deriving (Ord, Hashable, Generic)
+  deriving (Ord, Hashable, Generic, Show)
 
-instance (Show t) => Show (Icon t) where
-  show IconEps  = "iϵ"
-  show IconEOF  = "iEOF"
-  show (Icon t) = "i " ++ show t
+instance (Prettify t) => Prettify (Icon t) where
+  prettify IconEps  = pStr "iϵ"
+  prettify IconEOF  = pStr "iEOF"
+  prettify (Icon t) = do
+    pStr "i "
+    prettify t
 
 -- Icon equivalence only cares about the symbol (not the terminal value attached
 -- to the icon)

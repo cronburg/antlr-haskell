@@ -32,8 +32,8 @@ assertEqual preface expected actual =
     prefaceMsg
       | null preface = Nothing
       | otherwise = Just preface
-    expectedMsg = pshow expected
-    actualMsg   = pshow actual
+    expectedMsg = '\n' : pshowIndent 4 expected
+    actualMsg   = '\n' : pshowIndent 4 actual
 
 -- | Asserts that the specified actual value is equal to the expected value
 --   (with the actual value on the left-hand side).

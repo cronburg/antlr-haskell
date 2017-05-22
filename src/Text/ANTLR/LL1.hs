@@ -10,6 +10,7 @@ module Text.ANTLR.LL1
   , leftFactor, Prime(..)
   ) where
 import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Pretty
 import Text.ANTLR.Parser
 import Text.ANTLR.Allstar.ATN
 --import Data.Set.Monad
@@ -187,11 +188,22 @@ parseTable = parseTable' union
 data TreeNode ast nt t =
     Comp   ast
   | InComp nt (ProdElems nt t) [ast] Int
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
-instance (Show ast, Show nt, Show t) => Show (TreeNode ast nt t) where
-  show (Comp ast)            = "(Complete " ++ show ast ++ ")"
-  show (InComp nt es asts i) = "(Incomplete " ++ show nt ++ show es ++ show asts ++ show i ++ ")"
+instance (Prettify ast, Prettify nt, Prettify t) => Prettify (TreeNode ast nt t) where
+  prettify (Comp ast)            = do
+    pStr "(Complete "
+    prettify ast
+    pStr ")"
+  prettify (InComp nt es asts i) = pParens $ do
+    pStr "Incomplete "
+    prettify nt
+    pStr " "
+    prettify es
+    pStr " "
+    prettify asts
+    pStr " "
+    prettify i
 
 type StackTree ast nt t = [TreeNode ast nt t]
 
@@ -200,13 +212,13 @@ isComp _ = False
 isInComp = not . isComp
 
 recognize ::
-  (Referent nt, Referent t, Ord nt, Ord t, Show nt, Show t, Hashable t, Hashable nt)
+  (Referent nt, Referent t, Ord nt, Ord t, Prettify nt, Prettify t, Hashable t, Hashable nt)
   => Grammar () nt t -> [Icon t] -> Bool
 recognize g = (Nothing /=) . predictiveParse g (const ())
 
 predictiveParse
   :: forall nt t ast.
-  (Show nt, Show t, Show ast, Referent nt, Referent t, Ord nt, Ord t, Hashable t, Hashable nt)
+  (Prettify nt, Prettify t, Prettify ast, Referent nt, Referent t, Ord nt, Ord t, Hashable t, Hashable nt)
   => Grammar () nt t -> Action ast nt t -> [Icon t] ->  Maybe ast
 predictiveParse g act w0 = let
 
@@ -252,7 +264,7 @@ predictiveParse g act w0 = let
               _       -> Nothing
     parse' ws (Eps:xs) asts = parse' ws xs (pushStack Eps [] asts)
     parse' ws xs asts =
-      uPIO (print (ws,xs,asts)) `seq` undefined
+      uPIO (putStrLn $ pshow ws ++ pshow xs ++ pshow asts) `seq` undefined
 
   in do asts <- parse' w0 [NT $ s0 g] []
         case asts of
@@ -262,7 +274,7 @@ predictiveParse g act w0 = let
 {- Remove all epsilon productions, i.e. productions of the form "A -> eps",
  - without affecting the language accepted -}
 removeEpsilons ::
-  forall s nt t. (Eq t, Eq nt, Show t, Show nt, Show s, Ord t, Ord nt, Hashable t, Hashable nt)
+  forall s nt t. (Eq t, Eq nt, Prettify t, Prettify nt, Prettify s, Ord t, Ord nt, Hashable t, Hashable nt)
   => Grammar s nt t -> Grammar s nt t
 removeEpsilons g = let
 
@@ -303,7 +315,7 @@ removeEpsilons g = let
     ps' :: [Production s nt t]
     ps' = case epsNTs of
       []       -> ps g
-      (nt:nts) -> ps $ removeEpsilons $ D.traceShowId
+      (nt:nts) -> ps $ removeEpsilons -- $ D.tracePrettifyId
                     (g { ps = foldl orderNub []
                           [ p' 
                           | p  <- ps g
@@ -315,13 +327,15 @@ removeEpsilons g = let
   in g { ps = ps' }
 
 newtype Prime nt = Prime (nt, Int)
-  deriving (Eq, Ord, Generic, Hashable)
+  deriving (Eq, Ord, Generic, Hashable, Show)
 
-instance (Show nt) => Show (Prime nt) where
-  show (Prime (nt,i)) = show nt ++ replicate i '\''
+instance (Prettify nt) => Prettify (Prime nt) where
+  prettify (Prime (nt,i)) = do
+    prettify nt
+    pStr $ replicate i '\''
 
 leftFactor ::
-  forall s nt t. (Eq t, Eq nt, Show t, Show nt, Ord t, Ord nt, Hashable nt)
+  forall s nt t. (Eq t, Eq nt, Prettify t, Prettify nt, Ord t, Ord nt, Hashable nt)
   => Grammar s nt t -> Grammar s (Prime nt) t
 leftFactor = let
 

@@ -15,8 +15,12 @@ data AST nt t =
   | AST nt (ProdElems nt t) [AST nt t]
   deriving (Eq, Ord, Generic)
 
-instance (Show nt, Show t) => Show (AST nt t) where
-  show LeafEps  = "ϵ"
-  show (Leaf t) = show t
-  show (AST nt ps asts) = show nt ++ "{" ++ show asts ++ "}"
+instance (Prettify nt, Prettify t) => Prettify (AST nt t) where
+  prettify LeafEps  = pStr "ϵ"
+  prettify (Leaf t) = prettify t
+  prettify (AST nt ps asts) = do
+    prettify nt
+    pStr "{"
+    prettify asts
+    pStr "}"
 
