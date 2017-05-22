@@ -186,7 +186,7 @@ data Grammar s nt t = G
   , s0  :: nt
   , _πs :: Set (Predicate s)
   , _μs :: Set (Mutator   s)
-  }
+  } deriving (Show)
 
 instance (Eq s, Eq nt, Eq t, Hashable nt, Hashable t, Prettify s, Prettify nt, Prettify t) => Eq (Grammar s nt t) where
   g1 == g2 = ns g1 == ns g2

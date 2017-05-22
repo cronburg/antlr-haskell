@@ -18,6 +18,8 @@ import qualified Text.ANTLR.Set as S
 import Data.Map ( Map(..) )
 import qualified Data.Map as M
 
+import Text.ANTLR.Pretty
+
 import System.IO.Unsafe (unsafePerformIO)
 uPIO = unsafePerformIO
 
@@ -25,6 +27,10 @@ data ItemLHS nt =
     Init   nt -- S' if S is the grammar start symbol
   | ItemNT nt -- wrapper around a NonTerminal
   deriving (Eq, Ord, Generic, Hashable)
+
+instance (Prettify nt) => Prettify (ItemLHS nt) where
+  prettify (Init nt)   = prettify nt >> pStr "_0"
+  prettify (ItemNT nt) = prettify nt
 
 instance (Show nt) => Show (ItemLHS nt) where
   show (Init nt)   = show nt ++ "'"
@@ -34,10 +40,16 @@ instance (Show nt) => Show (ItemLHS nt) where
 -- into the production we have parsed:
 --                         A        ->  α                .     β
 data Item a nt t = Item (ItemLHS nt) (ProdElems nt t) {- . -} (ProdElems nt t) a
-  deriving (Eq, Ord, Generic, Hashable)
+  deriving (Eq, Ord, Generic, Hashable, Show)
 
-instance (Show a, Show nt, Show t) => Show (Item a nt t) where
-  show (Item _A α β a) = show a ++ " -> " ++ show α ++ " . " ++ show β ++ ", a=" ++ show a ++ "\n"
+instance (Prettify a, Prettify nt, Prettify t) => Prettify (Item a nt t) where
+  prettify (Item _A α β a) = do
+    prettify a
+    pStr " -> "
+    prettify α
+    pStr " . "
+    prettify β
+    pParens (prettify a)
 
 type Closure a nt t = Set (Item a nt t) -> Set (Item a nt t)
 
@@ -157,13 +169,14 @@ data LRAction a nt t =
   | Reduce (Production () nt t)
   | Accept
   | Error
-  deriving (Eq, Ord, Generic, Hashable)
+  deriving (Eq, Ord, Generic, Hashable, Show)
 
-instance (Show a, Show nt, Show t, Hashable a, Hashable t, Hashable nt, Eq a, Eq t, Eq nt) => Show (LRAction a nt t) where
-  show (Shift ss) = "\nShift  {" ++ show ss ++ "}\n"
-  show (Reduce p) = "\nReduce  " ++ show p  ++  "\n"
-  show Accept     = "Accept\n"
-  show Error      = "Error\n"
+instance (Prettify a, Prettify nt, Prettify t, Hashable a, Hashable t, Hashable nt, Eq a, Eq t, Eq nt)
+  => Prettify (LRAction a nt t) where
+  prettify (Shift ss) = pStr "Shift  {" >> prettify ss >> pLine "}"
+  prettify (Reduce p) = pStr "Reduce  " >> prettify p  >> pLine ""
+  prettify Accept     = pStr "Accept"
+  prettify Error      = pStr "Error"
 
 type SLRItem  nt t = Item    () nt t
 type SLRState nt t = LRState () nt t

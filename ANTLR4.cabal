@@ -177,9 +177,9 @@ Test-Suite LL1
 Test-Suite LR1
   Type:           exitcode-stdio-1.0
   Main-Is:        Test/LR1.hs
-  other-modules:  Test.Text.ANTLR.Allstar.Grammar
+  other-modules:  Test.Text.ANTLR.HUnit, Test.Text.ANTLR.Allstar.Grammar
   build-depends:  base
-                , ANTLR4, set-monad, deepseq
+                , ANTLR4, set-monad, deepseq, call-stack
                 , QuickCheck
                 , HUnit
                 , Cabal
