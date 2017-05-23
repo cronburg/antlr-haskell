@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables, MonadComprehensions, DeriveGeneric
- , DeriveAnyClass #-}
+ , DeriveAnyClass, FlexibleContexts #-}
 module Text.ANTLR.LL1
   ( recognize
   , first, follow
@@ -48,7 +48,7 @@ foldWhileEpsilon fncn b0 (a:as)
   | otherwise  = fncn a b0
 
 first ::
-  forall t nt. (Referent nt, Referent t, Ord nt, Ord t, Hashable nt, Hashable t)
+  forall t nt. (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable nt, Hashable t)
   => Grammar () nt t -> [ProdElem nt t] -> Set (Icon t)
 first g = let
     firstOne :: Set (ProdElem nt t) -> ProdElem nt t -> Set (Icon t)
@@ -71,7 +71,7 @@ first g = let
   in firstMany . map (firstOne empty)
 
 follow ::
-  forall nt t. (Referent nt, Referent t, Ord nt, Ord t, Hashable nt, Hashable t)
+  forall nt t. (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable nt, Hashable t)
   => Grammar () nt t -> nt -> Set (Icon t)
 follow g = let
     follow' busy _B
@@ -117,7 +117,7 @@ follow g = let
 -- and if epsilon is in α, then
 --      first(α) `intersection` follow(A) == empty
 isLL1
-  :: (Referent nt, Referent t, Eq nt, Ord nt, Eq t, Ord t, Hashable nt, Hashable t)
+  :: (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Eq nt, Ord nt, Eq t, Ord t, Hashable nt, Hashable t)
   => Grammar () nt t -> Bool
 isLL1 g =
   validGrammar g && and
@@ -145,7 +145,7 @@ ambigVal = (1 >) . size
 type ParseTable nt t = M.Map (Key nt t) (Value nt t)
 
 parseTable' ::
-  forall nt t. (Referent nt, Referent t, Ord nt, Ord t, Eq t, Eq nt, Hashable t, Hashable nt)
+  forall nt t. (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Eq t, Eq nt, Hashable t, Hashable nt)
   => (Value nt t -> Value nt t -> Value nt t) -> Grammar () nt t-> ParseTable nt t
 parseTable' fncn g = let
 
@@ -181,7 +181,7 @@ parseTable' fncn g = let
       ]
 
 parseTable :: 
-  forall nt. forall t. (Referent nt, Referent t, Ord nt, Ord t, Eq t, Eq nt, Hashable t, Hashable nt)
+  forall nt. forall t. (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Eq t, Eq nt, Hashable t, Hashable nt)
   => Grammar () nt t -> ParseTable nt t
 parseTable = parseTable' union
 
@@ -212,13 +212,13 @@ isComp _ = False
 isInComp = not . isComp
 
 recognize ::
-  (Referent nt, Referent t, Ord nt, Ord t, Prettify nt, Prettify t, Hashable t, Hashable nt)
+  (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Prettify nt, Prettify t, Hashable t, Hashable nt)
   => Grammar () nt t -> [Icon t] -> Bool
 recognize g = (Nothing /=) . predictiveParse g (const ())
 
 predictiveParse
   :: forall nt t ast.
-  (Prettify nt, Prettify t, Prettify ast, Referent nt, Referent t, Ord nt, Ord t, Hashable t, Hashable nt)
+  (Prettify nt, Prettify t, Prettify ast, Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable t, Hashable nt)
   => Grammar () nt t -> Action ast nt t -> [Icon t] ->  Maybe ast
 predictiveParse g act w0 = let
 

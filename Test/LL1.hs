@@ -3,7 +3,6 @@ import Test.Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Parser
 import Text.ANTLR.Pretty
-import Text.ANTLR.AST
 import Text.ANTLR.LL1
 
 import Text.ANTLR.Set (fromList, union, empty, Set(..))

@@ -3,7 +3,6 @@ module Main where
 import Test.Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.LR1
-import Text.ANTLR.AST
 import Text.ANTLR.Parser
 
 import Text.ANTLR.Set (fromList, union, empty, Set(..), (\\))

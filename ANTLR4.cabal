@@ -61,7 +61,6 @@ library
                   , Text.ANTLR.LL1
                   , Text.ANTLR.LR1
                   , Text.ANTLR.Parser
-                  , Text.ANTLR.AST
                   , Text.ANTLR.Set
                   , Text.ANTLR.Pretty
 

@@ -6,7 +6,6 @@ module Text.ANTLR.Lex
   , tokenName, tokenValue
   ) where
 import qualified Text.ANTLR.Allstar.Grammar as G
-import Text.ANTLR.AST (AST(..))
 
 import Text.ANTLR.LR1 (lr1Parse)
 import Text.ANTLR.Parser

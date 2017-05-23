@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses
-  , DeriveGeneric, DeriveAnyClass #-}
+  , DeriveGeneric, DeriveAnyClass, TypeFamilies, FlexibleContexts #-}
 module Text.ANTLR.Allstar.Grammar
-  ( Referent(..), sameNTs, sameTerminals
+  ( Ref(..), sameNTs, sameTerminals
   , ProdElem(..), ProdElems
   , Production(..), ProdRHS(..), StateFncn(..)
   , Predicate(..), Mutator(..)
@@ -34,22 +34,29 @@ uPIO = unsafePerformIO
 -- When we *Show* production elements, they should contain source location
 -- information, but when we *compare* them, we should ignore the source info.
 
--- Something is "Referent" if it can be symbolized by some symbol in a set of
+-- Something is "Ref" if it can be symbolized by some symbol in a set of
 -- symbols. Symbols are typically Strings, an enum data type, or some other
 -- Eq-able (best if finite) set of things.
-class Referent ref where
-  getSymbol :: ref -> String
+class Ref v where
+  -- One symbol type for every value type v.
+  type Sym v :: *
+  getSymbol :: v -> Sym v
 
-sameNTs :: (Referent nt) => nt -> nt -> Bool
-sameNTs nt0 nt1 = getSymbol nt0 == getSymbol nt1
+compareSymbols :: (Ref ref, Eq (Sym ref)) => ref -> ref -> Bool
+compareSymbols a b = getSymbol a == getSymbol b
 
-sameTerminals :: (Referent t) => t -> t -> Bool
-sameTerminals t0 t1 = getSymbol t0 == getSymbol t1
+sameNTs :: forall nt. (Ref nt, Eq (Sym nt)) => nt -> nt -> Bool
+sameNTs = compareSymbols
 
-instance Referent ([] Char) where
+sameTerminals :: forall t. (Ref t, Eq (Sym t)) => t -> t -> Bool
+sameTerminals = compareSymbols
+
+instance Ref String where
+  type Sym String = String
   getSymbol = id
 
-instance Referent (String, b) where
+instance Ref (String, b) where
+  type Sym (String, b) = String
   getSymbol = fst
 
 -- Grammar ProdElems:
@@ -131,7 +138,7 @@ getLHS (Production lhs rhs) = lhs
 
 -- Get only the productions for the given nonterminal nt:
 prodsFor ::
-  forall s nt t nts ts. (Referent nt, Referent t)
+  forall s nt t. (Ref nt, Ref t, Eq (Sym nt))
   => Grammar s nt t -> nt -> [Production s nt t]
 prodsFor g nt = let
     matchesNT :: Production s nt t -> Bool
@@ -217,7 +224,7 @@ instance (Prettify s, Prettify nt, Prettify t, Hashable t, Eq t, Hashable nt, Eq
     pStr "}"
 
 symbols
-  :: (Referent nt, Referent t, Ord nt, Ord t, Hashable s, Hashable nt, Hashable t)
+  :: (Ref nt, Ref t, Ord nt, Ord t, Hashable s, Hashable nt, Hashable t)
   => Grammar s nt t -> Set (ProdElem nt t)
 symbols g = S.insert Eps $ S.map NT (ns g) `union` S.map T (ts g)
 
@@ -234,7 +241,8 @@ defaultGrammar = G
   }
 
 validGrammar
-  :: (Referent nt, Referent t, Eq nt, Ord nt, Eq t, Ord t, Hashable nt, Hashable t)
+  :: forall s nt t.
+  (Ref nt, Ref t, Eq nt, Ord nt, Eq t, Ord t, Hashable nt, Hashable t)
   => Grammar s nt t -> Bool
 validGrammar g =
      hasAllNonTerms g
@@ -243,19 +251,19 @@ validGrammar g =
 --  && distinctTermsNonTerms g
 
 hasAllNonTerms
-  :: (Referent nt, Referent t, Eq nt, Ord nt, Hashable nt, Hashable t)
+  :: (Ref nt, Ref t, Eq nt, Ord nt, Hashable nt, Hashable t)
   => Grammar s nt t -> Bool
 hasAllNonTerms g =
   ns g == (fromList . getNTs . concat . getProds . map getRHS $ ps g)
 
 hasAllTerms
-  :: (Referent nt, Referent t, Eq t, Ord t, Hashable nt, Hashable t)
+  :: (Ref nt, Ref t, Eq t, Ord t, Hashable nt, Hashable t)
   => Grammar s nt t -> Bool
 hasAllTerms g =
   ts g == (fromList . getTs . concat . getProds . map getRHS $ ps g)
 
 startIsNonTerm
-  :: (Referent nt, Referent t, Ord nt, Hashable nt)
+  :: (Ref nt, Ref t, Ord nt, Hashable nt)
   => Grammar s nt t -> Bool
 startIsNonTerm g = s0 g `member` ns g
 

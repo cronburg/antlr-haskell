@@ -1,4 +1,5 @@
-{-# LANGUAGE ScopedTypeVariables, ExplicitForAll, DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE ScopedTypeVariables, ExplicitForAll, DeriveGeneric, DeriveAnyClass
+  , FlexibleContexts #-}
 module Text.ANTLR.LR1
   ( Item(..), ItemLHS(..)
   , kernel, items
@@ -57,7 +58,7 @@ type SLRClosure nt t = Closure () nt t
 type LR1Closure nt t = Closure (LR1LookAhead t) nt t
 
 slrClosure ::
-  forall nt t. (Referent nt, Referent t, Ord nt, Ord t, Hashable t, Hashable nt)
+  forall nt t. (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable t, Hashable nt)
   => Grammar () nt t -> SLRClosure nt t
 slrClosure g is' = let
 
@@ -77,7 +78,7 @@ slrClosure g is' = let
   in closure' is'
 
 lr1Closure ::
-  forall nt t. (Referent nt, Referent t, Ord nt, Ord t, Hashable t, Hashable nt)
+  forall nt t. (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable t, Hashable nt)
   => Grammar () nt t -> LR1Closure nt t
 lr1Closure g is' = let
 
@@ -113,12 +114,12 @@ goto g closure is _X = closure $ fromList
   ]
 
 slrGoto ::
-  forall nt t. (Referent nt, Referent t, Ord nt, Ord t, Hashable t, Hashable nt)
+  forall nt t. (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable t, Hashable nt)
   => Grammar () nt t -> Goto () nt t
 slrGoto g = goto g (slrClosure g)
 
 items ::
-  forall a nt t. (Ord a, Referent nt, Referent t, Ord nt, Ord t, Hashable a, Hashable t, Hashable nt)
+  forall a nt t. (Ord a, Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable a, Hashable t, Hashable nt)
   => Grammar () nt t -> Goto a nt t -> Closure a nt t -> LRState a nt t -> Set (LRState a nt t)
 items g goto closure s0 = let
     items' :: Set (LRState a nt t) -> Set (LRState a nt t)
@@ -146,7 +147,7 @@ kernel = let
 
 -- Generate the set of all possible Items for a given grammar:
 allSLRItems ::
-  forall nt t. (Referent nt, Referent t, Ord nt, Ord t, Hashable t, Hashable nt)
+  forall nt t. (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable t, Hashable nt)
   => Grammar () nt t -> Set (SLRItem nt t)
 allSLRItems g = fromList
     [ Item (Init $ s0 g) [] [NT $ s0 g] ()
@@ -193,12 +194,12 @@ slrS0
 slrS0 = lrS0 ()
 
 slrItems ::
-  forall nt t. (Referent nt, Referent t, Ord nt, Ord t, Hashable t, Hashable nt)
+  forall nt t. (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable t, Hashable nt)
   => Grammar () nt t -> Set (Set (SLRItem nt t))
 slrItems g = items g (slrGoto g) (slrClosure g) (slrS0 g)
 
 slrTable ::
-  forall nt t. (Referent nt, Referent t, Ord nt, Ord t, Hashable nt, Hashable t)
+  forall nt t. (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable nt, Hashable t)
   => Grammar () nt t -> SLRTable nt t
 slrTable g = let
 
@@ -223,7 +224,7 @@ slrTable g = let
 type LR1Item  nt t = Item    (LR1LookAhead t) nt t
 type LR1Table nt t = LRTable (LR1LookAhead t) nt t
 
-lr1Table :: forall nt t. (Referent nt, Referent t, Ord nt, Ord t, Hashable t, Hashable nt)
+lr1Table :: forall nt t. (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable t, Hashable nt)
   => Grammar () nt t -> LR1Table nt t
 lr1Table g = let
     lr1' :: LR1State nt t -> LR1Table nt t
@@ -241,13 +242,13 @@ lr1Table g = let
 
 type Config a nt t = ([LRState a nt t], [Icon t])
 
-look :: (Ord a, Ord nt, Ord t, Referent t, Hashable a, Hashable t, Hashable nt)
+look :: (Ord a, Ord nt, Ord t, Ref t, Eq (Sym t), Hashable a, Hashable t, Hashable nt)
   => (LRState a nt t, Icon t) -> LRTable a nt t -> Maybe (LRAction a nt t)
 look (s,a) tbl = --uPIO (print ("lookup:", s, a, M.lookup (s, a) act)) `seq`
     M.lookup (s, a) tbl
 
 lrParse ::
-  forall ast a nt t. (Ord a, Referent nt, Referent t, Ord nt, Ord t, Hashable t, Hashable a, Hashable nt)
+  forall ast a nt t. (Ord a, Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable t, Hashable a, Hashable nt)
   => Grammar () nt t -> LRTable a nt t -> Goto a nt t
   -> Closure a nt t -> LRState a nt t -> Action ast nt t
   -> [Icon t] -> Maybe ast
@@ -272,36 +273,36 @@ lrParse g tbl goto closure s_0 act w = let
 
   in lr ([closure s_0], w) []
 
-slrParse :: (Referent nt, Referent t, Ord nt, Ord t, Hashable nt, Hashable t)
+slrParse :: (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable nt, Hashable t)
   => Grammar () nt t -> Action ast nt t -> [Icon t] -> Maybe ast
 slrParse g = lrParse g (slrTable g) (slrGoto g) (slrClosure g) (slrS0 g)
 
-slrRecognize :: (Referent nt, Referent t, Ord nt, Ord t, Hashable nt, Hashable t)
+slrRecognize :: (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable nt, Hashable t)
   => Grammar () nt t -> [Icon t] -> Bool
 slrRecognize g w = (Nothing /=) $ slrParse g (const 0) w
 
-lr1Recognize :: (Referent nt, Referent t, Ord nt, Ord t, Hashable t, Hashable nt)
+lr1Recognize :: (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable t, Hashable nt)
   => Grammar () nt t -> [Icon t] -> Bool
 lr1Recognize g w = (Nothing /=) $ lr1Parse g (const 0) w
 
 type LR1LookAhead t = Icon t -- Single Icon of lookahead for LR1
 
-lr1Goto :: (Referent nt, Referent t, Ord nt, Ord t, Hashable t, Hashable nt)
+lr1Goto :: (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable t, Hashable nt)
   => Grammar () nt t -> Goto (LR1LookAhead t) nt t
 lr1Goto g = goto g (lr1Closure g)
 
 type LR1State nt t = LRState (LR1LookAhead t) nt t
 
 lr1S0
-  :: (Referent t, Ord t, Ord nt, Hashable t, Hashable nt)
+  :: (Ref t, Eq (Sym t), Ord t, Ord nt, Hashable t, Hashable nt)
   => Grammar () nt t -> LRState (LR1LookAhead t) nt t
 lr1S0 = lrS0 IconEOF
 
-lr1Items :: (Referent nt, Referent t, Ord nt, Ord t, Hashable t, Hashable nt)
+lr1Items :: (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable t, Hashable nt)
   => Grammar () nt t -> Set (LRState (LR1LookAhead t) nt t)
 lr1Items g = items g (lr1Goto g) (lr1Closure g) (lr1S0 g)
 
-lr1Parse :: (Referent nt, Referent t, Ord nt, Ord t, Hashable t, Hashable nt)
+lr1Parse :: (Ref nt, Eq (Sym nt), Ref t, Eq (Sym t), Ord nt, Ord t, Hashable t, Hashable nt)
   => Grammar () nt t -> Action ast nt t -> [Icon t] -> Maybe ast
 lr1Parse g = lrParse g (lr1Table g) (lr1Goto g) (lr1Closure g) (lr1S0 g)
 

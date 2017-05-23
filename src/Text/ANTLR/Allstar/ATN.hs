@@ -1,4 +1,5 @@
-{-# LANGUAGE ScopedTypeVariables, DeriveAnyClass, DeriveGeneric #-}
+{-# LANGUAGE ScopedTypeVariables, DeriveAnyClass, DeriveGeneric
+           , FlexibleContexts, UndecidableInstances, StandaloneDeriving #-}
 module Text.ANTLR.Allstar.ATN where
 -- Augmented Transition Network
 import Text.ANTLR.Allstar.Grammar
@@ -13,10 +14,12 @@ data ATN s nt t = ATN
   -- Σ is an alphabet consisting of distinct elements which are comparable for
   -- equality.
   -- _Σ :: Set (Edge s)
-  { _Δ :: Set (Transition s nt t)
-  } deriving (Eq, Ord)
+  { _Δ :: Set (Transition s nt t) }
 
-instance (Show s, Referent nt, Referent t, Hashable nt, Hashable t, Show nt, Show t) => Show (ATN s nt t) where
+deriving instance (Hashable nt, Hashable t, Ref nt, Ref t, Eq (Sym nt), Eq (Sym t), Eq s, Eq nt, Eq t) => Eq (ATN s nt t)
+deriving instance (Hashable nt, Hashable t, Ref nt, Ref t, Eq (Sym nt), Eq (Sym t), Ord s, Ord nt, Ord t, Ord (ATNState nt)) => Ord (ATN s nt t)
+
+instance (Eq (Sym nt), Eq (Sym t), Show s, Ref nt, Ref t, Hashable nt, Hashable t, Show nt, Show t) => Show (ATN s nt t) where
   show ATN {_Δ = _Δ} = "\n[" ++ (concatMap (\s -> "\n, " ++ show s) (toList _Δ)) ++ "\n]"
 
 -- Tuple corresponding to a distinct transition in the ATN:
@@ -26,7 +29,9 @@ type Transition s nt t = (ATNState nt, Edge s nt t, ATNState nt)
 data ATNState nt  = Start  nt
                   | Middle nt Int Int
                   | Accept nt
-  deriving (Ord, Generic, Hashable)
+  deriving (Generic, Hashable)
+
+deriving instance (Ord nt, Eq (Sym nt), Ref nt) => Ord (ATNState nt)
 
 instance (Show nt) => Show (ATNState nt) where
   show (Start nt)         = "s_"  ++ show nt
@@ -34,7 +39,7 @@ instance (Show nt) => Show (ATNState nt) where
   show (Accept nt)        = "a_"  ++ show nt
 
 {- ATNs do not leak the Terminal and NonTerminal abstractions -}
-instance (Referent nt) => Eq (ATNState nt) where
+instance (Eq (Sym nt), Ref nt) => Eq (ATNState nt) where
   Start nt == Start nt1             = sameNTs nt nt1
   Middle nt x y == Middle nt1 x1 y1 = sameNTs nt nt1 && x == x1 && y == y1
   Accept nt == Accept nt1           = sameNTs nt nt1
@@ -54,7 +59,9 @@ data Edge s nt t = NTE nt
                  | PE  (Predicate s)
                  | ME  (Mutator   s)
                  | Epsilon
-  deriving (Ord, Generic, Hashable)
+  deriving (Generic, Hashable)
+
+deriving instance (Ord s, Ord nt, Ord t, Eq (Sym nt), Eq (Sym t), Ref nt, Ref t) => Ord (Edge s nt t)
 
 instance (Show s, Show nt, Show t) => Show (Edge s nt t) where
   show (NTE nt) = "E(" ++ show nt ++ ")"
@@ -64,7 +71,7 @@ instance (Show s, Show nt, Show t) => Show (Edge s nt t) where
   show Epsilon  = "E(ϵ)"
 
 {- ATNs do not leak the Terminal and NonTerminal abstractions -}
-instance (Referent nt, Referent t) => Eq (Edge s nt t) where
+instance (Eq (Sym nt), Eq (Sym t), Ref nt, Ref t) => Eq (Edge s nt t) where
   NTE nt == NTE nt1 = sameNTs nt nt1
   TE t == TE t1 = sameTerminals t t1
   PE p == PE p1 = p == p1
@@ -74,7 +81,7 @@ instance (Referent nt, Referent t) => Eq (Edge s nt t) where
 
 -- atnOf :: Grammar -> (ATNState,Edge) -> Maybe ATNState
 atnOf
-  :: forall nt t s. (Referent nt, Referent t, Hashable nt, Hashable t)
+  :: forall nt t s. (Ref nt, Ref t, Hashable nt, Hashable t, Eq (Sym nt), Eq (Sym t))
   => Grammar s nt t -> ATN s nt t
 atnOf g = let
 

@@ -6,6 +6,7 @@ import Text.ANTLR.Lex.DFA
 import qualified Text.ANTLR.Set as Set
 import Text.ANTLR.Set (Hashable, member)
 
+import Text.ANTLR.Pretty
 import qualified Debug.Trace as D
 
 -- Token with name (n) and value (v)
@@ -13,11 +14,14 @@ data Token n v =
     Token n v
   | EOF
   | Error String -- TODO
+  deriving (Show)
 
-instance (Show n, Show v) => Show (Token n v) where
-  show (Token n v) = (show n) ++ "(" ++ show v ++ ")"
-  show EOF = "EOF"
-  show (Error s) = "Error: " ++ s
+instance (Prettify n, Prettify v) => Prettify (Token n v) where
+  prettify EOF = pStr "EOF"
+  prettify (Error s) = pStr $ "Token Error: " ++ s
+  prettify (Token n v) = do
+    prettify n
+    pParens $ prettify v
 
 instance Eq n => Eq (Token n v) where
   Token s _ == Token s1 _ = s == s1

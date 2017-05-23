@@ -1,4 +1,5 @@
-{-# LANGUAGE ScopedTypeVariables, DeriveAnyClass, DeriveGeneric #-}
+{-# LANGUAGE ScopedTypeVariables, DeriveAnyClass, DeriveGeneric
+ , StandaloneDeriving, FlexibleContexts, UndecidableInstances #-}
 module Text.ANTLR.Allstar where
 import Text.ANTLR.Allstar.Grammar
 --import Text.ANTLR.Allstar.GSS
@@ -31,12 +32,21 @@ data Parser s nt t v = Parser
 type ParserS s nt t v a = State (Parser s nt t v) a
 
 data DFAEdge nt t = DFAE (DFAState nt) t (DFAState nt)
-  deriving (Eq, Ord, Generic, Hashable)
+  deriving (Generic)
+
+deriving instance (Ref nt, Ref t, Hashable nt, Eq nt, Eq t, Eq (Sym nt), Eq (Sym t)) => Eq (DFAEdge nt t)
+deriving instance (Ref nt, Ref t, Hashable nt, Ord nt, Ord t, Eq (Sym nt), Eq (Sym t)) => Ord (DFAEdge nt t)
+deriving instance (Ref nt, Ref t, Hashable nt, Hashable t, Eq (Sym nt), Eq (Sym t)) => Hashable (DFAEdge nt t)
 
 data DFAState nt  = ErrorState
                   | ConfState (Set (Configuration nt))
                   | FinalState Int -- production index
-  deriving (Eq, Ord, Generic, Hashable)
+  deriving (Generic)
+
+deriving instance (Ref nt, Hashable nt, Eq nt, Eq (Sym nt)) => Eq (DFAState nt)
+deriving instance (Ref nt, Hashable nt, Ord nt, Eq (Sym nt)) => Ord (DFAState nt)
+deriving instance (Ref nt, Hashable nt, Eq (Sym nt)) => Hashable (DFAState nt)
+
 type Error = String
 -- configuration
 type Configuration nt = (ATNState nt, Int, Gamma nt)
@@ -47,7 +57,7 @@ type Configuration nt = (ATNState nt, Int, Gamma nt)
 --depends on: adaptivePredict
 --parse ::
 parse
-  :: forall nt t v s. (Referent nt, Referent t, Hashable nt, Hashable v, Hashable t, Eq t, Eq nt, Ord nt)
+  :: forall nt t v s. (Eq (Sym nt), Eq (Sym t), Ref nt, Ref t, Hashable nt, Hashable v, Hashable t, Eq t, Eq nt, Ord nt)
   => nt -> ParserS s nt t v (Maybe ())
 parse _S =
   let 
@@ -98,7 +108,7 @@ parse _S =
 --            startState
 --adaptivePredict ::
 adaptivePredict
-  :: forall s nt t v. (Referent nt, Referent t, Hashable nt, Hashable v, Hashable t, Ord nt, Eq t)
+  :: forall s nt t v. (Eq (Sym nt), Eq (Sym t), Ref nt, Ref t, Hashable nt, Hashable v, Hashable t, Ord nt, Eq t)
   => nt -> Gamma nt -> ParserS s nt t v (Maybe Int)
 adaptivePredict _A _γ0 =
   let hasPredForA :: [Production s nt t] -> Bool
@@ -134,7 +144,7 @@ adaptivePredict _A _γ0 =
 --depends on: closure
 --startState ::
 startState 
-  :: (Referent nt, Referent t, Hashable nt, Hashable v, Hashable t)
+  :: (Eq (Sym nt), Eq (Sym t), Ref nt, Ref t, Hashable nt, Hashable v, Hashable t)
   => nt -> Gamma nt -> ParserS s nt t v (Set (Configuration nt))
 startState a gamma = do
   ATN {_Δ = delta} <-  getATN
@@ -152,7 +162,7 @@ startState a gamma = do
 --            llPredict
 --sllPredict ::
 sllPredict 
-  :: forall nt t s v. (Referent nt, Hashable nt, Referent t, Hashable t, Hashable v, Eq t, Eq nt, Ord nt)
+  :: forall nt t s v. (Eq (Sym nt), Eq (Sym t), Ref nt, Hashable nt, Ref t, Hashable t, Hashable v, Eq t, Eq nt, Ord nt)
   => nt -> Set (Configuration nt) -> [Lex.Token t v] -> Gamma nt -> ParserS s nt t v (Maybe Int)
 sllPredict _A d0 start _γ0 = do
 
@@ -192,7 +202,7 @@ sllPredict _A d0 start _γ0 = do
 --target ::
 target ::
   forall nt t s v.
-  (Referent nt, Hashable nt, Referent t, Hashable t, Hashable v, Ord nt, Eq t)
+  (Eq (Sym nt), Eq (Sym t), Ref nt, Hashable nt, Ref t, Hashable t, Hashable v, Ord nt, Eq t)
   => Set (Configuration nt) -> t -> ParserS s nt t v (DFAState nt)
 target d0 a = do
   mv <- move d0 a
@@ -227,7 +237,7 @@ target d0 a = do
 -- no dependencies
 -- set of all (q,i,Gamma) s.t. p -a> q and (p,i,Gamma) in State d
 move ::
-  forall nt t s v. (Referent nt, Referent t, Hashable nt, Hashable v, Hashable t)
+  forall nt t s v. (Eq (Sym nt), Eq (Sym t), Ref nt, Ref t, Hashable nt, Hashable v, Hashable t)
   => Set (Configuration nt) -> t -> ParserS s nt t v (Set (Configuration nt))
 move d a = do
   ATN {_Δ = delta} <- getATN
@@ -246,7 +256,7 @@ move d a = do
 --            closure
 --            getConflictSetsPerLoc
 llPredict 
-  :: (Referent nt, Referent t, Hashable nt, Hashable v, Hashable t, Ord nt)
+  :: (Eq (Sym nt), Eq (Sym t), Ref nt, Ref t, Hashable nt, Hashable v, Hashable t, Ord nt)
   => nt -> [Lex.Token t v] -> Gamma nt -> ParserS s nt t v (Maybe Int)
 llPredict _A start _γ0 =
   let
@@ -281,7 +291,7 @@ llPredict _A start _γ0 =
 
 --getATN = return $ ATN { _Δ = Set.empty }
 getATN
-  :: (Referent nt, Referent t, Hashable nt, Hashable t, Hashable v)
+  :: (Eq (Sym nt), Eq (Sym t), Ref nt, Ref t, Hashable nt, Hashable t, Hashable v)
   => ParserS s nt t v (ATN s nt t)
 getATN = do
   Parser { g = grammar} <- get
@@ -290,7 +300,7 @@ getATN = do
 
 --no fn dependencies
 closure ::
-  forall nt t s. (Referent nt, Referent t, Hashable nt, Hashable t)
+  forall nt t s. (Eq (Sym nt), Eq (Sym t), Ref nt, Ref t, Hashable nt, Hashable t)
   => Set (Transition s nt t) -> Set (Configuration nt) -> Configuration nt -> Set (Configuration nt)
 closure d busy (cfg@(p,i,gamma))
   | Set.member cfg busy = Set.empty
@@ -354,7 +364,7 @@ closure d busy (cfg@(p,i,gamma))
 -- for each p,Gamma: get set of alts {i} from (p,-,Gamma) in D Confs
 --getConflictSetsPerLoc ::
 getConflictSetsPerLoc
-  :: forall nt. (Referent nt, Hashable nt, Ord nt)
+  :: forall nt. (Ref nt, Eq (Sym nt), Hashable nt, Ord nt)
   => Set (Configuration nt) -> Set (Set Int)
 getConflictSetsPerLoc d =
   let m = Set.foldr updateEntry (Map.empty) d
@@ -371,7 +381,7 @@ getConflictSetsPerLoc d =
 -- for each p return set of alts i from (p,-,-) in D Confs
 --getProdSetsPerState ::
 getProdSetsPerState
-  :: forall nt. (Referent nt, Hashable nt, Ord nt)
+  :: forall nt. (Ref nt, Eq (Sym nt), Hashable nt, Ord nt)
   => Set (Configuration nt) -> Set (Set Int)
 getProdSetsPerState d =
   let m = Set.foldr updateEntry (Map.empty) d
