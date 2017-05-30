@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, DefaultSignatures #-}
+{-# LANGUAGE FlexibleInstances, DefaultSignatures, UndecidableInstances #-}
 module Text.ANTLR.Pretty where
 import Control.Monad.Trans.State.Lazy
 import qualified Data.Map.Strict as M

@@ -73,7 +73,7 @@ instance (Show s, Show nt, Show t) => Show (Edge s nt t) where
 {- ATNs do not leak the Terminal and NonTerminal abstractions -}
 instance (Eq (Sym nt), Eq (Sym t), Ref nt, Ref t) => Eq (Edge s nt t) where
   NTE nt == NTE nt1 = sameNTs nt nt1
-  TE t == TE t1 = sameTerminals t t1
+  TE t == TE t1 = sameTs t t1
   PE p == PE p1 = p == p1
   ME m == ME m1 = m == m1
   Epsilon == Epsilon = True

@@ -1,12 +1,15 @@
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric #-}
 module Language.Chisel.Tokenizer
   ( Name(..), Value(..), Primitive(..)
   , tokenize
   , lowerID, upperID, prim, int, arrow, lparen, rparen, pound, vertbar, colon
-  , comma, atsymbol, carrot, dot, linecomm, ws
+  , comma, atsymbol, carrot, dot, linecomm, ws, isWhitespace
   ) where
 import qualified Text.ANTLR.Lex.Tokenizer as T
 import Text.ANTLR.Lex.Regex
 import Control.Arrow ( (&&&) )
+import Text.ANTLR.Set (Hashable(..), Generic(..))
+import Text.ANTLR.Pretty
 
 data Name =
     T_LowerID
@@ -25,7 +28,7 @@ data Name =
   | T_Dot
   | T_LineComment
   | T_WS
-  deriving (Eq, Ord, Enum, Show, Bounded)
+  deriving (Eq, Ord, Enum, Show, Bounded, Hashable, Generic, Prettify)
 
 data Value =
     LowerID String
@@ -44,7 +47,7 @@ data Value =
   | Dot
   | LineComment String
   | WS          String
-  deriving (Show)
+  deriving (Show, Ord, Eq, Generic, Hashable, Prettify)
 
 lowerID x = T.Token T_LowerID $   LowerID x
 upperID x = T.Token T_UpperID $   UpperID x
@@ -62,6 +65,11 @@ carrot    = T.Token T_Carrot      Carrot
 dot       = T.Token T_Dot         Dot
 linecomm x = T.Token T_LineComment $ LineComment x
 ws       x = T.Token T_WS          $ WS x
+
+-- TODO: Goes in a Token type class
+isWhitespace (T.Token T_LineComment _) = True
+isWhitespace (T.Token T_WS _) = True
+isWhitespace _ = False
 
 prims = ["page", "pages", "word", "words", "byte", "bytes", "bit", "bits"]
 
@@ -97,7 +105,7 @@ dfaGetName dfa = case filter ((== dfa) . snd) dfas of
   _             -> undefined -- Ambiguous (identical) DFAs found during tokenization
 
 data Primitive = Page | Word | Byte | Bit
-  deriving (Show)
+  deriving (Show, Eq, Ord, Generic, Hashable, Prettify)
 
 lexeme2prim "page"  = Page
 lexeme2prim "pages" = Page

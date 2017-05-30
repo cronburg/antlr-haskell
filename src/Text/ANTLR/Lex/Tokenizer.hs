@@ -1,10 +1,10 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, DeriveAnyClass #-}
 module Text.ANTLR.Lex.Tokenizer where
 import Text.ANTLR.Lex.Automata
 import Text.ANTLR.Lex.DFA
 
 import qualified Text.ANTLR.Set as Set
-import Text.ANTLR.Set (Hashable, member)
+import Text.ANTLR.Set (Hashable, member, Generic(..))
 
 import Text.ANTLR.Pretty
 import qualified Debug.Trace as D
@@ -14,7 +14,7 @@ data Token n v =
     Token n v
   | EOF
   | Error String -- TODO
-  deriving (Show)
+  deriving (Show, Ord, Generic, Hashable)
 
 instance (Prettify n, Prettify v) => Prettify (Token n v) where
   prettify EOF = pStr "EOF"

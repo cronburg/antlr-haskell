@@ -1,7 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses
-  , DeriveGeneric, DeriveAnyClass, TypeFamilies, FlexibleContexts #-}
+  , DeriveGeneric, DeriveAnyClass, TypeFamilies, FlexibleContexts
+  , StandaloneDeriving #-}
 module Text.ANTLR.Allstar.Grammar
-  ( Ref(..), sameNTs, sameTerminals
+  ( Ref(..), sameNTs, sameTs
   , ProdElem(..), ProdElems
   , Production(..), ProdRHS(..), StateFncn(..)
   , Predicate(..), Mutator(..)
@@ -45,11 +46,16 @@ class Ref v where
 compareSymbols :: (Ref ref, Eq (Sym ref)) => ref -> ref -> Bool
 compareSymbols a b = getSymbol a == getSymbol b
 
+-- Nonterminals can be symbolized (for now the types are equivalent, i.e.
+-- nt == Sym nt)
 sameNTs :: forall nt. (Ref nt, Eq (Sym nt)) => nt -> nt -> Bool
 sameNTs = compareSymbols
 
-sameTerminals :: forall t. (Ref t, Eq (Sym t)) => t -> t -> Bool
-sameTerminals = compareSymbols
+-- Terminals can be symbolized (in the current implementation, the input
+-- terminal type to a parser is (t == Token n v) and the terminal symbol type is
+-- (ts == Sym t == n) where n is defined as the name of a token (Token n v).
+sameTs :: forall t. (Ref t, Eq (Sym t)) => t -> t -> Bool
+sameTs = compareSymbols
 
 instance Ref String where
   type Sym String = String
@@ -59,17 +65,34 @@ instance Ref (String, b) where
   type Sym (String, b) = String
   getSymbol = fst
 
--- Grammar ProdElems:
-data ProdElem nt t =
-    NT nt
-  | T  t
+-- Grammar ProdElems. nts == Non Terminal Symbol (type), ts == Terminal Symbol (type)
+-- Production elements are only used in the grammar data structure and parser,
+-- therefore these types (nt and ts) are *not* necessarily equivalent to the
+-- terminal types seen by the tokenizer (nonterminals are special because no one
+-- sees them until after parsing). Also pushing (ts = Sym t) up to the top of
+-- data constructors gets rid of a lot of unnecessary standalone deriving
+-- instances. Standalone deriving instances in this case are a programming
+-- anti-pattern for allowing you to improperly parametrize your types. In this
+-- case a ProdElem cares about the *terminal symbol type*, not the *terminal
+-- token type*. In fact it's redundant to say "terminal token" because all
+-- tokens are terminals in the grammar. A token is by definition a tokenized
+-- *value* with a *named* terminal symbol, which is in fact exactly what the
+-- Token type looks like in Text.ANTLR.Lex.Tokenizer: Token n v (name and
+-- value). So wherever I see an 'n' type variable in the tokenizer, this is
+-- equivalent to (Sym t) in the parser. And wherever I see a (Token n v) in the
+-- tokenizer, this gets passed into the parser as 't':
+-- - n           == Sym t
+-- - (Token n v) == t
+data ProdElem nts ts =
+    NT nts
+  | T  ts
   | Eps
   deriving (Eq, Ord, Generic, Hashable, Show)
 
-instance (Prettify nt, Prettify t) => Prettify (ProdElem nt t) where
-  prettify (NT nt) = prettify nt
-  prettify (T   t) = prettify  t
-  prettify Eps     = pStr "ε"
+instance (Prettify nts, Prettify ts) => Prettify (ProdElem nts ts) where
+  prettify (NT nts) = prettify nts
+  prettify (T  ts)  = prettify  ts
+  prettify Eps      = pStr "ε"
 
 isNT (NT _) = True
 isNT _      = False
@@ -84,7 +107,7 @@ getNTs = map (\(NT nt) -> nt) . filter isNT
 getTs  = map (\(T t) -> t) . filter isT
 getEps = map (\Eps -> Eps) . filter isEps -- no
 
-type ProdElems nt t = [ProdElem nt t]
+type ProdElems nts ts = [ProdElem nts ts]
 
 data StateFncn s =
     Pass                   -- No predicate or mutator
@@ -97,10 +120,10 @@ instance Prettify (StateFncn s) where
   prettify (Sem p)    = prettify p
   prettify (Action a) = prettify a
 
-data ProdRHS s nt t = Prod (StateFncn s) (ProdElems nt t)
+data ProdRHS s nts ts = Prod (StateFncn s) (ProdElems nts ts)
   deriving (Eq, Ord, Generic, Hashable, Show)
 
-instance (Prettify s, Prettify nt, Prettify t) => Prettify (ProdRHS s nt t) where
+instance (Prettify s, Prettify nts, Prettify ts) => Prettify (ProdRHS s nts ts) where
   prettify (Prod sf ps) = do
     prettify sf
     prettify ps
@@ -113,12 +136,12 @@ isAction _ = False
 
 getProds = map (\(Prod _ ss) -> ss)
 
-data Production s nt t = Production nt (ProdRHS s nt t)
+data Production s nts ts = Production nts (ProdRHS s nts ts)
   deriving (Eq, Ord, Generic, Hashable)
 
-instance (Prettify s, Prettify nt, Prettify t) => Prettify (Production s nt t) where
-  prettify (Production nt (Prod sf ps)) = do
-    len <- pCount nt
+instance (Prettify s, Prettify nts, Prettify ts) => Prettify (Production s nts ts) where
+  prettify (Production nts (Prod sf ps)) = do
+    len <- pCount nts
     -- Put the indentation level after the nonterminal, or just incr by 2 if
     -- lazy...
     incrIndent (len + 4)
@@ -127,22 +150,20 @@ instance (Prettify s, Prettify nt, Prettify t) => Prettify (Production s nt t) w
     prettify ps
     incrIndent (-4)
 
-instance (Show s, Show nt, Show t) => Show (Production s nt t) where
-  show (Production nt rhs) = show nt ++ " -> " ++ show rhs
+instance (Show s, Show nts, Show ts) => Show (Production s nts ts) where
+  show (Production nts rhs) = show nts ++ " -> " ++ show rhs
 
-getRHS :: Production s nt t -> ProdRHS s nt t
+getRHS :: Production s nts ts -> ProdRHS s nts ts
 getRHS (Production lhs rhs) = rhs
 
-getLHS :: Production s nt t -> nt
+getLHS :: Production s nts ts -> nts
 getLHS (Production lhs rhs) = lhs
 
--- Get only the productions for the given nonterminal nt:
-prodsFor ::
-  forall s nt t. (Ref nt, Ref t, Eq (Sym nt))
-  => Grammar s nt t -> nt -> [Production s nt t]
-prodsFor g nt = let
-    matchesNT :: Production s nt t -> Bool
-    matchesNT (Production nt' _) = sameNTs nt' nt
+-- Get only the productions for the given nonterminal symbol nts:
+prodsFor :: forall s nts ts. (Eq nts) => Grammar s nts ts -> nts -> [Production s nts ts]
+prodsFor g nts = let
+    matchesNT :: Production s nts t -> Bool
+    matchesNT (Production nts' _) = nts' == nts
   in filter matchesNT (ps g)
 
 -- TODO: boiler plate auto deriving for "named" of a user defined type?
@@ -186,16 +207,17 @@ instance Show (Mutator s) where
 instance Hashable (Mutator s) where
   hashWithSalt salt (Mutator m1 _) = salt `hashWithSalt` m1
 
-data Grammar s nt t = G
-  { ns  :: Set nt
-  , ts  :: Set t
-  , ps  :: [Production s nt t]
-  , s0  :: nt
+data Grammar s nts ts = G
+  { ns  :: Set nts
+  , ts  :: Set ts
+  , ps  :: [Production s nts ts]
+  , s0  :: nts
   , _πs :: Set (Predicate s)
   , _μs :: Set (Mutator   s)
   } deriving (Show)
 
-instance (Eq s, Eq nt, Eq t, Hashable nt, Hashable t, Prettify s, Prettify nt, Prettify t) => Eq (Grammar s nt t) where
+instance (Eq s, Eq nts, Eq ts, Hashable nts, Hashable ts, Prettify s, Prettify nts, Prettify ts)
+  => Eq (Grammar s nts ts) where
   g1 == g2 = ns g1 == ns g2
           && ts g1 == ts g2
           && eqLists (nub $ ps g1) (nub $ ps g2)
@@ -208,8 +230,8 @@ eqLists [] vs = False
 eqLists vs [] = False
 eqLists (v1:vs) vs2 = eqLists vs (filter (/= v1) vs2)
 
-instance (Prettify s, Prettify nt, Prettify t, Hashable t, Eq t, Hashable nt, Eq nt, Ord t, Ord nt)
-  => Prettify (Grammar s nt t) where
+instance (Prettify s, Prettify nts, Prettify ts, Hashable ts, Eq ts, Hashable nts, Eq nts, Ord ts, Ord nts)
+  => Prettify (Grammar s nts ts) where
   prettify G {ns = ns, ts = ts, ps = ps, s0 = s0, _πs = _πs, _μs = _μs} = do
     pLine "Grammar:"
     pStr "{ "
@@ -224,26 +246,25 @@ instance (Prettify s, Prettify nt, Prettify t, Hashable t, Eq t, Hashable nt, Eq
     pStr "}"
 
 symbols
-  :: (Ref nt, Ref t, Ord nt, Ord t, Hashable s, Hashable nt, Hashable t)
-  => Grammar s nt t -> Set (ProdElem nt t)
+  :: (Ord nts, Ord ts, Hashable s, Hashable nts, Hashable ts)
+  => Grammar s nts ts -> Set (ProdElem nts ts)
 symbols g = S.insert Eps $ S.map NT (ns g) `union` S.map T (ts g)
 
 defaultGrammar
-  :: forall s nt t. (Ord t, Hashable t)
-  => Grammar s String t
+  :: forall s nts ts. (Ord ts, Hashable ts, Hashable nts, Eq nts)
+  => Grammar s nts ts
 defaultGrammar = G
   { ns  = empty
   , ts  = empty
   , ps  = []
-  , s0  = ""
   , _πs = empty
   , _μs = empty
   }
 
 validGrammar
-  :: forall s nt t.
-  (Ref nt, Ref t, Eq nt, Ord nt, Eq t, Ord t, Hashable nt, Hashable t)
-  => Grammar s nt t -> Bool
+  :: forall s nts ts.
+  (Eq nts, Ord nts, Eq ts, Ord ts, Hashable nts, Hashable ts)
+  => Grammar s nts ts -> Bool
 validGrammar g =
      hasAllNonTerms g
   && hasAllTerms g
@@ -251,20 +272,20 @@ validGrammar g =
 --  && distinctTermsNonTerms g
 
 hasAllNonTerms
-  :: (Ref nt, Ref t, Eq nt, Ord nt, Hashable nt, Hashable t)
-  => Grammar s nt t -> Bool
+  :: (Eq nts, Ord nts, Hashable nts, Hashable ts)
+  => Grammar s nts ts -> Bool
 hasAllNonTerms g =
   ns g == (fromList . getNTs . concat . getProds . map getRHS $ ps g)
 
 hasAllTerms
-  :: (Ref nt, Ref t, Eq t, Ord t, Hashable nt, Hashable t)
-  => Grammar s nt t -> Bool
+  :: (Eq ts, Ord ts, Hashable nts, Hashable ts)
+  => Grammar s nts ts -> Bool
 hasAllTerms g =
   ts g == (fromList . getTs . concat . getProds . map getRHS $ ps g)
 
 startIsNonTerm
-  :: (Ref nt, Ref t, Ord nt, Hashable nt)
-  => Grammar s nt t -> Bool
+  :: (Ord nts, Hashable nts)
+  => Grammar s nts ts -> Bool
 startIsNonTerm g = s0 g `member` ns g
 
 --distinctTermsNonTerms g =

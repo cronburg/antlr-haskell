@@ -4,6 +4,7 @@ import Test.Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.LR1
 import Text.ANTLR.Parser
+import qualified Text.ANTLR.Lex.Tokenizer as T
 
 import Text.ANTLR.Set (fromList, union, empty, Set(..), (\\))
 import qualified Text.ANTLR.Set as S
@@ -212,17 +213,16 @@ testLRRecognize =
   True
 
 testLRRecognize2 =
-  slrRecognize grm (map Icon ["id", "*", "id", "+", "+"] ++ [IconEOF])
+  slrRecognize grm ["id", "*", "id", "+", "+", ""]
   @?=
   False
 
 type LRAST = AST LR1NonTerminal LR1Terminal
 
 action0 :: ParseEvent LRAST LR1NonTerminal LR1Terminal -> LRAST
-action0 (TermE (Icon t))    = Leaf t
-action0 (TermE IconEps)      = LeafEps
---action0 (TermE IconEOF)       = LeafIconEOF
-action0 (NonTE (nt, ss, asts)) = AST nt ss asts
+action0 (TermE "")              = LeafEps
+action0 (TermE t)               = Leaf t
+action0 (NonTE (nt, ss, asts))  = AST nt ss asts
 
 testLRParse =
   slrParse grm action0 w0
@@ -241,11 +241,11 @@ testLRParse =
       ])
 
 testLRParse2 =
-  slrParse grm action0 (map Icon ["id", "*", "id", "+", "+"] ++ [IconEOF])
+  slrParse grm action0 ["id", "*", "id", "+", "+", ""]
   @?=
   Nothing
 
-w0 = map Icon ["id", "*", "id", "+", "id"] ++ [IconEOF]
+w0 = ["id", "*", "id", "+", "id", ""]
 
 testLR1Table =
   lr1Table dragonBook455

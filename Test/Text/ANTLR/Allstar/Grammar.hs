@@ -1,19 +1,25 @@
-{-# LANGUAGE ExplicitForAll #-}
+{-# LANGUAGE ExplicitForAll, DeriveAnyClass, DeriveGeneric #-}
 module Test.Text.ANTLR.Allstar.Grammar where
-import Text.ANTLR.Set (fromList, member, (\\), empty)
+import Text.ANTLR.Set (fromList, member, (\\), empty, Generic(..), Hashable(..))
 import Text.ANTLR.Allstar.Grammar
 
-mattToolG :: Grammar () String String
-mattToolG = (defaultGrammar :: Grammar () String String)
-  { ns = fromList ["A", "B", "C"]
-  , ts = fromList ["a", "b", "c"]
-  , s0 = "C"
+data NS0 = A  | B  | C  deriving (Eq, Ord, Generic, Hashable)
+data TS0 = A_ | B_ | C_ deriving (Eq, Ord, Generic, Hashable)
+a = A_
+b = B_
+c = C_
+
+mattToolG :: Grammar () NS0 TS0
+mattToolG = (defaultGrammar :: Grammar () NS0 TS0)
+  { ns = fromList [A, B, C]
+  , ts = fromList [a, b, c]
+  , s0 = C
   , ps =
-          [ Production "A" $ Prod Pass [T "a", T "b"]
-          , Production "A" $ Prod Pass [T "a"]
-          , Production "B" $ Prod Pass [NT "A", T "b"]
-          , Production "B" $ Prod Pass [T "b"]
-          , Production "C" $ Prod Pass [NT "A", NT "B", NT "C"]
+          [ Production A $ Prod Pass [T a, T b]
+          , Production A $ Prod Pass [T a]
+          , Production B $ Prod Pass [NT A, T b]
+          , Production B $ Prod Pass [T b]
+          , Production C $ Prod Pass [NT A, NT B, NT C]
           ]
   }
 

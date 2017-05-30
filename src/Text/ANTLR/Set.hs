@@ -3,7 +3,7 @@ module Text.ANTLR.Set
   ( Set, null, size, member, notMember
   , empty, singleton, insert, delete, union, unions
   , difference, intersection, filter, map, foldr, foldl', fold
-  , toList, fromList, (\\), findMin
+  , toList, fromList, (\\), findMin, maybeMin
   , Hashable(..), Generic(..)
   ) where
 --import Data.Set.Monad
@@ -199,4 +199,9 @@ fromList as = Prim (S.fromList as)
 
 findMin :: (Ord a, Hashable a) => Set a -> a
 findMin = minimum . toList
+
+maybeMin :: (Ord a, Hashable a) => Set a -> Maybe a
+maybeMin as
+  | size as == 0 = Nothing
+  | otherwise    = Just $ findMin as
 

@@ -75,6 +75,7 @@ library
                   , Language.ANTLR4.FileOpener
                   
                   , Language.Chisel.Tokenizer
+                  , Language.Chisel.Parser
 
   -- Modules included in this library but not exported.
   -- other-modules:
@@ -221,8 +222,9 @@ Test-Suite test-Allstar
 Test-Suite Chisel
   Type:             exitcode-stdio-1.0
   Main-Is:          Test/Language/Chisel.hs
+  other-modules:    Test.Text.ANTLR.HUnit
   build-depends:    base
-                  , ANTLR4, set-monad
+                  , ANTLR4, set-monad, deepseq, call-stack
                   , QuickCheck
                   , HUnit
                   , Cabal

@@ -3,6 +3,8 @@ module Main where
 -- Project imports go here, e.g.:
 import Language.Chisel.Tokenizer
 import Text.ANTLR.Lex.Tokenizer (Token(..))
+import Text.ANTLR.Parser (AST(..))
+import Language.Chisel.Parser
 import Language.ANTLR4.FileOpener (open)
 
 import System.IO.Unsafe (unsafePerformIO)
@@ -10,9 +12,12 @@ import Data.Monoid
 import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
-import Test.HUnit
+import Test.HUnit hiding ((@?=), assertEqual) 
 import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
+
+import Test.Text.ANTLR.HUnit
+import Debug.Trace as D
 
 chi = id
 
@@ -91,9 +96,23 @@ tokenizeGHC2 =
   @?=
   []
 
+tokenizeSmall = tokenize "Foo x -> Bar"
+
+parseTest =
+  parse tokenizeSmall
+  @?=
+  Just LeafEps
+
+parseGHCTestBig =
+  parse tokenizeGHC_val
+  @?=
+  Just LeafEps -- TODO
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "Tokenize GHC" tokenizeGHC
   , testCase "Tokenize GHC2" tokenizeGHC2
+  , testCase "Parse Test" parseTest
+  , testCase "Parse GHC"  parseGHCTestBig
   ] mempty
 
