@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Main where
 import Test.Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.Grammar
@@ -106,16 +107,19 @@ parseTableTest =
 
 type LLAST = AST LL1NonTerminal LL1Terminal
 
-action0 EpsE                    = LeafEps
-action0 (TermE (Icon t))        = Leaf t
-action0 (NonTE (nt, ss, us))    = AST nt ss us
+action0 EpsE                  = LeafEps
+action0 (TermE t)             = Leaf t
+action0 (NonTE (nt, ss, us))  = AST nt ss us
 
+action1 ::
+  (Prettify t, Prettify (StripEOF (Sym t)), Prettify nts)
+  => ParseEvent (AST nts t) nts t -> AST nts t
 action1 (NonTE (nt, ss, trees)) = uPIO (putStrLn $ pshow ("Act:", nt, ss, trees)) `seq` action0 $ NonTE (nt,ss,trees)
 action1 (TermE x) = uPIO (putStrLn $ pshow ("Act:", x)) `seq` action0 $ TermE x
 action1 EpsE      = action0 EpsE
 
 dragonPredParse =
-  (predictiveParse grm action0 $ map Icon ["id", "+", "id", "*", "id"] ++ [IconEOF])
+  predictiveParse grm action0 ["id", "+", "id", "*", "id", ""]
   @?=
   (Just $ AST "E" [NT "T", NT "E'"]
             [ AST "T" [NT "F", NT "T'"]

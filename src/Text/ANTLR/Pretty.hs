@@ -33,10 +33,14 @@ type PrettyM val = State PState val
 type Pretty = PrettyM ()
 
 class Prettify t where
-  prettify :: t -> Pretty
+  {-# MINIMAL prettify #-}
 
+  prettify :: t -> Pretty
   default prettify :: (Show t) => t -> Pretty
   prettify = rshow
+
+  prettifyList :: [t] -> Pretty
+  prettifyList = prettifyList_
 
 -- Initial Pretty state
 initPState = PState
@@ -165,13 +169,14 @@ instance (Prettify v) => Prettify (Maybe v) where
   prettify Nothing  = pStr "Nope"
   prettify (Just v) = pStr "Yep" >> pParens (prettify v)
 
+prettifyList_ [] = pStr "[]"
+prettifyList_ vs = do
+  pStr "["
+  sepBy (pStr ", ") (map prettify vs)
+  pStr "]"
+
 instance (Prettify v) => Prettify [v] where
-  -- TODO: Specialise instance for Strings
-  prettify [] = pStr "[]"
-  prettify vs = do
-    pStr "["
-    sepBy (pStr ", ") (map prettify vs)
-    pStr "]"
+  prettify = prettifyList 
 
 -- TODO: template haskell-ify for larger tuples
 instance (Prettify a, Prettify b) => Prettify (a,b) where
@@ -209,7 +214,10 @@ sepBy s (v:vs) = foldl (_sepBy s) v vs
 
 _sepBy s ma mb = ma >> s >> mb 
 
-instance Prettify Char where prettify = pChr
+instance Prettify Char where
+  prettify = pChr
+  prettifyList = pStr
+
 instance Prettify () where prettify = rshow
 instance Prettify Bool where prettify = rshow
 instance Prettify Int where prettify = rshow

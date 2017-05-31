@@ -201,14 +201,21 @@ instance (Prettify ast, Prettify nts, Prettify sts) => Prettify (TreeNode ast nt
     prettify ast
     pStr ")"
   prettify (InComp nts es asts i) = pParens $ do
-    pStr "Incomplete "
+    pStr "InComp"
+    incrIndent 2
+    pLine ""
+    pStr "nts="
     prettify nts
-    pStr " "
+    pLine ""
+    pStr "es="
     prettify es
-    pStr " "
+    pLine ""
+    pStr "asts="
     prettify asts
-    pStr " "
+    pLine ""
+    pStr "i="
     prettify i
+    incrIndent (-2)
 
 -- A stack tree is a list of tree nodes with terminal *tokens* (not terminal
 -- symbols)
@@ -268,19 +275,22 @@ predictiveParse g act w0 = let
     --         intermixed (in proper order) with the Terminals in the production
     --         rule for which we reduced the NonTerminal in question.
     parse' :: [t] -> ProdElems nts (StripEOF (Sym t)) -> StackTree ast nts (Sym t) -> Maybe (StackTree ast nts (Sym t)) --Maybe ast
+    parse' [] [] asts                        = Just asts  -- Success? (TODO - EOF assumed on empty input)
     parse' [t] [] asts | isEOF $ getSymbol t = Just asts  -- Success!
     parse' _   [] asts  = Nothing    -- Parse failure because no end of input found
     parse' (a:ws) (T x:xs) asts
       | stripEOF (getSymbol a) == Just x = parse' ws xs $ pushStack (T a) [] asts
       | otherwise  = Nothing
     parse' ws@(a:_) (NT _X:xs) asts = do
-      sym <- stripEOF $ getSymbol a
-      ss  <- ((_X, Icon sym) `M.lookup` _M)
+      let sym  = getSymbol a
+      sym' <- if isEOF sym then Just IconEOF else Icon <$> stripEOF (getSymbol a)
+      ss  <- (_X, sym') `M.lookup` _M
+      --D.traceM $ "ss=" ++ pshow ss
       ss' <- maybeMin ss
+      --D.traceM $ "ss'=" ++ pshow ss'
       parse' ws (ss' ++ xs) (pushStack (NT _X) ss' asts)
     parse' ws (Eps:xs) asts = parse' ws xs (pushStack Eps [] asts)
-    parse' ws xs asts =
-      uPIO (putStrLn $ pshow ws ++ pshow xs ++ pshow asts) `seq` undefined
+    parse' ws xs asts = D.trace ("Bug in parser: " ++ pshow (ws, xs, asts)) Nothing -- Bug in parser
 
   in do asts <- parse' w0 [NT $ s0 g] []
         case asts of
