@@ -31,7 +31,7 @@ type ChiselAST = AST ChiselNTS ChiselToken
 type ChiselToken = T.Token ChiselTS Value
 
 chiselGrammar :: Grammar () ChiselNTS ChiselTS
-chiselGrammar = G
+chiselGrammar = (defaultGrammar ChiselProd :: Grammar () ChiselNTS ChiselTS)
   { ns = S.fromList [ChiselProd .. maxBound :: ChiselNTS]
   , ts = S.fromList [T_LowerID .. maxBound :: ChiselTS]
   , s0 = ChiselProd

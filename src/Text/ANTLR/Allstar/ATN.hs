@@ -6,6 +6,7 @@ import Text.ANTLR.Allstar.Grammar
 --import Text.ANTLR.Allstar.GSS hiding (Edge, Node)
 import Text.ANTLR.Allstar.Stacks
 import Text.ANTLR.Set (Set(..), empty, fromList, toList)
+import Text.ANTLR.Pretty
 
 type Gamma nt = Stacks (ATNState nt)
 
@@ -15,12 +16,14 @@ data ATN s nt t = ATN
   -- equality.
   -- _Σ :: Set (Edge s)
   { _Δ :: Set (Transition s nt t) }
+  deriving (Eq, Ord, Show)
 
-deriving instance (Hashable nt, Hashable t, Ref nt, Ref t, Eq (Sym nt), Eq (Sym t), Eq s, Eq nt, Eq t) => Eq (ATN s nt t)
-deriving instance (Hashable nt, Hashable t, Ref nt, Ref t, Eq (Sym nt), Eq (Sym t), Ord s, Ord nt, Ord t, Ord (ATNState nt)) => Ord (ATN s nt t)
-
-instance (Eq (Sym nt), Eq (Sym t), Show s, Ref nt, Ref t, Hashable nt, Hashable t, Show nt, Show t) => Show (ATN s nt t) where
-  show ATN {_Δ = _Δ} = "\n[" ++ (concatMap (\s -> "\n, " ++ show s) (toList _Δ)) ++ "\n]"
+instance (Prettify s, Prettify nt, Prettify t, Hashable nt, Hashable t, Eq nt, Eq t) => Prettify (ATN s nt t) where
+  prettify atn = do
+    pLine "_Δ:"
+    incrIndent 4
+    prettify $ _Δ atn
+    incrIndent (-4)
 
 -- Tuple corresponding to a distinct transition in the ATN:
 type Transition s nt t = (ATNState nt, Edge s nt t, ATNState nt)
@@ -29,21 +32,19 @@ type Transition s nt t = (ATNState nt, Edge s nt t, ATNState nt)
 data ATNState nt  = Start  nt
                   | Middle nt Int Int
                   | Accept nt
-  deriving (Generic, Hashable)
+  deriving (Eq, Generic, Hashable, Ord, Show)
 
-deriving instance (Ord nt, Eq (Sym nt), Ref nt) => Ord (ATNState nt)
-
-instance (Show nt) => Show (ATNState nt) where
-  show (Start nt)         = "s_"  ++ show nt
-  show (Middle nt i0 i1)  = "m_{" ++ show nt ++ "," ++ show i0 ++ "," ++ show i1 ++ "}"
-  show (Accept nt)        = "a_"  ++ show nt
-
-{- ATNs do not leak the Terminal and NonTerminal abstractions -}
-instance (Eq (Sym nt), Ref nt) => Eq (ATNState nt) where
-  Start nt == Start nt1             = sameNTs nt nt1
-  Middle nt x y == Middle nt1 x1 y1 = sameNTs nt nt1 && x == x1 && y == y1
-  Accept nt == Accept nt1           = sameNTs nt nt1
-  x == y                            = False
+-- LaTeX style ATN states. TODO: check length of NT printed and put curly braces
+-- around it if more than one character.
+instance (Prettify nt) => Prettify (ATNState nt) where
+  prettify (Start nt)  = pStr "p_"  >> prettify nt
+  prettify (Accept nt) = pStr "p'_" >> prettify nt
+  prettify (Middle nt i j) = do
+    pStr "p_{"
+    prettify i
+    pStr ","
+    prettify j
+    pStr "}"
 
 sigma :: ATN s nt t -> [Edge s nt t]
 sigma = undefined
@@ -59,29 +60,22 @@ data Edge s nt t = NTE nt
                  | PE  (Predicate s)
                  | ME  (Mutator   s)
                  | Epsilon
-  deriving (Generic, Hashable)
+  deriving (Eq, Generic, Hashable, Ord, Show)
 
-deriving instance (Ord s, Ord nt, Ord t, Eq (Sym nt), Eq (Sym t), Ref nt, Ref t) => Ord (Edge s nt t)
-
-instance (Show s, Show nt, Show t) => Show (Edge s nt t) where
-  show (NTE nt) = "E(" ++ show nt ++ ")"
-  show (TE   t) = "E(" ++ show t  ++ ")"
-  show (PE   p) = "E(" ++ show p  ++ ")"
-  show (ME   m) = "E(" ++ show m  ++ ")"
-  show Epsilon  = "E(ϵ)"
-
-{- ATNs do not leak the Terminal and NonTerminal abstractions -}
-instance (Eq (Sym nt), Eq (Sym t), Ref nt, Ref t) => Eq (Edge s nt t) where
-  NTE nt == NTE nt1 = sameNTs nt nt1
-  TE t == TE t1 = sameTs t t1
-  PE p == PE p1 = p == p1
-  ME m == ME m1 = m == m1
-  Epsilon == Epsilon = True
-  x == y = False
+instance (Prettify s, Prettify nt, Prettify t) => Prettify (Edge s nt t) where
+  prettify x = do
+    pStr "--"
+    case x of
+      NTE nt -> prettify nt
+      TE   t -> prettify t
+      PE   p -> prettify p
+      ME   m -> prettify m
+      Epsilon -> pStr "ε"
+    pStr "-->"
 
 -- atnOf :: Grammar -> (ATNState,Edge) -> Maybe ATNState
 atnOf
-  :: forall nt t s. (Ref nt, Ref t, Hashable nt, Hashable t, Eq (Sym nt), Eq (Sym t))
+  :: forall nt t s. (Eq nt, Eq t, Hashable nt, Hashable t)
   => Grammar s nt t -> ATN s nt t
 atnOf g = let
 

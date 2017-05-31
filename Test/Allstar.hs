@@ -5,10 +5,11 @@ module Main where
   import Test.Framework
   import Test.Framework.Providers.HUnit
   import Test.Framework.Providers.QuickCheck2
-  import Test.HUnit
+  import Test.HUnit hiding ((@?=), assertEqual)
   import Test.QuickCheck (Property, quickCheck, (==>))
   import qualified Test.QuickCheck.Monadic as TQM
   import Test.Text.ANTLR.Allstar.Grammar
+  import Test.Text.ANTLR.HUnit
 
   import Text.ANTLR.Allstar.ATN
   import Text.ANTLR.Allstar.Stacks (Stacks(..))
@@ -17,52 +18,54 @@ module Main where
   import Text.ANTLR.Set (Set(..), fromList)
   import qualified Text.ANTLR.Set as Set
 
-  getATN' :: ParserS () String String String (ATN () String String)
+  getATN' :: ParserS () NS0 TS0 String (ATN () NS0 TS0)
   getATN' = getATN
 
   test_closure_01 = actual @?= expected
     where
-      actual :: Set (Configuration String)
+      actual :: Set (Configuration NS0)
       (actual,_) =
         runState (do
           ATN {_Δ = d} <- getATN'
-          return $ closure d Set.empty (Start "C", 0, Empty))
+          return $ closure d Set.empty (Start C, 0, Empty))
           ( Parser { g = mattToolG})
-      expected :: Set (Configuration String)
+      expected :: Set (Configuration NS0)
       expected   =
-        fromList [(Start "A",0,Stacks (fromList [[Middle "C" 4 1]]))
-                 ,(Start "C",0,Empty)
-                 ,(Middle "A" 0 0,0,Stacks (fromList [[Middle "C" 4 1]]))
-                 ,(Middle "A" 1 0,0,Stacks (fromList [[Middle "C" 4 1]]))
-                 ,(Middle "C" 4 0,0,Empty)
+        fromList [(Start A,0,Stacks (fromList [[Middle C 4 1]]))
+                 ,(Start C,0,Empty)
+                 ,(Middle A 0 0,0,Stacks (fromList [[Middle C 4 1]]))
+                 ,(Middle A 1 0,0,Stacks (fromList [[Middle C 4 1]]))
+                 ,(Middle C 4 0,0,Empty)
                  ]
+  
   test_move_01 = actual @?= expected
     where
       (actual,_) =
         runState
           (do
             ATN {_Δ = d} <-  getATN'
-            let epsilon_closure = closure d Set.empty (Start "C",0,Empty)
-            move epsilon_closure "a"
+            let epsilon_closure = closure d Set.empty (Start C,0,Empty)
+            move epsilon_closure a
           )
           ( Parser { g = mattToolG})
-      expected :: Set (Configuration String)
-      expected = fromList [(Middle "A" 0 1,0,Empty)
-                          ,(Middle "A" 0 1,0,Stacks (fromList [[Middle "C" 4 1]]))
-                          ,(Middle "A" 1 1,0,Empty)
-                          ,(Middle "A" 1 1,0,Stacks (fromList [[Middle "C" 4 1]]))
+      expected :: Set (Configuration NS0)
+      expected = fromList [(Middle A 0 1,0,Empty)
+                          ,(Middle A 0 1,0,Stacks (fromList [[Middle C 4 1]]))
+                          ,(Middle A 1 1,0,Empty)
+                          ,(Middle A 1 1,0,Stacks (fromList [[Middle C 4 1]]))
                           ]
 
   test_conflict_01 = actual @?= expected
     where
       actual = getConflictSetsPerLoc $
-                 fromList [(Middle "A" 0 1,2,Empty)
-                          ,(Middle "A" 0 1,5,Empty)
-                          ,(Start  "S"    ,0,Empty)
+                 fromList [(Middle A 0 1,2,Empty)
+                          ,(Middle A 0 1,5,Empty)
+                          ,(Start  C    ,0,Empty)
                           ]
       expected =
         fromList [ fromList [2,5]
                  , fromList [0] ]
+  
   -- from the paper, pg 10
   test_conflict_02 = actual @?= expected
    where

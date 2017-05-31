@@ -9,7 +9,7 @@ import System.IO.Unsafe (unsafePerformIO)
 -- 'Adaptive LL(*) Parsing: The Power of Dynamic Analysis'
 -- paper, namely the expected transitions based on Figures
 -- 5 through 8:
-paperATNGrammar = (defaultGrammar :: Grammar () String String)
+paperATNGrammar = (defaultGrammar "C" :: Grammar () String String)
   { ns = fromList ["S", "A"]
   , ts = fromList ["a", "b", "c", "d"]
   , s0 = "C"

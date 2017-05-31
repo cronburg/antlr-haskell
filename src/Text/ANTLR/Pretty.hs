@@ -2,6 +2,7 @@
 module Text.ANTLR.Pretty where
 import Control.Monad.Trans.State.Lazy
 import qualified Data.Map.Strict as M
+import Data.Data (toConstr, Data(..))
 
 {- I want to have something like Show whereby every time I add a new type to the
  - system, I can implement a function that gets called by existing code which
@@ -221,4 +222,12 @@ instance Prettify Char where
 instance Prettify () where prettify = rshow
 instance Prettify Bool where prettify = rshow
 instance Prettify Int where prettify = rshow
+
+--class BoundedEnum a where
+--  showConstr :: a -> String
+  --default showConstr :: (Data a) => a -> String
+  --showConstr = show . toConstr
+
+--instance (BoundedEnum a) => Prettify a where
+--  prettify a = show $ toConstr a
 

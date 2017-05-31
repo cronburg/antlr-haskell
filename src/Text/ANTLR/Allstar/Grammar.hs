@@ -252,13 +252,14 @@ symbols g = S.insert Eps $ S.map NT (ns g) `union` S.map T (ts g)
 
 defaultGrammar
   :: forall s nts ts. (Ord ts, Hashable ts, Hashable nts, Eq nts)
-  => Grammar s nts ts
-defaultGrammar = G
+  => nts -> Grammar s nts ts
+defaultGrammar start = G
   { ns  = empty
   , ts  = empty
   , ps  = []
   , _πs = empty
   , _μs = empty
+  , s0  = start
   }
 
 validGrammar

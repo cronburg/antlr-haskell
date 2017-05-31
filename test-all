@@ -8,6 +8,6 @@ stack test ANTLR4:test-Template \
   && stack test ANTLR4:LL1 \
   && stack test ANTLR4:LR1 \
   && stack test ANTLR4:lexer \
-  && stack test ANTLR4:test-Allstar --ghc-options "-Wnomissing-fields" \
+  && stack test ANTLR4:test-Allstar \
   && stack test ANTLR4:Chisel \
 

@@ -140,7 +140,7 @@ dragonPredParse =
                 ]
             ])
 
-singleLang = (defaultGrammar :: Grammar () String Char)
+singleLang = (defaultGrammar "S" :: Grammar () String Char)
   { s0 = "S"
   , ns = fromList ["S", "X"]
   , ts = fromList ['a']
@@ -180,7 +180,7 @@ testRemoveEpsilons2 =
 
 testRemoveEpsilons3 =
   removeEpsilons dragonBook428
-  @?= (defaultGrammar :: Grammar () String String)
+  @?= (defaultGrammar "E" :: Grammar () String String)
     { ns = fromList ["E", "E'", "T", "T'", "F"]
     , ts = fromList ["+", "*", "(", ")", "id"]
     , s0 = "E"
@@ -195,7 +195,7 @@ testRemoveEpsilons3 =
            ]
     } 
 
-leftGrammar0 = (defaultGrammar :: Grammar () String String)
+leftGrammar0 = (defaultGrammar 'S' :: Grammar () Char String)
   { ns = fromList "SABC"
   , ts = fromList "defg"
   , s0 = 'S'

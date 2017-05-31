@@ -14,17 +14,18 @@ import Text.ANTLR.Set
   )
 import qualified Text.ANTLR.Set as Set
 import Data.List (nub)
+import Text.ANTLR.Pretty
 
 data Stacks a =
     Empty
   | Wildcard
   | Stacks (Set [a])
-  deriving (Eq, Ord, Generic, Hashable)
+  deriving (Eq, Ord, Generic, Hashable, Show)
 
-instance (Show a, Hashable a, Eq a) => Show (Stacks a) where
-  show Empty      = "[]"
-  show Wildcard   = "#"
-  show (Stacks s) = show s
+instance (Prettify a, Hashable a, Eq a) => Prettify (Stacks a) where
+  prettify Empty      = pStr "[]"
+  prettify Wildcard   = pStr "#"
+  prettify (Stacks s) = prettify s
 
 (#) = Wildcard
 

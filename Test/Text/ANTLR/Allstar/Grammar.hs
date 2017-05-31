@@ -1,16 +1,31 @@
-{-# LANGUAGE ExplicitForAll, DeriveAnyClass, DeriveGeneric #-}
+{-# LANGUAGE ExplicitForAll, DeriveAnyClass, DeriveGeneric, TypeFamilies
+ , DeriveDataTypeable #-}
 module Test.Text.ANTLR.Allstar.Grammar where
 import Text.ANTLR.Set (fromList, member, (\\), empty, Generic(..), Hashable(..))
 import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Pretty
+import Data.Data (toConstr, Data(..))
 
-data NS0 = A  | B  | C  deriving (Eq, Ord, Generic, Hashable)
-data TS0 = A_ | B_ | C_ deriving (Eq, Ord, Generic, Hashable)
+data NS0 = A  | B  | C  deriving (Eq, Ord, Generic, Hashable, Bounded, Enum, Show, Data)
+data TS0 = A_ | B_ | C_ deriving (Eq, Ord, Generic, Hashable, Bounded, Enum, Show, Data)
 a = A_
 b = B_
 c = C_
 
+-- TODO: boilerplate identity type classes for bounded enums
+instance Ref NS0 where
+  type Sym NS0 = NS0
+  getSymbol = id
+instance Ref TS0 where
+  type Sym TS0 = TS0
+  getSymbol = id
+instance Prettify NS0 where prettify = rshow . toConstr
+instance Prettify TS0 where prettify = rshow . toConstr
+dG :: Grammar () NS0 TS0
+dG = defaultGrammar C
+
 mattToolG :: Grammar () NS0 TS0
-mattToolG = (defaultGrammar :: Grammar () NS0 TS0)
+mattToolG = dG
   { ns = fromList [A, B, C]
   , ts = fromList [a, b, c]
   , s0 = C
@@ -23,8 +38,11 @@ mattToolG = (defaultGrammar :: Grammar () NS0 TS0)
           ]
   }
 
+dG' :: Grammar () String String
+dG' = defaultGrammar "A"
+
 dragonBook428 :: Grammar () String String
-dragonBook428 = (defaultGrammar :: Grammar () String String)
+dragonBook428 = dG'
   { ns = fromList ["E", "E'", "T", "T'", "F"]
   , ts = fromList ["+", "*", "(", ")", "id"]
   , s0 = "E"
@@ -40,7 +58,7 @@ dragonBook428 = (defaultGrammar :: Grammar () String String)
   }
 
 dragonBook41 :: Grammar () String String
-dragonBook41 = (defaultGrammar :: Grammar () String String)
+dragonBook41 = dG'
   { ns = fromList ["E'", "E", "T", "F"]
   , ts = fromList ["+", "*", "(", ")", "id"]
   , s0 = "E"
@@ -54,7 +72,7 @@ dragonBook41 = (defaultGrammar :: Grammar () String String)
   }
 
 dragonBook455 :: Grammar () String String
-dragonBook455 = (defaultGrammar :: Grammar () String String)
+dragonBook455 = dG'
   { ns = fromList ["S", "C"]
   , ts = fromList ["c", "d"]
   , s0 = "S"
@@ -65,7 +83,7 @@ dragonBook455 = (defaultGrammar :: Grammar () String String)
   }
 
 dumbGrammar :: Grammar () String String
-dumbGrammar = (defaultGrammar :: Grammar () String String)
+dumbGrammar = dG'
   { ns = fromList ["S", "A", "B", "I", "D"]
   , ts = fromList ["1","2","3","+","-","*"]
   , s0 = "S"
