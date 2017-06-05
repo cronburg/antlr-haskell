@@ -98,7 +98,7 @@ tokenizeGHC2 =
 
 tokenizeSmall = tokenize "Foo x -> Bar"
 
-parseTest =
+parseTestSmall =
   parse tokenizeSmall
   @?=
   Just LeafEps
@@ -112,7 +112,7 @@ main :: IO ()
 main = defaultMainWithOpts
   [ testCase "Tokenize GHC" tokenizeGHC
   , testCase "Tokenize GHC2" tokenizeGHC2
-  , testCase "Parse Test" parseTest
+  , testCase "Parse Test (Small)" parseTestSmall
   , testCase "Parse GHC"  parseGHCTestBig
   ] mempty
 

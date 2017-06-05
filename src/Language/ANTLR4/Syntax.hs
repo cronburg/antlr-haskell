@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveLift, DeriveAnyClass, DeriveGeneric #-}
 module Language.ANTLR4.Syntax
-  ( G4(..), PRHS(..), GTerm(..), GNonTerm(..), GAnnot(..)
+  ( G4(..), PRHS(..), ProdElem(..), GAnnot(..)
   , LRHS(..), Regex(..)
   ) where
 import Text.ANTLR.Allstar.Grammar ()
@@ -22,19 +22,18 @@ data G4 = Grammar {gName :: String}
 
 instance Lift Exp
 
-data PRHS     = PRHS { alphas :: [Either GTerm GNonTerm]
-                     , pred :: Maybe Exp
-                     , mutator :: Maybe Exp
-                     }
-  deriving (Show, Eq, Lift, Generic)
+data PRHS = PRHS
+  { alphas   :: [ProdElem]
+  , pred     :: Maybe Exp
+  , mutator  :: Maybe Exp
+  } deriving (Show, Eq, Lift, Generic)
 
 instance Hashable PRHS where
   hashWithSalt salt prhs = salt `hashWithSalt` alphas prhs
 
-newtype GTerm    = GTerm String
-  deriving (Show, Eq, Ord, Lift, Generic, Hashable)
-
-newtype GNonTerm = GNonTerm String
+data ProdElem =
+    GTerm     String
+  | GNonTerm  String
   deriving (Show, Eq, Ord, Lift, Generic, Hashable)
 
 data    GAnnot   = Fragment

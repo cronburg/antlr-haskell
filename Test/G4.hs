@@ -18,11 +18,11 @@ import Text.ANTLR.Allstar.Grammar
 import Test.Language.ANTLR4.G4 (g4_basic, hello)
 import Language.ANTLR4.Regex
 
-test_g4_basic = do
+test_g4_basic_type_check = do
   let _ = g4_basic
   1 @?= 1
 
-hello_g4_test = do
+hello_g4_test_type_check = do
   let _ = hello
   1 @?= 1
 
@@ -38,7 +38,7 @@ regex_test = do
 
 main :: IO ()
 main = defaultMainWithOpts
-  [ testCase "g4_basic_compilation" test_g4_basic
+  [ testCase "g4_basic_compilation_type_check" test_g4_basic_type_check
+  , testCase "hello_parse_type_check" hello_g4_test_type_check
   , testCase "regex_test" regex_test
---  , testCase "hello_parse" hello_g4_test
   ] mempty

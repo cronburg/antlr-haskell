@@ -25,7 +25,7 @@ import Data.Char
 import Language.ANTLR4.Syntax
 import Language.ANTLR4.Regex (Regex(..), parseRegex, regexP)
 
---traceM s = D.traceM ("[Regex] " ++ s)
+--traceM s = D.traceM ("[ANTLR4.Parser] " ++ s)
 traceM = return
 
 ------------------------------------------------------------------------------
@@ -41,12 +41,13 @@ parseANTLR fileName line column input =
       setPosition (newPos fileName line column)
       whiteSpace
       x <- gExps
+      traceM $ show x
       eof <|> errorParse
       return x
     
     errorParse = do
       rest <- manyTill anyToken eof
-      unexpected $ rest
+      unexpected $ '"' : rest ++ "\""
 
 gExps :: PS.Parser [G4]
 gExps = many1 gExp
@@ -54,7 +55,10 @@ gExps = many1 gExp
 gExp :: PS.Parser G4
 gExp = do
   traceM "gExp"
-  grammarP <||> lexerP <||> prodP
+  whiteSpace
+  xs <- grammarP <||> lexerP <||> prodP
+  traceM $ show xs
+  return xs
 
 grammarP :: PS.Parser G4
 grammarP = do
@@ -68,8 +72,11 @@ prodP :: PS.Parser G4
 prodP = do
   h <- lower
   t <- manyTill anyChar (reservedOp ":")
+  traceM $ "[prodP] " ++ trim (h : t)
   rhsList <- sepBy1 rhsP (reservedOp "|")
+  traceM $ "[prodP.rhsList] " ++ show rhsList
   reservedOp ";"
+  traceM "prodP returning..."
   return $ Prod (trim (h : t)) rhsList
   where
     rhsP = do
@@ -79,20 +86,25 @@ prodP = do
       return $ PRHS alphaList mPred mMute
     alphaP = termP <||> nonTermP
     termP = do
-      reservedOp "'"
-      s <- manyTill anyToken $ reservedOp "'"
-      return $ Left $ GTerm s
+      whiteSpace
+      char '\''
+      traceM "[prodP.termP.s] "
+      s <- manyTill anyChar $ char '\''
+      whiteSpace
+      traceM $ "[prodP.termP.s] " ++ show s
+      return $ GTerm s
     nonTermP = do
+      traceM "[nonTermP]"
       s <- identifier
-      return $ Right $ GNonTerm s
+      return $ GNonTerm s
     predP = do
+      traceM "[predP]"
       reservedOp "{"
-      e <- haskellParseExpTill "}?"
-      return e
+      haskellParseExpTill "}?"
     muteP = do
+      traceM "[muteP]"
       reservedOp "{"
-      e <- haskellParseExpTill "}"
-      return e
+      haskellParseExpTill "}"
 
 rEOF = do
   c <- try (lookAhead (reservedOp "->" <||> reservedOp ";"))

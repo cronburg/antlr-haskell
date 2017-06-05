@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveAnyClass, DeriveGeneric, TypeFamilies #-}
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric, TypeFamilies, QuasiQuotes #-}
 module Language.Chisel.Parser
   ( parse, ChiselNTS(..), ChiselTS, ChiselAST
   ) where
@@ -11,6 +11,8 @@ import qualified Text.ANTLR.Lex.Tokenizer as T
 import qualified Text.ANTLR.Set as S
 import Text.ANTLR.Set (Hashable(..), Generic(..))
 import Text.ANTLR.Pretty
+
+import Language.ANTLR4
 
 import Debug.Trace as D
 
@@ -30,10 +32,37 @@ type ChiselAST = AST ChiselNTS ChiselToken
 
 type ChiselToken = T.Token ChiselTS Value
 
+[antlr4|
+  grammar Chisel;
+  chiselProd : prodSimple
+             | '(' prodSimple ')'
+             ;
+
+  prodSimple : upperID formals magnitude alignment '->' group
+             | upperID formals '->' group
+             ;
+
+  formals : lowerID
+          | lowerID formals
+          ;
+
+  magnitude : '|' '#' sizeArith '|'
+            | '|'     sizeArith '|'
+            ;
+
+  alignment : '@' '(' sizeArith ')';
+
+  group : tuple | alt | flags;
+
+  tuple : 'TODO';
+  alt   : 'TODO';
+  flags : 'TODO';
+|]
+
 chiselGrammar :: Grammar () ChiselNTS ChiselTS
 chiselGrammar = (defaultGrammar ChiselProd :: Grammar () ChiselNTS ChiselTS)
-  { ns = S.fromList [ChiselProd .. maxBound :: ChiselNTS]
-  , ts = S.fromList [T_LowerID .. maxBound :: ChiselTS]
+  { ns = S.fromList [minBound .. maxBound :: ChiselNTS]
+  , ts = S.fromList [minBound .. maxBound :: ChiselTS]
   , s0 = ChiselProd
   , ps =  [ Production ChiselProd $ Prod Pass [NT ProdSimple]
           , Production ChiselProd $ Prod Pass [T T_LParen, NT ProdSimple, T T_RParen]

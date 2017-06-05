@@ -215,7 +215,7 @@ dfaWS     = regex2dfa (PosClos (Symbol ' '))
 dfaGetName x
   | x == dfaWS     = "ws"
   | x == dfaABPlus = "ab+"
-  | otherwise      = "ERROR"
+  | otherwise      = "Error"
 
 tokenizeTest0 =
   tokenize [dfaABPlus, dfaWS] dfaGetName const "abab ab ababab"
