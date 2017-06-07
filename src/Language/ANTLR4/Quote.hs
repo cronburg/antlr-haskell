@@ -1,10 +1,14 @@
-{-# LANGUAGE QuasiQuotes, TemplateHaskell, ScopedTypeVariables #-}
+{-# LANGUAGE QuasiQuotes, TemplateHaskell, ScopedTypeVariables, DataKinds #-}
 module Language.ANTLR4.Quote
-( antlr4
+( antlr4, ProdElem(..)
 ) where
 import Prelude hiding (exp, init)
 import System.IO.Unsafe (unsafePerformIO)
-import Data.Char (toLower, toUpper)
+import Data.List (nub, elemIndex)
+import Data.Char (toLower, toUpper, isLower, isUpper)
+import Data.Maybe (fromJust)
+
+import qualified Debug.Trace as D
 
 import qualified Language.Haskell.TH as TH
 import Language.Haskell.TH
@@ -41,12 +45,26 @@ aparse input = do
 
 g4_decls :: [G4S.G4] -> TH.Q [TH.Dec] -- exp :: G4
 g4_decls ast = let
-    
+
+    -- Ordered (arbitrary) list of the terminal literals found in production
+    -- rules of the grammar:
+    --terminalLiterals :: [String]
+    --terminalLiterals = nub $ concatMap getTLs ast
+
+    -- Get Terminal Literals
+    --getTLs :: G4S.G4 -> [String]
+    --getTLs G4S.Prod{G4S.patterns = ps} = concatMap (justLiterals . G4S.alphas) ps
+    --getTLs _ = []
+
+    --justLiterals :: [G4S.ProdElem] -> [String]
+    --justLiterals [] = []
+    --justLiterals (
+
     terminals :: [String]
-    terminals = concatMap getTs ast
+    terminals = nub $ concatMap getTs ast
 
     nonterms  :: [String]
-    nonterms  = concatMap getNTs ast
+    nonterms  = nub $ concatMap getNTs ast
 
     justTerms :: [G4S.ProdElem] -> [String]
     justTerms [] = []
@@ -55,7 +73,9 @@ g4_decls ast = let
 
     justNonTerms :: [G4S.ProdElem] -> [String]
     justNonTerms [] = []
-    justNonTerms (G4S.GNonTerm s:as) = mkUpper s : justNonTerms as
+    justNonTerms (G4S.GNonTerm s:as)
+      | (not . null) s && isLower (head s) = mkUpper s : justNonTerms as
+      | otherwise = justNonTerms as
     justNonTerms (_:as) = justNonTerms as
 
     getTs :: G4S.G4 -> [String]
@@ -63,7 +83,7 @@ g4_decls ast = let
     getTs _ = []
 
     getNTs :: G4S.G4 -> [String]
-    getNTs G4S.Prod{G4S.patterns = ps} = concatMap (justNonTerms . G4S.alphas) ps
+    getNTs G4S.Prod{G4S.pName = pName, G4S.patterns = ps} = mkUpper pName : concatMap (justNonTerms . G4S.alphas) ps
     getNTs _ = []
 
     grammarName :: [G4S.G4] -> String
@@ -71,18 +91,51 @@ g4_decls ast = let
     grammarName (G4S.Grammar{G4S.gName = gName}:_) = gName
     grammarName (_:xs) = grammarName xs
 
-    ntDataName = grammarName ast ++ "NT"
-    tDataName  = grammarName ast ++ "T"
+    ntDataName = grammarName ast ++ "NTSymbol"
+    tDataName  = grammarName ast ++ "TSymbol"
 
-    ntDataType = DataD [] (mkName ntDataName) [] Nothing (map (\s -> NormalC (mkName s) []) nonterms)  []
-    tDataType  = DataD [] (mkName tDataName)  [] Nothing (map (\s -> NormalC (mkName s) []) terminals) []
+    -- Things Symbols must derive:
+    symbolDerives = map (ConT . mkName)
+      [ "Eq", "Ord", "Show", "Hashable", "Generic", "Bounded", "Enum"]
+
+    ntDataType = DataD [] (mkName ntDataName) [] Nothing (map (\s -> NormalC (mkName s) []) nonterms)  symbolDerives
+    tDataType  =
+      DataD []
+        (mkName tDataName)  
+        []
+        Nothing 
+        ((map (\s -> NormalC (mkName $ lookupTName s) []) terminals) ++ lexemeNames)
+        symbolDerives
+
+    lexemeNames :: [Con]
+    lexemeNames = let
+        lN :: G4S.G4 -> [String]
+        lN G4S.Lex{G4S.lName = lName} = ["T_" ++ lName]
+        lN _ = []
+      
+        lN' = concatMap lN ast
+
+      in map (\s -> NormalC (mkName s) []) lN'
+
+    lookupTName :: String -> String
+    lookupTName s = "T_" ++
+      (case s `elemIndex` terminals of
+        Nothing -> s
+        Just i  -> show i)
+
+    -- TODO: how can I just quasiquote this?
+    strBangType = (Bang NoSourceUnpackedness NoSourceStrictness, ConT $ mkName "String")
+
+    mkCon = return . ConE . mkName . mkUpper
 
     toElem :: G4S.ProdElem -> TH.ExpQ
-    toElem (G4S.GTerm s)    = [| T  $(return $ ConE $ mkName $ mkUpper s) |]
-    toElem (G4S.GNonTerm s) = [| NT $(return $ ConE $ mkName $ mkUpper s) |]
+    toElem (G4S.GTerm s)    = [| $(mkCon "T")  $(mkCon $ lookupTName s) |] -- $(return $ LitE $ StringL s)) |]
+    toElem (G4S.GNonTerm s)
+      | (not . null) s && isLower (head s) = [| $(mkCon "NT") $(mkCon s) |]
+      | otherwise = toElem (G4S.GTerm s)
 
     mkProd :: String -> [TH.ExpQ] -> TH.ExpQ
-    mkProd n es = [| Production $(return $ ConE $ mkName $ mkUpper n) $ Prod Pass $(listE es) |]
+    mkProd n es = [| $(mkCon "Production") $(return $ ConE $ mkName $ mkUpper n) ($(mkCon "Prod") $(mkCon "Pass") $(listE es)) |]
 
     getProds :: [G4S.G4] -> [TH.ExpQ]
     getProds [] = []
@@ -92,13 +145,15 @@ g4_decls ast = let
 
     -- The first NonTerminal in the grammar (TODO: head of list)
     s0 :: TH.ExpQ
-    s0 = return $ ConE $ mkName $ mkUpper $ head $ nonterms
+    s0 = return $ ConE $ mkName $ mkUpper $ head nonterms
 
-    grammar = [| defaultGrammar $(s0)
+    grammar gTy = [| (defaultGrammar $(s0) :: $(return gTy))
       { ns = Set.fromList [minBound .. maxBound :: $(return (ConT $ mkName ntDataName))]
       , ts = Set.fromList [minBound .. maxBound :: $(return (ConT $ mkName tDataName))]
-      , ps = Set.fromList $(listE $ getProds ast)
+      , ps = $(listE $ getProds ast)
       } |]
+
+    grammarTy = [t| forall s. Grammar s $(return $ ConT $ mkName ntDataName) $(return $ ConT $ mkName tDataName) |]
 
     mkLower [] = []
     mkLower (a:as) = toLower a : as
@@ -106,9 +161,24 @@ g4_decls ast = let
     mkUpper [] = []
     mkUpper (a:as) = toUpper a : as
 
-  in do g <- grammar
+    {----------------------- Tokenizer -----------------------}
+
+    tokenNameType = TySynD (mkName "TokenName") [] (ConT $ mkName tDataName)
+    
+    tokenValueType = DataD [] (mkName "TokenValue") [] Nothing [] []
+
+  -- IMPORTANT: Creating type variables in two different haskell type
+  -- quasiquoters with the same variable name produces two (uniquely) named type
+  -- variables. In order to achieve the same type variable you need to run one
+  -- in the Q monad first then pass the resulting type to other parts of the
+  -- code that need it (thus capturing the type variable).
+  in do gTy <- grammarTy
+        g   <- grammar gTy
         return
-          [ FunD (mkName $ mkLower $ grammarName ast) [Clause [] (NormalB g) []]
+          [ ntDataType, tDataType
+          , SigD (mkName $ mkLower $ grammarName ast) gTy
+          , FunD (mkName $ mkLower $ grammarName ast) [Clause [] (NormalB g) []]
+          , tokenNameType, tokenValueType
           ] 
 
 {-

@@ -25,8 +25,8 @@ import Data.Char
 import Language.ANTLR4.Syntax
 import Language.ANTLR4.Regex (Regex(..), parseRegex, regexP)
 
---traceM s = D.traceM ("[ANTLR4.Parser] " ++ s)
-traceM = return
+traceM s = D.traceM ("[ANTLR4.Parser] " ++ s)
+--traceM = return
 
 ------------------------------------------------------------------------------
 -- Or-Try Combinator (tries two parsers, one after the other)
@@ -106,9 +106,22 @@ prodP = do
       reservedOp "{"
       haskellParseExpTill "}"
 
+-- TODO: not use getInput
 rEOF = do
-  c <- try (lookAhead (reservedOp "->" <||> reservedOp ";"))
-  return True
+  y <- getInput
+  return (case y of
+    '-':'>':_ -> True
+    ';':_     -> True
+    _         -> False)
+
+{-do
+  c <- try $ lookAhead (symbol "->" <||> symbol ";")
+  traceM $ "c = " ++ show c
+  return (case c of
+    "->" -> True
+    ";"  -> True
+    _    -> False)
+-}
 
 lexerP :: PS.Parser G4
 lexerP = do
@@ -172,7 +185,7 @@ commaSep1     = PT.commaSep1   lexer
 parens        = PT.parens      lexer
 braces        = PT.braces      lexer
 brackets      = PT.brackets    lexer
-
+symbol        = PT.symbol      lexer
 
 expr = PE.buildExpressionParser table term
       <?> "expression"

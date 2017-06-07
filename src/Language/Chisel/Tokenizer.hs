@@ -3,7 +3,7 @@ module Language.Chisel.Tokenizer
   ( Name(..), Value(..), Primitive(..)
   , tokenize
   , lowerID, upperID, prim, int, arrow, lparen, rparen, pound, vertbar, colon
-  , comma, atsymbol, carrot, dot, linecomm, ws, isWhitespace
+  , comma, atsymbol, carrot, dot, linecomm, ws
   ) where
 import qualified Text.ANTLR.Lex.Tokenizer as T
 import Text.ANTLR.Lex.Regex
@@ -65,11 +65,6 @@ carrot    = T.Token T_Carrot      Carrot
 dot       = T.Token T_Dot         Dot
 linecomm x = T.Token T_LineComment $ LineComment x
 ws       x = T.Token T_WS          $ WS x
-
--- TODO: Goes in a Token type class
-isWhitespace (T.Token T_LineComment _) = True
-isWhitespace (T.Token T_WS _) = True
-isWhitespace _ = False
 
 prims = ["page", "pages", "word", "words", "byte", "bytes", "bit", "bits"]
 

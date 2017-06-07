@@ -18,13 +18,15 @@ traceM = return
 
 data Regex s =
     Epsilon
-  | Literal   [s]
-  | Union     (Regex s) (Regex s)
-  | Concat    [Regex s]
-  | Kleene    (Regex s)
-  | PosClos   (Regex s)
-  | Question  (Regex s)
-  | CharSet   [s] -- TODO: Set s, and ranges of characters
+  | Literal    [s]
+  | Union      [Regex s]
+  | Concat     [Regex s]
+  | Kleene     (Regex s)
+  | PosClos    (Regex s)
+  | Question   (Regex s)
+  | CharSet    [s] -- TODO: Set s, and ranges of characters
+  | Negation   (Regex s)
+  | Named      String
   deriving (Lift, Eq, Show, Generic, Hashable)
 -- TODO: Lex regexs (e.g. complement sets, escape chars, ...)
 
@@ -54,10 +56,10 @@ regexP rEOF = let
     r <- regexElement
     traceM $ "regexP: " ++ show r
     whiteSpace
-    b <- rEOF
-    traceM $ "regexP: " ++ show b
+    b <- try rEOF
+    traceM $ "regexP2: " ++ show b
     y <- getInput
-    traceM $ show y
+    traceM $ "regexP3: " ++ show y
     if b
       then return [r]
       else do
@@ -72,19 +74,38 @@ regexP rEOF = let
 regexElement :: PS.Parser RegexC
 regexElement = do
   whiteSpace
-  r <- charSet <||> literal <||> concatR
-  traceM $ "regexElement: " ++ show r
-  p <- optionMaybe (satisfy (`elem` "+*?"))
-  traceM $ "regexElement: " ++ show p
-  return (case p of
+  negation <- optionMaybe (symbol "~")
+  traceM $ "regexElement1: " ++ show negation
+  r <- charSet <||> literal <||> concatR <||> unionR <||> namedR
+  traceM $ "regexElement2: " ++ show r
+  p <- optionMaybe (try $ satisfy (`elem` "+*?"))
+  traceM $ "regexElement3: " ++ show p
+  y <- getInput
+  traceM $ show y
+  let fncn = (case negation of
+                (Just _) -> Negation
+                _        -> id)
+  return $ fncn (case p of
     Nothing  -> r
     Just '+' -> PosClos  r
     Just '*' -> Kleene   r
     Just '?' -> Question r
     Just _   -> undefined)
-  
 
 many2 p = do { x <- p; xs <- many p; return (x:xs) }
+
+-- Named regex (upper-case identifier)
+namedR :: PS.Parser RegexC
+namedR = do
+  s <- identifier
+  return $ Named s
+
+unionR :: PS.Parser RegexC
+unionR = do
+  traceM "<unionR>"
+  u <- parens $ sepBy1 regexElement (symbol "|")
+  traceM "</unionR>"
+  return $ Union u
 
 concatR :: PS.Parser RegexC
 concatR = do
@@ -95,12 +116,12 @@ concatR = do
 
 -- regex string literal uses single quotes
 literal :: PS.Parser RegexC
-literal = PC.between (satisfy (== '\'')) (satisfy (== '\'')) (many singleChar >>= (return . Literal))
+literal = PC.between (symbol "'") (symbol "'") (many singleChar >>= (return . Literal))
 
 charSet :: PS.Parser RegexC
 charSet = do
   traceM "<charSet>"
-  cset <- PC.between (satisfy (== '[')) (satisfy (== ']')) (charSetBody >>= (return . CharSet))
+  cset <- PC.between (symbol "[") (symbol "]") (charSetBody >>= (return . CharSet))
   traceM $ "</charSet>: " ++ show cset
   return cset
 
@@ -153,4 +174,5 @@ commaSep1     = PT.commaSep1   regexLexer
 parens        = PT.parens      regexLexer
 braces        = PT.braces      regexLexer
 brackets      = PT.brackets    regexLexer
+symbol        = PT.symbol      regexLexer
 
