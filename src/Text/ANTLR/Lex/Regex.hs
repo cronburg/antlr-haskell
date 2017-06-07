@@ -1,9 +1,10 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, DeriveLift #-}
 module Text.ANTLR.Lex.Regex where
 
 import Text.ANTLR.Set (Hashable, singleton, fromList)
 import Text.ANTLR.Lex.NFA
 import qualified Text.ANTLR.Lex.DFA as DFA
+import Language.Haskell.TH.Syntax (Lift(..))
 
 data Regex s =
     Epsilon                         -- Regex accepting the empty string
@@ -14,8 +15,10 @@ data Regex s =
   | Concat     [Regex s]            -- Concatenation of 2 or more regular expressions
   | Kleene     (Regex s)            -- Kleene closure of a regex
   | PosClos    (Regex s)            -- Positive closure
+  | Question   (Regex s)            -- 0 or 1 instances
   | MultiUnion [Regex s]            -- Union of two or more arbitrary regexs
   | NotClass   [s]                  -- Complement of a character class
+  deriving (Lift)
 
 instance (Show s) => Show (Regex s) where
   show Epsilon       = "ϵ"
@@ -26,6 +29,7 @@ instance (Show s) => Show (Regex s) where
   show (Concat rs)   = concatMap show rs
   show (Kleene r)    = "(" ++ show r ++ ")*"
   show (PosClos r)   = "(" ++ show r ++ ")+"
+  show (Question r)  = "(" ++ show r ++ ")?"
   show (MultiUnion rs) = tail $ concatMap (\r -> "|" ++ show r) rs
   show (NotClass rs)   = "[^" ++ tail (concatMap show rs) ++ "]"
 
@@ -41,6 +45,7 @@ regex2nfa' from to r = let
     r2n (Concat (r:rs)) = foldl (nfaConcat  from to) (r2n r) (map r2n rs)
     r2n (Kleene r1)     = nfaKleene  from to (r2n r1)
     r2n (PosClos r1)    = r2n $ Concat [r1, Kleene r1]
+    r2n (Question r1)   = nfaUnion from to (r2n r1) (r2n Epsilon)
     r2n (Class [])      = r2n Epsilon -- TODO: empty character class shouldn't accept empty string?
     r2n (Class (s:ss))  = list2nfa [ (to 0, (False, fromList $ map Edge $ s:ss), to 1) ] --r2n $ foldl Union (Symbol s) (map Symbol ss)
     r2n (MultiUnion []) = r2n Epsilon

@@ -6,7 +6,7 @@ import Prelude hiding (exp, init)
 import System.IO.Unsafe (unsafePerformIO)
 import Data.List (nub, elemIndex)
 import Data.Char (toLower, toUpper, isLower, isUpper)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, catMaybes)
 
 import qualified Debug.Trace as D
 
@@ -18,10 +18,14 @@ import Language.Haskell.TH.Quote (QuasiQuoter(..))
 import Control.Monad (mapM)
 import qualified Language.ANTLR4.Syntax as G4S
 import qualified Language.ANTLR4.Parser as G4P
+import qualified Language.ANTLR4.Regex  as G4R
 import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Pretty
+import qualified Text.ANTLR.Lex.Tokenizer as T
 
 import Text.ANTLR.Set (Set(..))
 import qualified Text.ANTLR.Set as Set
+import qualified Text.ANTLR.Lex.Regex as R
 
 antlr4 :: QuasiQuoter
 antlr4 =  QuasiQuoter
@@ -29,6 +33,14 @@ antlr4 =  QuasiQuoter
   (error "parse pattern")
   (error "parse type")
   aparse --(error "parse decl")
+
+-- e.g. Named ("Num", "Int") where 'Num' was a G4 lexeme and 'Int' was given
+-- as a directive specifying the desired type to read (must instance Read).
+data LexemeType =
+    Literal Int     -- A literal lexeme somewhere in the grammar, e.g. ';'
+  | AString         -- Type was unspecified in the G4 lexeme or specified as a String
+  | Named   String  -- Type was specified as a directive in the G4 lexeme
+  deriving (Eq)
 
 --   parser in quasiquotation monad
 aparse :: String -> TH.Q [TH.Dec]
@@ -60,82 +72,128 @@ g4_decls ast = let
     --justLiterals [] = []
     --justLiterals (
 
+    -- A list of all the G4 literal terminals scattered across production rules
+    terminalLiterals :: [String]
+    terminalLiterals = (nub $ concatMap getTerminals ast)
+
+    -- A list of all the terminals in the grammar (both literal G4 terminals and
+    -- G4 lexical terminals)
     terminals :: [String]
-    terminals = nub $ concatMap getTs ast
+    terminals = terminalLiterals ++ lexemeNames
+
+    -- A list of all the G4 lexeme names specified in the grammar
+    lexemeNames :: [String]
+    lexemeNames = map fst lexemeTypes
 
     nonterms  :: [String]
     nonterms  = nub $ concatMap getNTs ast
 
+    -- Find all terminals *literals* in a production like '(' and ')' and ';'
     justTerms :: [G4S.ProdElem] -> [String]
     justTerms [] = []
-    justTerms (G4S.GTerm s:as) = mkUpper s : justTerms as
+    justTerms ((G4S.GTerm s) : as) = s : justTerms as
     justTerms (_:as) = justTerms as
 
+    -- Find all nonterminals in a production like 'exp' and 'decl'
     justNonTerms :: [G4S.ProdElem] -> [String]
     justNonTerms [] = []
     justNonTerms (G4S.GNonTerm s:as)
-      | (not . null) s && isLower (head s) = mkUpper s : justNonTerms as
+      | (not . null) s && isLower (head s) = s : justNonTerms as
       | otherwise = justNonTerms as
     justNonTerms (_:as) = justNonTerms as
 
-    getTs :: G4S.G4 -> [String]
-    getTs G4S.Prod{G4S.patterns = ps} = concatMap (justTerms . G4S.alphas) ps
-    getTs _ = []
+    -- Find all terminal literals in a G4 grammar rule like '(' and ')' and ';'
+    getTerminals :: G4S.G4 -> [String]
+    getTerminals G4S.Prod{G4S.patterns = ps} = concatMap (justTerms . G4S.alphas) ps
+    getTerminals _ = []
 
+    -- Find all the nonterminals referenced in the production(s) of the given grammar rule
     getNTs :: G4S.G4 -> [String]
-    getNTs G4S.Prod{G4S.pName = pName, G4S.patterns = ps} = mkUpper pName : concatMap (justNonTerms . G4S.alphas) ps
+    getNTs G4S.Prod{G4S.pName = pName, G4S.patterns = ps} = pName : concatMap (justNonTerms . G4S.alphas) ps
     getNTs _ = []
 
+    -- Find the (first) name of the grammar
     grammarName :: [G4S.G4] -> String
     grammarName [] = error "Grammar missing a name"
     grammarName (G4S.Grammar{G4S.gName = gName}:_) = gName
     grammarName (_:xs) = grammarName xs
 
-    ntDataName = grammarName ast ++ "NTSymbol"
-    tDataName  = grammarName ast ++ "TSymbol"
+    gName = grammarName ast
+
+    ntDataName = gName ++ "NTSymbol"
+    tDataName  = gName ++ "TSymbol"
 
     -- Things Symbols must derive:
-    symbolDerives = map (ConT . mkName)
+    symbolDerives = cxt $ map (conT . mkName)
       [ "Eq", "Ord", "Show", "Hashable", "Generic", "Bounded", "Enum"]
 
-    ntDataType = DataD [] (mkName ntDataName) [] Nothing (map (\s -> NormalC (mkName s) []) nonterms)  symbolDerives
-    tDataType  =
-      DataD []
+    ntDataDeclQ :: DecQ
+    ntDataDeclQ =
+      dataD (cxt [])
+      (mkName ntDataName)
+      []
+      Nothing
+      (map (\s -> normalC (mkName $ mkUpper s) []) nonterms)
+      symbolDerives
+    
+    -- E.g. ['(', ')', ';', 'exp', 'decl']
+    allLexicalSymbols :: [String]
+    allLexicalSymbols = map (lookupTName "") terminalLiterals ++ lexemeNames
+
+    -- E.g. [('(', Literal 0), (')', Literal 1), (';', Literal 2), ('exp',
+    -- AString), ('decl', AString')]
+    allLexicalTypes :: [(String, LexemeType)]
+    allLexicalTypes = (map lookupLiteralType terminalLiterals) ++ lexemeTypes
+
+    -- E.g. [('(', Literal 0), ...]
+    lookupLiteralType :: String -> (String, LexemeType)
+    lookupLiteralType s =
+      case s `elemIndex` terminalLiterals of
+        Nothing -> undefined
+        Just i  -> (s, Literal i)
+
+    tDataDeclQ =
+      dataD (cxt [])
         (mkName tDataName)  
         []
         Nothing 
-        ((map (\s -> NormalC (mkName $ lookupTName s) []) terminals) ++ lexemeNames)
+        (map (\s -> normalC (mkName s) []) (map ("T_" ++) allLexicalSymbols))
+        --(\s -> normalC (mkName $ lookupTName "T_" s) []) lexemes) ++ (lexemeNames "T_"))
         symbolDerives
 
-    lexemeNames :: [Con]
-    lexemeNames = let
-        lN :: G4S.G4 -> [String]
-        lN G4S.Lex{G4S.lName = lName} = ["T_" ++ lName]
+    ntConT = conT $ mkName ntDataName
+    tConT  = conT $ mkName tDataName
+
+    -- e.g. [('exp', AString), ('decl', Named String)]
+    lexemeTypes :: [(String, LexemeType)]
+    lexemeTypes = let
+        lN :: G4S.G4 -> [(String, LexemeType)]
+        lN (G4S.Lex{G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Nothing}}) = [(lName, AString)]
+        lN (G4S.Lex{G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Just s}})
+          | s == "String" = [(lName, AString)]
+          | otherwise     = [(lName, Named s)]
         lN _ = []
-      
-        lN' = concatMap lN ast
+      in concatMap lN ast
+      --map (\s -> normalC (mkName s) []) lN'
 
-      in map (\s -> NormalC (mkName s) []) lN'
-
-    lookupTName :: String -> String
-    lookupTName s = "T_" ++
-      (case s `elemIndex` terminals of
+    lookupTName :: String -> String -> String
+    lookupTName pfx s = pfx ++
+      (case s `elemIndex` terminalLiterals of
         Nothing -> s
         Just i  -> show i)
 
-    -- TODO: how can I just quasiquote this?
-    strBangType = (Bang NoSourceUnpackedness NoSourceStrictness, ConT $ mkName "String")
+    strBangType = (defBang, conT $ mkName "String")
 
-    mkCon = return . ConE . mkName . mkUpper
+    mkCon = conE . mkName . mkUpper
 
     toElem :: G4S.ProdElem -> TH.ExpQ
-    toElem (G4S.GTerm s)    = [| $(mkCon "T")  $(mkCon $ lookupTName s) |] -- $(return $ LitE $ StringL s)) |]
+    toElem (G4S.GTerm s)    = [| $(mkCon "T")  $(mkCon $ lookupTName "T_" s) |] -- $(return $ LitE $ StringL s)) |]
     toElem (G4S.GNonTerm s)
       | (not . null) s && isLower (head s) = [| $(mkCon "NT") $(mkCon s) |]
       | otherwise = toElem (G4S.GTerm s)
 
     mkProd :: String -> [TH.ExpQ] -> TH.ExpQ
-    mkProd n es = [| $(mkCon "Production") $(return $ ConE $ mkName $ mkUpper n) ($(mkCon "Prod") $(mkCon "Pass") $(listE es)) |]
+    mkProd n es = [| $(mkCon "Production") $(conE $ mkName $ mkUpper n) ($(mkCon "Prod") $(mkCon "Pass") $(listE es)) |]
 
     getProds :: [G4S.G4] -> [TH.ExpQ]
     getProds [] = []
@@ -145,15 +203,15 @@ g4_decls ast = let
 
     -- The first NonTerminal in the grammar (TODO: head of list)
     s0 :: TH.ExpQ
-    s0 = return $ ConE $ mkName $ mkUpper $ head nonterms
+    s0 = conE $ mkName $ mkUpper $ head nonterms
 
     grammar gTy = [| (defaultGrammar $(s0) :: $(return gTy))
-      { ns = Set.fromList [minBound .. maxBound :: $(return (ConT $ mkName ntDataName))]
-      , ts = Set.fromList [minBound .. maxBound :: $(return (ConT $ mkName tDataName))]
+      { ns = Set.fromList [minBound .. maxBound :: $(ntConT)]
+      , ts = Set.fromList [minBound .. maxBound :: $(tConT)]
       , ps = $(listE $ getProds ast)
       } |]
 
-    grammarTy = [t| forall s. Grammar s $(return $ ConT $ mkName ntDataName) $(return $ ConT $ mkName tDataName) |]
+    grammarTy = [t| forall s. Grammar s $(ntConT) $(tConT) |]
 
     mkLower [] = []
     mkLower (a:as) = toLower a : as
@@ -163,22 +221,129 @@ g4_decls ast = let
 
     {----------------------- Tokenizer -----------------------}
 
-    tokenNameType = TySynD (mkName "TokenName") [] (ConT $ mkName tDataName)
+    tokenNameTypeQ = tySynD (mkName "TokenName") [] (conT $ mkName tDataName)
     
-    tokenValueType = DataD [] (mkName "TokenValue") [] Nothing [] []
+    defBang = bang noSourceUnpackedness noSourceStrictness
+
+    lexemeValueDerives = cxt $ map (conT . mkName)
+      ["Show", "Ord", "Eq", "Generic", "Hashable"]
+
+    -- 
+    lexemeTypeConstructors = let
+        lTC G4S.Lex{G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Just d}}
+          | (not . null) d && (isUpper $ head d) = Just $ normalC (mkName $ "V_" ++ lName) [bangType defBang (conT $ mkName d)]
+          | otherwise = Nothing
+        lTC _ = Nothing
+      in   ((catMaybes $ map lTC ast)
+        ++ (map (\s -> normalC (mkName $ lookupTName "V_" s) []) terminalLiterals))
+
+    tokenValueTypeQ =
+      dataD (cxt []) (mkName "TokenValue") [] Nothing
+      lexemeTypeConstructors
+      lexemeValueDerives
+
+    mkTyVar s f = return $ f $ mkName s
+
+    lookupTokenFncnDecl = let
+        lTFD t = clause [litP $ stringL t]
+                  (normalB $ [| T.Token $(conE $ mkName $ lookupTName "T_" t) $(conE $ mkName $ lookupTName "V_" t) |])
+                  []
+      in funD (mkName "lookupToken")
+        (  map lTFD terminalLiterals
+        ++ [clause [varP $ mkName "s"]
+            (normalB $ [| error ("Error: '" ++ s ++ "' is not a token") |])
+            []]
+        )
+
+    -- Construct the function that takes in a lexeme (string) and the token name
+    -- (T_*) and constructs a token value type instance using 'read' where
+    -- appropriate based on the directives given in the grammar.
+    lexeme2ValueQ lName = let
+        
+        l2VQ (_, Literal i) =
+          clause [varP lName, conP (mkName $ "T_" ++ show i) []]
+          (normalB [| $(conE $ mkName $ "V_" ++ show i) |]) []
+        l2VQ (s, AString)   =
+          clause [varP lName, conP (mkName $ "T_" ++ s) []]
+          (normalB [| $(conE $ mkName $ "V_" ++ s) $(varE lName) |]) []
+        l2VQ (s, Named n)   =
+          clause [varP lName, conP (mkName $ "T_" ++ s) []]
+          (normalB [| $(conE $ mkName $ "V_" ++ s) (read $(varE lName) :: $(conT $ mkName n)) |]) []
+      
+      in funD (mkName "lexeme2value") (map l2VQ allLexicalTypes)
+
+    -- Convert a G4 regex into the backend regex type (for constructing token
+    -- recognizers as DFAs):
+    convertRegex :: (Show c) => G4R.Regex c -> R.Regex c
+    convertRegex = let
+        cR G4R.Epsilon       = R.Epsilon
+        cR (G4R.Literal [])  = R.Epsilon
+        cR (G4R.Literal [c]) = R.Symbol c
+        cR (G4R.Literal cs)  = R.Literal cs
+        cR (G4R.Union rs)    = R.MultiUnion $ map cR rs
+        cR (G4R.Concat rs)   = R.Concat $ map cR rs
+        cR (G4R.Kleene r)    = R.Kleene $ cR r
+        cR (G4R.PosClos r)   = R.PosClos $ cR r
+        cR (G4R.Question r)  = R.Question $ cR r
+        cR (G4R.CharSet cs)  = R.Class cs
+        cR (G4R.Negation (G4R.CharSet cs)) = R.NotClass cs
+        cR (G4R.Negation (G4R.Literal s)) = R.NotClass s
+        cR r@(G4R.Negation _) = error $ "unimplemented: " ++ show r
+        cR (G4R.Named _)    = error "unimplemented"
+      in cR
+
+    -- Make the list of tuples containing regexes, one for each terminal.
+    mkRegexesQ = let
+        mkLitR :: String -> ExpQ
+        mkLitR s = [| ($( conE $ mkName $ lookupTName "T_" s)
+                        , $(lift $ convertRegex $ G4R.Literal s)) |]
+
+        mkLexR :: G4S.G4 -> Maybe ExpQ
+        mkLexR (G4S.Lex{G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.regex = r}}) = Just
+          [| ($(conE $ mkName $ lookupTName "T_" lName), $(lift $ convertRegex r)) |]
+        mkLexR _ = Nothing
+      in valD (varP $ mkName $ mkLower $ gName ++ "Regexes")
+          (normalB $ listE (map mkLitR terminalLiterals ++ (catMaybes $ map mkLexR ast)))
+          []
 
   -- IMPORTANT: Creating type variables in two different haskell type
   -- quasiquoters with the same variable name produces two (uniquely) named type
   -- variables. In order to achieve the same type variable you need to run one
   -- in the Q monad first then pass the resulting type to other parts of the
   -- code that need it (thus capturing the type variable).
-  in do gTy <- grammarTy
-        g   <- grammar gTy
+  in do 
+        ntDataDecl <- ntDataDeclQ
+        tDataDecl  <- tDataDeclQ
+        gTy    <- grammarTy
+        gTySig <- sigD (mkName $ mkLower gName) (return gTy)
+        g      <- grammar gTy
+        gFunD  <- funD (mkName $ mkLower gName) [clause [] (normalB (return g)) []]
+        prettyNT:_     <- [d| instance Prettify $(ntConT) where prettify = rshow |]
+        prettyT:_      <- [d| instance Prettify $(tConT) where prettify = rshow |]
+        prettyValue:_  <- [d| instance Prettify $(return $ ConT $ mkName "TokenValue") where prettify = rshow |]
+        lookupTokenD   <- lookupTokenFncnDecl
+
+        tokenNameType  <- tokenNameTypeQ
+        tokenValueType <- tokenValueTypeQ
+        
+        let lName = mkName "l"
+        lexeme2Value   <- lexeme2ValueQ lName
+
+        regexes <- mkRegexesQ
+        let dfasName    = mkName $ mkLower gName ++ "DFAs"
+        let regexesE    = varE $ mkName $ mkLower gName ++ "Regexes"
+        dfas <- funD dfasName [clause [] (normalB [| map (fst &&& regex2dfa . snd) $(regexesE) |]) []]
+
         return
-          [ ntDataType, tDataType
-          , SigD (mkName $ mkLower $ grammarName ast) gTy
-          , FunD (mkName $ mkLower $ grammarName ast) [Clause [] (NormalB g) []]
+          [ ntDataDecl, tDataDecl
+          , gTySig
+          , gFunD
           , tokenNameType, tokenValueType
+          , prettyNT, prettyT, prettyValue
+          , lookupTokenD
+          , lexeme2Value
+          , regexes
+          , dfas
           ] 
 
 {-
@@ -188,7 +353,7 @@ toAllstarGrammar ::
   forall s. [G4S.G4] -> (G4S.GNonTerm -> Grammar s G4S.GNonTerm G4S.GTerm)
 toAllstarGrammar grammarMems s0' =
   let
-      -- Grab only the terminals from the RHS of a production:
+      -- Grab only the lexemes from the RHS of a production:
       getJustTerms :: [G4S.ProdElem] -> [G4S.GTerm]
       getJustTerms [] = []
       getJustTerms ((Left s) : rest ) = (s : getJustTerms rest)

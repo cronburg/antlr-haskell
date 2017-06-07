@@ -11,6 +11,7 @@ import Control.Arrow ( (&&&) )
 import Text.ANTLR.Set (Hashable(..), Generic(..))
 import Text.ANTLR.Pretty
 
+{-
 data Name =
     T_LowerID
   | T_UpperID
@@ -28,7 +29,7 @@ data Name =
   | T_Dot
   | T_LineComment
   | T_WS
-  deriving (Eq, Ord, Enum, Show, Bounded, Hashable, Generic, Prettify)
+  deriving (Eq, Ord, Enum, Show, Bounded, Hashable, Generic)
 
 data Value =
     LowerID String
@@ -47,7 +48,11 @@ data Value =
   | Dot
   | LineComment String
   | WS          String
-  deriving (Show, Ord, Eq, Generic, Hashable, Prettify)
+  deriving (Show, Ord, Eq, Generic, Hashable)
+
+instance Prettify Name where prettify = rshow
+instance Prettify Value where prettify = rshow
+instance Prettify Primitive where prettify = rshow
 
 lowerID x = T.Token T_LowerID $   LowerID x
 upperID x = T.Token T_UpperID $   UpperID x
@@ -65,16 +70,18 @@ carrot    = T.Token T_Carrot      Carrot
 dot       = T.Token T_Dot         Dot
 linecomm x = T.Token T_LineComment $ LineComment x
 ws       x = T.Token T_WS          $ WS x
+-}
 
-prims = ["page", "pages", "word", "words", "byte", "bytes", "bit", "bits"]
+--prims = ["page", "pages", "word", "words", "byte", "bytes", "bit", "bits"]
 
+{-
 idCharacters = Kleene $ Class $ '_' : ['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9']
 
 regexes =
   [ (T_Prim,        MultiUnion $ map Literal prims)
   , (T_LowerID,     Concat [Class ['a' .. 'z'], idCharacters])
   , (T_UpperID,     Concat [Class ['A' .. 'Z'], idCharacters])
-  , (T_INT,         Class ['0' .. '9'])
+  , (T_INT,         PosClos $ Class ['0' .. '9'])
   , (T_Arrow,       Literal "->")
   , (T_LParen,      Symbol '(')
   , (T_RParen,      Symbol ')')
@@ -98,19 +105,9 @@ dfaGetName dfa = case filter ((== dfa) . snd) dfas of
   []            -> undefined -- Unknown DFA given
   ((name,_):[]) -> name
   _             -> undefined -- Ambiguous (identical) DFAs found during tokenization
+-}
 
-data Primitive = Page | Word | Byte | Bit
-  deriving (Show, Eq, Ord, Generic, Hashable, Prettify)
-
-lexeme2prim "page"  = Page
-lexeme2prim "pages" = Page
-lexeme2prim "word"  = Word
-lexeme2prim "words" = Word
-lexeme2prim "byte"  = Byte
-lexeme2prim "bytes" = Byte
-lexeme2prim "bit"   = Bit
-lexeme2prim "bits"  = Bit
-
+{-
 lexeme2value l n = case n of
   T_LowerID     -> LowerID l
   T_UpperID     -> UpperID l
@@ -131,4 +128,5 @@ lexeme2value l n = case n of
 
 tokenize :: String -> [T.Token Name Value]
 tokenize = T.tokenize (map snd dfas) dfaGetName lexeme2value
+-}
 

@@ -84,6 +84,7 @@ prodP = do
       alphaList <- many alphaP
       mMute <- optionMaybe muteP
       return $ PRHS alphaList mPred mMute
+    -- TODO: parse '?' and '+' and '*' into G4
     alphaP = termP <||> nonTermP
     termP = do
       whiteSpace

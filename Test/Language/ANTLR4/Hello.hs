@@ -1,6 +1,6 @@
 {-# LANGUAGE QuasiQuotes, DeriveAnyClass, DeriveGeneric, TypeFamilies
-    , DataKinds, ScopedTypeVariables #-}
-module Test.Language.ANTLR4.G4 where
+		, DataKinds, ScopedTypeVariables #-}
+module Test.Language.ANTLR4.Hello where
 
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Parser
@@ -15,15 +15,12 @@ import Text.ANTLR.Lex.Regex
 
 import Language.ANTLR4
 
---g4_basic =
 [antlr4|
-  grammar G4Basic;
-  exp : '1'
-      | '2'
-      | '3'
-      ;
+	// Hello World grammar
+	// https://github.com/antlr/grammars-v4/blob/master/antlr4/examples/Hello.g4
+	grammar Hello;
+	r   : 'hello' ID;
+	ID  : [a-z]+ -> String;
+	WS  : [ \t\r\n]+ -> String;
 |]
-
--- TODO: tokenizer and paresr in antlr4 code gen.
-g4_basic = ()
 

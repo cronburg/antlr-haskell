@@ -15,7 +15,8 @@ import qualified Test.QuickCheck.Monadic as TQM
 
 import Language.ANTLR4
 import Text.ANTLR.Allstar.Grammar
-import Test.Language.ANTLR4.G4 (g4_basic, hello)
+import Test.Language.ANTLR4.G4 (g4_basic)
+import Test.Language.ANTLR4.Hello (hello)
 import Language.ANTLR4.Regex
 
 test_g4_basic_type_check = do

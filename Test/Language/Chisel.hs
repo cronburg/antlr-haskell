@@ -1,10 +1,10 @@
 {-# LANGUAGE QuasiQuotes, TemplateHaskell, ScopedTypeVariables #-}
 module Main where
 -- Project imports go here, e.g.:
-import Language.Chisel.Tokenizer
+--import Language.Chisel.Tokenizer
 import Text.ANTLR.Lex.Tokenizer (Token(..))
 import Text.ANTLR.Parser (AST(..))
-import Language.Chisel.Parser
+import Language.Chisel.Grammar
 import Language.ANTLR4.FileOpener (open)
 
 import System.IO.Unsafe (unsafePerformIO)

@@ -74,8 +74,8 @@ library
                   -- Standalone quasiquoters:
                   , Language.ANTLR4.FileOpener
                   
-                  , Language.Chisel.Tokenizer
-                  , Language.Chisel.Parser
+                  --, Language.Chisel.Tokenizer
+                  , Language.Chisel.Grammar
 
   -- Modules included in this library but not exported.
   -- other-modules:
@@ -132,6 +132,7 @@ Test-Suite test-G4
   Type:             exitcode-stdio-1.0
   Main-Is:          Test/G4.hs
   other-modules:    Test.Language.ANTLR4.G4
+                  , Test.Language.ANTLR4.Hello
   build-depends:    base
                   , ANTLR4, set-monad
                   , QuickCheck

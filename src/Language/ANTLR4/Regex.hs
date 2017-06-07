@@ -114,14 +114,19 @@ concatR = do
   traceM "</concatR>"
   return c
 
+parseEscape :: String -> String
+parseEscape s = (read $ "\"" ++ s ++ "\"") :: String
+
 -- regex string literal uses single quotes
 literal :: PS.Parser RegexC
-literal = PC.between (symbol "'") (symbol "'") (many singleChar >>= (return . Literal))
+literal = PC.between (symbol "'") (symbol "'") (many singleChar >>= (return . Literal . parseEscape))
 
 charSet :: PS.Parser RegexC
 charSet = do
   traceM "<charSet>"
-  cset <- PC.between (symbol "[") (symbol "]") (charSetBody >>= (return . CharSet))
+  whiteSpace
+  cset <- PC.between (char '[') (char ']') (charSetBody >>= (return . CharSet . parseEscape))
+  whiteSpace
   traceM $ "</charSet>: " ++ show cset
   return cset
 
@@ -135,26 +140,29 @@ charSetBody = do
 charSetRange :: PS.Parser [Char]
 charSetRange = do
   start <- singleChar
-  reservedOp "-"
+  char '-'
   end   <- singleChar
   if ord end <= ord start
     then unexpected [end]
     else return [start..end]
 
-singleChar = escapedChar <||> satisfy (\c -> not (c `elem` ['\'', ']']))
+singleChar =
+  escapedChar
+  <||>
+  satisfy (\c -> not (c `elem` ['\'', ']']))
 
 escapedChar :: PS.Parser Char
 escapedChar = (do
-    reservedOp "\\"
-    reservedOp "'"
+    char '\\'
+    char '\''
     return '\'')
   <||> (do
-    reservedOp "\\"
-    reservedOp "]"
+    char '\\'
+    char ']'
     return ']')
   <||> (do
-    reservedOp "\\"
-    reservedOp "["
+    char '\\'
+    char '['
     return '[')
 
 regexLexer :: PT.TokenParser ()
