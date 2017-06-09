@@ -94,46 +94,24 @@ instance Read Primitive where
   carret : '^';
   dot : '.';
 
-  Prim     : ( 'bit' | 'byte' ) 's'?       -> Primitive;
-  ArchPrim : ( 'page' | 'word' ) 's'?      -> Primitive;
-  LowerID  : [a-z][a-zA-Z0-9_]*               -> String;
-  UpperID  : [A-Z][a-zA-Z0-9_]*               -> String;
-  INT      : [0-9]+                        -> Int;
-  LineComment : '//' (~ '\n')* '\n'        -> String;
-  WS      : [ \t\n\r\f\v]+                 -> String;
+  Prim     : ( 'bit' | 'byte' ) 's'?      -> Primitive;
+  ArchPrim : ( 'page' | 'word' ) 's'?     -> Primitive;
+  LowerID  : [a-z][a-zA-Z0-9_]*           -> String;
+  UpperID  : [A-Z][a-zA-Z0-9_]*           -> String;
+  INT      : [0-9]+                       -> Int;
+  LineComment : '//' (~ '\n')* '\n'       -> String;
+  WS      : [ \t\n\r\f\v]+                -> String;
 |]
 
--- Types used the right of an '->' must instance Read
-
-{-
-data ChiselNTS = ChiselProd | ProdSimple | Magnitude | Alignment | Formals
-  | Group | Tuple | Alt | Flags | SizeArith
-  deriving (Eq, Ord, Enum, Show, Bounded, Hashable, Generic)
--}
-
---instance Prettify ChiselNTSymbol where prettify = rshow
---instance Prettify ChiselTSymbol where prettify = rshow
-
-instance Ref ChiselNTSymbol where
-  type Sym ChiselNTSymbol = ChiselNTSymbol
-  getSymbol = id
-
--- (Name, Value) is what goes in the leaf of the AST...
---type ChiselTSymbol = Name
-type ChiselAST = AST ChiselNTSymbol ChiselToken
-
-type ChiselToken = T.Token ChiselTSymbol TokenValue
-
-event2chisel :: ParseEvent ChiselAST ChiselNTSymbol ChiselToken -> ChiselAST
-event2chisel e = D.trace (pshow e) (event2ast e)
+-- Types used to the right of the '->' directive must instance Read
 
 isWhitespace (T.Token T_LineComment _) = True
 isWhitespace (T.Token T_WS _) = True
 isWhitespace _ = False
 
-parse :: [ChiselToken] -> Maybe ChiselAST
-parse = P.slrParse chisel event2chisel . filter (not . isWhitespace)
-
+{- Helper functions to construct all the various Tokens from either the desired
+ - (arbitrary) lexeme or by looking it up based on the static lexeme it always
+ - matches. -}
 lowerID  x = T.Token T_LowerID $   V_LowerID x
 upperID  x = T.Token T_UpperID $   V_UpperID x
 prim     x = T.Token T_Prim    $   V_Prim x
@@ -151,14 +129,5 @@ dot        = lookupToken "."
 linecomm x = T.Token T_LineComment $ V_LineComment x
 ws       x = T.Token T_WS          $ V_WS x
 
--- Todo: ANTLR should code-gen this as a pattern match on the set of possible
--- DFAs? Or hang name attributes on the DFAs to make the lookup O(1) (in case
--- this ever becomes a bottleneck in the tokenizer)
-chiselDFAGetName dfa = case filter ((== dfa) . snd) chiselDFAs of
-  []            -> undefined -- Unknown DFA given
-  ((name,_):[]) -> name
-  _             -> undefined -- Ambiguous (identical) DFAs found during tokenization
-
-tokenize :: String -> [T.Token TokenName TokenValue]
-tokenize = T.tokenize chiselDFAs lexeme2value
+parse = slrParse . filter (not . isWhitespace)
 

@@ -20,12 +20,20 @@ import qualified Language.ANTLR4.Syntax as G4S
 import qualified Language.ANTLR4.Parser as G4P
 import qualified Language.ANTLR4.Regex  as G4R
 import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Parser (AST(..))
 import Text.ANTLR.Pretty
 import qualified Text.ANTLR.Lex.Tokenizer as T
+import qualified Text.ANTLR.LR1 as P
 
 import Text.ANTLR.Set (Set(..))
 import qualified Text.ANTLR.Set as Set
 import qualified Text.ANTLR.Lex.Regex as R
+
+trace s = D.trace   ("[Language.ANTLR4.Quote] " ++ s)
+traceM s = D.traceM ("[Language.ANTLR4.Quote] " ++ s)
+
+--trace s = id
+--traceM = return
 
 antlr4 :: QuasiQuoter
 antlr4 =  QuasiQuoter
@@ -171,6 +179,7 @@ g4_decls ast = let
         lN (G4S.Lex{G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Nothing}}) = [(lName, AString)]
         lN (G4S.Lex{G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Just s}})
           | s == "String" = [(lName, AString)]
+          | null s        = [(lName, AString)] -- quirky G4 parser
           | otherwise     = [(lName, Named s)]
         lN _ = []
       in concatMap lN ast
@@ -230,9 +239,11 @@ g4_decls ast = let
 
     -- 
     lexemeTypeConstructors = let
-        lTC G4S.Lex{G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Just d}}
-          | (not . null) d && (isUpper $ head d) = Just $ normalC (mkName $ "V_" ++ lName) [bangType defBang (conT $ mkName d)]
-          | otherwise = Nothing
+        lTC lex@(G4S.Lex{G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Just d}})
+          | null lName       = error $ "null lexeme name: " ++ show lex
+          | null d           = Just $ normalC (mkName $ "V_" ++ lName) [bangType defBang (conT $ mkName "String")]
+          | isUpper $ head d = Just $ normalC (mkName $ "V_" ++ lName) [bangType defBang (conT $ mkName d)]
+          | otherwise        = error $ "unimplemented use of function in G4 directive: " ++ show d
         lTC _ = Nothing
       in   ((catMaybes $ map lTC ast)
         ++ (map (\s -> normalC (mkName $ lookupTName "V_" s) []) terminalLiterals))
@@ -312,6 +323,16 @@ g4_decls ast = let
   -- in the Q monad first then pass the resulting type to other parts of the
   -- code that need it (thus capturing the type variable).
   in do 
+        
+        let tokVal    = mkName "TokenValue"
+            tokName   = mkName "TokenName"
+            ntSym     = mkName ntDataName
+            tSym      = mkName tDataName
+            nameAST   = mkName (mkUpper gName ++ "AST")
+            nameToken = mkName (mkUpper gName ++ "Token")
+            nameDFAs  = mkName (mkLower gName ++ "DFAs")
+            name      = mkName $ mkLower gName
+        
         ntDataDecl <- ntDataDeclQ
         tDataDecl  <- tDataDeclQ
         gTy    <- grammarTy
@@ -320,7 +341,7 @@ g4_decls ast = let
         gFunD  <- funD (mkName $ mkLower gName) [clause [] (normalB (return g)) []]
         prettyNT:_     <- [d| instance Prettify $(ntConT) where prettify = rshow |]
         prettyT:_      <- [d| instance Prettify $(tConT) where prettify = rshow |]
-        prettyValue:_  <- [d| instance Prettify $(return $ ConT $ mkName "TokenValue") where prettify = rshow |]
+        prettyValue:_  <- [d| instance Prettify $(conT tokVal) where prettify = rshow |]
         lookupTokenD   <- lookupTokenFncnDecl
 
         tokenNameType  <- tokenNameTypeQ
@@ -334,7 +355,23 @@ g4_decls ast = let
         let regexesE    = varE $ mkName $ mkLower gName ++ "Regexes"
         dfas <- funD dfasName [clause [] (normalB [| map (fst &&& regex2dfa . snd) $(regexesE) |]) []]
 
-        return
+        astDecl <-tySynD nameAST   [] [t| AST $(conT ntSym) $(conT nameToken) |]
+        tokDecl <- tySynD nameToken [] [t| T.Token $(conT tSym) $(conT tokVal) |]
+        
+        decls <-
+          [d| instance Ref $(conT ntSym) where
+                type Sym $(conT ntSym) = $(conT ntSym)
+                getSymbol = id
+              
+              tokenize :: String -> [$(conT nameToken)] --T.Token $(conT tokName) $(conT tokVal)]
+              tokenize = T.tokenize $(varE nameDFAs) lexeme2value
+
+              slrParse :: [$(conT nameToken)] -> Maybe $(conT nameAST)
+              slrParse = (P.slrParse $(varE name) event2ast)
+          |]
+        
+
+        return $
           [ ntDataDecl, tDataDecl
           , gTySig
           , gFunD
@@ -343,8 +380,8 @@ g4_decls ast = let
           , lookupTokenD
           , lexeme2Value
           , regexes
-          , dfas
-          ] 
+          , dfas, astDecl, tokDecl
+          ] ++ decls
 
 {-
 -- TODO Mutator and Predicated fn' cases

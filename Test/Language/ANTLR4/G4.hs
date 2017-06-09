@@ -24,6 +24,3 @@ import Language.ANTLR4
       ;
 |]
 
--- TODO: tokenizer and paresr in antlr4 code gen.
-g4_basic = ()
-
