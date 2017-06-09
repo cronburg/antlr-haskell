@@ -160,5 +160,5 @@ chiselDFAGetName dfa = case filter ((== dfa) . snd) chiselDFAs of
   _             -> undefined -- Ambiguous (identical) DFAs found during tokenization
 
 tokenize :: String -> [T.Token TokenName TokenValue]
-tokenize = T.tokenize (map snd chiselDFAs) chiselDFAGetName lexeme2value
+tokenize = T.tokenize chiselDFAs lexeme2value
 

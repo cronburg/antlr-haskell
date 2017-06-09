@@ -212,13 +212,15 @@ regexTestPosclos =
 dfaABPlus = regex2dfa (PosClos (Concat [Symbol 'a', Symbol 'b']))
 dfaWS     = regex2dfa (PosClos (Symbol ' '))
 
+{-
 dfaGetName x
   | x == dfaWS     = "ws"
   | x == dfaABPlus = "ab+"
   | otherwise      = "Error"
+-}
 
 tokenizeTest0 =
-  tokenize [dfaABPlus, dfaWS] dfaGetName const "abab ab ababab"
+  tokenize [("ab+", dfaABPlus), ("ws", dfaWS)] const "abab ab ababab"
   @?=
   [ Token "ab+" "abab"
   , Token "ws"  " "
@@ -254,14 +256,6 @@ dfaINT  = regex2dfa (PosClos $ Class [ '0' .. '9' ])
 data TermSymbol = T_ID | T_INT | T_WS | T_EQ | T_SEMI
   deriving (Eq, Ord, Show)
 
-dfa2symbol dfa
-  | dfa == dfaWS   = T_WS
-  | dfa == dfaID   = T_ID
-  | dfa == dfaINT  = T_INT
-  | dfa == dfaEQ   = T_EQ
-  | dfa == dfaSEMI = T_SEMI
-  | otherwise      = undefined -- Should never happen (always one of the DFAs given)
-
 data TermValue =
     ID  String
   | INT Int
@@ -277,7 +271,10 @@ lexeme2value lexeme T_EQ   = EQSIGN
 lexeme2value lexeme T_SEMI = SEMI
 
 tokenizeTest1 =
-  tokenize [dfaWS, dfaID, dfaINT, dfaEQ, dfaSEMI] dfa2symbol lexeme2value "_matt = 0;"
+  tokenize
+    [ (T_WS, dfaWS), (T_ID, dfaID), (T_INT, dfaINT)
+    , (T_EQ, dfaEQ), (T_SEMI, dfaSEMI) ]
+    lexeme2value "_matt = 0;"
   @?=
   [ Token T_ID (ID "_matt")
   , Token T_WS (WS " ")
@@ -291,7 +288,7 @@ tokenizeTest1 =
 lineCommentDFA = regex2dfa $ Concat [Literal "//", Kleene $ NotClass ['\n'], Symbol '\n']
 
 lineCommentTest =
-  tokenize [lineCommentDFA] (const "LineComment") const
+  tokenize [("LineComment", lineCommentDFA)] const
   "// This is a line comment.\n"
   @?=
   [ Token "LineComment" "// This is a line comment.\n"

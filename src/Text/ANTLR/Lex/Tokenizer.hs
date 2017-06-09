@@ -8,6 +8,7 @@ import Text.ANTLR.Set (Hashable, member, Generic(..))
 
 import Text.ANTLR.Pretty
 import qualified Debug.Trace as D
+import Data.List (find)
 
 -- Token with name (n) and value (v)
 data Token n v =
@@ -45,23 +46,29 @@ type Lexeme s = [s]
  - *  fncn: function for constructing the value of a token from the lexeme
  -    matched (e.g. 'varName') and the associated token name (e.g. 'id')
  -}
+
+type NDFA s i n = (n, DFA s i)
+
 tokenize ::
   forall s i n v. (Eq i, Ord s, Eq s, Show s, Show i, Show n, Show v, Hashable i, Hashable s)
-  => [DFA s i] -> (DFA s i -> n) -> (Lexeme s -> n -> v) -> [s] -> [Token n v]
-tokenize dfas0 dfaName fncn input0 = let
-    allTok :: [(DFA s i, State i)] -> [s] -> [Token n v]
+  => [(n, DFA s i)] -> (Lexeme s -> n -> v) -> [s] -> [Token n v]
+tokenize dfaTuples fncn input0 = let
+
+    dfas0 = map snd dfaTuples
+
+    allTok :: [(NDFA s i n, State i)] -> [s] -> [Token n v]
     allTok dfaSims0 currInput = let
-        oneTok :: [(DFA s i, State i)] -> [s] -> Maybe (Lexeme s, DFA s i)
+        oneTok :: [(NDFA s i n, State i)] -> [s] -> Maybe (Lexeme s, NDFA s i n)
         oneTok dfaSims []     = Nothing
         oneTok []      ss     = Nothing
         oneTok dfaSims (s:ss) = let
             dfaSims' =
-              [ (dfa, stop)
-              | (dfa, cursor)     <- dfaSims
+              [ ((n, dfa), stop)
+              | ((n, dfa), cursor)     <- dfaSims
               , (start, es, stop) <- Set.toList $ _Δ dfa
               , start == cursor && s `edgeMember` es ]
 
-            accepting = [ dfa | (dfa, cursor) <- dfaSims', cursor `member` _F dfa ]
+            accepting = [ (n,dfa) | ((n, dfa), cursor) <- dfaSims', cursor `member` _F dfa ]
 
           in (case (oneTok dfaSims' ss, accepting) of
               (Nothing, [])   -> Nothing
@@ -70,8 +77,8 @@ tokenize dfas0 dfaName fncn input0 = let
       in case (currInput, oneTok dfaSims0 currInput) of
           ([], _)       -> [EOF]
           (ss, Nothing) -> [Error $ show ss]
-          (ss, Just (l, d)) ->
-            Token (dfaName d) (fncn l (dfaName d))
+          (ss, Just (l, (name,d))) ->
+            Token name (fncn l name)
             : allTok dfaSims0 (drop (length l) currInput)
-  in allTok (zip dfas0 (map s0 dfas0)) input0
+  in allTok (zip dfaTuples (map s0 dfas0)) input0
 
