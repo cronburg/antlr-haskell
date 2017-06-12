@@ -1,5 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, DeriveAnyClass, DeriveGeneric
-           , FlexibleContexts, UndecidableInstances, StandaloneDeriving #-}
+           , FlexibleContexts, UndecidableInstances, StandaloneDeriving
+           , OverloadedStrings #-}
 module Text.ANTLR.Allstar.ATN where
 -- Augmented Transition Network
 import Text.ANTLR.Allstar.Grammar

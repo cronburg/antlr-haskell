@@ -4,7 +4,7 @@ module Language.Chisel.Grammar
   ( parse, tokenize, ChiselNTSymbol(..), ChiselTSymbol, ChiselAST
   , lowerID, upperID, prim, int, arrow, lparen, rparen, pound
   , vertbar, colon, comma, atsymbol, carrot, dot, linecomm, ws
-  , Primitive(..)
+  , Primitive(..), chisel
   ) where
 
 import Text.ANTLR.Allstar.Grammar
@@ -50,8 +50,8 @@ instance Read Primitive where
              | UpperID formals '->' group
              ;
 
-  formals : LowerID
-          | LowerID formals
+  formals : LowerID formals
+          | LowerID
           ;
 
   magnitude : '|' '#' sizeArith '|'

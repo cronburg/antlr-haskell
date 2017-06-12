@@ -18,6 +18,9 @@ import qualified Test.QuickCheck.Monadic as TQM
 
 import Test.Text.ANTLR.HUnit
 import Debug.Trace as D
+import qualified Text.ANTLR.LR1 as LR1
+import Text.ANTLR.Pretty (pshow)
+import qualified Data.Text as T
 
 chi = id
 
@@ -108,11 +111,16 @@ parseGHCTestBig =
   @?=
   Just LeafEps -- TODO
 
+testPrettify =
+  unsafePerformIO (putStr $ T.unpack $ pshow $ LR1.slrTable chisel)
+  @?= ()
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "Tokenize GHC" tokenizeGHC
   , testCase "Tokenize GHC2" tokenizeGHC2
   , testCase "Parse Test (Small)" parseTestSmall
   , testCase "Parse GHC"  parseGHCTestBig
+  , testCase "SLR table speed" testPrettify
   ] mempty
 

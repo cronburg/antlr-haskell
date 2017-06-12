@@ -1,4 +1,5 @@
-{-# LANGUAGE ScopedTypeVariables, DeriveAnyClass, DeriveGeneric #-}
+{-# LANGUAGE ScopedTypeVariables, DeriveAnyClass, DeriveGeneric,
+    OverloadedStrings #-}
 module Text.ANTLR.Allstar.Stacks
   ( Stacks(..)
   , (#)

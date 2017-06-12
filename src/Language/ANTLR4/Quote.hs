@@ -383,36 +383,3 @@ g4_decls ast = let
           , dfas, astDecl, tokDecl
           ] ++ decls
 
-{-
--- TODO Mutator and Predicated fn' cases
--- TODO Lex case
-toAllstarGrammar ::
-  forall s. [G4S.G4] -> (G4S.GNonTerm -> Grammar s G4S.GNonTerm G4S.GTerm)
-toAllstarGrammar grammarMems s0' =
-  let
-      -- Grab only the lexemes from the RHS of a production:
-      getJustTerms :: [G4S.ProdElem] -> [G4S.GTerm]
-      getJustTerms [] = []
-      getJustTerms ((Left s) : rest ) = (s : getJustTerms rest)
-      getJustTerms (_:rest) = getJustTerms rest
-      
-      toElems :: [G4S.ProdElem] -> [ProdElem G4S.GNonTerm G4S.GTerm]
-      toElems ((Left   t) : rest) = (T   t : toElems rest)
-      toElems ((Right nt) : rest) = (NT nt : toElems rest)
-
-      fn (G4S.Grammar name) (g,c) = (g,c)
-      fn (G4S.Prod pName patterns) (g,c) =
-        let fn' (G4S.PRHS alphas Nothing Nothing) (g',c') =
-              (g' { ns = (ns g') `Set.union` (Set.singleton $ G4S.GNonTerm pName)
-                  , ts = (ts g') `Set.union` (Set.fromList $ getJustTerms alphas)
-                  , ps = Production (G4S.GNonTerm pName) (Prod Pass $ toElems alphas) : (ps g')
-                  }, c)
-            fn' (G4S.PRHS alphas (Just pre) Nothing) (g',c') = (g',c')    -- TODO
-            fn' (G4S.PRHS alphas Nothing (Just mut)) (g',c') = (g',c')    -- TODO
-            fn' (G4S.PRHS alphas (Just pre) (Just mut)) (g',c') = (g',c') -- TODO
-        in  foldr fn' (g,c) patterns
-      fn (G4S.Lex annotation lName pattern) (g,c) = undefined             -- TODO
-  in let (g,_) = foldr fn (G Set.empty Set.empty [] s0' Set.empty Set.empty, 0) grammarMems
-     in  g
--}
-

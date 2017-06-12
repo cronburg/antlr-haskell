@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass, FlexibleContexts, InstanceSigs
            , UndecidableInstances, StandaloneDeriving, TypeFamilies
-           , ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses #-}
+           , ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses
+           , OverloadedStrings #-}
 module Text.ANTLR.Parser where
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Pretty
@@ -100,7 +101,7 @@ instance (Prettify ts) => Prettify (Icon ts) where
   prettify IconEps  = pStr "iϵ"
   prettify IconEOF  = pStr "iEOF"
   prettify (Icon ts) = do
-    pStr "i "
+    pStr "Icon "
     prettify ts
 
 isIcon Icon{} = True

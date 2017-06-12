@@ -105,7 +105,7 @@ Test-Suite test-Template
   build-depends:  base
                 , ANTLR4, set-monad
                 , QuickCheck
-                , HUnit
+                , HUnit, text
                 , Cabal
                 , test-framework
                 , test-framework-hunit
@@ -120,7 +120,7 @@ Test-Suite test-ATN
   build-depends:  base
                 , ANTLR4, set-monad
                 , QuickCheck
-                , HUnit
+                , HUnit, text
                 , Cabal
                 , test-framework
                 , test-framework-hunit
@@ -136,7 +136,7 @@ Test-Suite test-G4
   build-depends:    base
                   , ANTLR4, set-monad
                   , QuickCheck
-                  , HUnit
+                  , HUnit, text
                   , Cabal
                   , test-framework
                   , test-framework-hunit
@@ -152,7 +152,7 @@ Test-Suite Stacks
   build-depends:  base
                 , ANTLR4, set-monad
                 , QuickCheck
-                , HUnit
+                , HUnit, text
                 , Cabal
                 , test-framework
                 , test-framework-hunit
@@ -167,7 +167,7 @@ Test-Suite LL1
   build-depends:  base
                 , ANTLR4, set-monad, deepseq, call-stack
                 , QuickCheck
-                , HUnit
+                , HUnit, text
                 , Cabal
                 , test-framework
                 , test-framework-hunit
@@ -182,7 +182,7 @@ Test-Suite LR1
   build-depends:  base
                 , ANTLR4, set-monad, deepseq, call-stack
                 , QuickCheck
-                , HUnit
+                , HUnit, text
                 , Cabal
                 , test-framework
                 , test-framework-hunit
@@ -196,7 +196,7 @@ Test-Suite lexer
   build-depends:  base
                 , ANTLR4, set-monad
                 , QuickCheck
-                , HUnit
+                , HUnit, text
                 , Cabal
                 , test-framework
                 , test-framework-hunit
@@ -211,7 +211,7 @@ Test-Suite test-Allstar
   build-depends:    base
                   , ANTLR4, set-monad, deepseq, call-stack
                   , QuickCheck
-                  , HUnit
+                  , HUnit, text
                   , Cabal
                   , test-framework
                   , test-framework-hunit
@@ -227,7 +227,7 @@ Test-Suite Chisel
   build-depends:    base
                   , ANTLR4, set-monad, deepseq, call-stack
                   , QuickCheck
-                  , HUnit
+                  , HUnit, text
                   , Cabal
                   , test-framework
                   , test-framework-hunit

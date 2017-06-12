@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables, MonadComprehensions, DeriveGeneric
- , DeriveAnyClass, FlexibleContexts #-}
+ , DeriveAnyClass, FlexibleContexts, OverloadedStrings #-}
 module Text.ANTLR.LL1
   ( recognize
   , first, follow
@@ -22,7 +22,7 @@ import Data.List (maximumBy, isPrefixOf)
 import Data.Ord (comparing)
 
 import qualified Data.Map.Strict as M
-
+import qualified Data.Text as T
 import qualified Debug.Trace as D
 import System.IO.Unsafe (unsafePerformIO)
 uPIO = unsafePerformIO
@@ -290,7 +290,7 @@ predictiveParse g act w0 = let
       --D.traceM $ "ss'=" ++ pshow ss'
       parse' ws (ss' ++ xs) (pushStack (NT _X) ss' asts)
     parse' ws (Eps:xs) asts = parse' ws xs (pushStack Eps [] asts)
-    parse' ws xs asts = D.trace ("Bug in parser: " ++ pshow (ws, xs, asts)) Nothing -- Bug in parser
+    parse' ws xs asts = D.trace (T.unpack $ "Bug in parser: " `T.append` pshow (ws, xs, asts)) Nothing -- Bug in parser
 
   in do asts <- parse' w0 [NT $ s0 g] []
         case asts of
@@ -358,7 +358,7 @@ newtype Prime nts = Prime (nts, Int)
 instance (Prettify nts) => Prettify (Prime nts) where
   prettify (Prime (nts,i)) = do
     prettify nts
-    pStr $ replicate i '\''
+    pStr $ T.replicate i (T.singleton '\'')
 
 leftFactor ::
   forall s nts t. (Eq t, Eq nts, Prettify t, Prettify nts, Ord t, Ord nts, Hashable nts)

@@ -4,6 +4,7 @@ import Test.Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Parser
 import Text.ANTLR.Pretty
+import qualified Data.Text as T
 import Text.ANTLR.LL1
 
 import Text.ANTLR.Set (fromList, union, empty, Set(..))
@@ -114,8 +115,8 @@ action0 (NonTE (nt, ss, us))  = AST nt ss us
 action1 ::
   (Prettify t, Prettify (StripEOF (Sym t)), Prettify nts)
   => ParseEvent (AST nts t) nts t -> AST nts t
-action1 (NonTE (nt, ss, trees)) = uPIO (putStrLn $ pshow ("Act:", nt, ss, trees)) `seq` action0 $ NonTE (nt,ss,trees)
-action1 (TermE x) = uPIO (putStrLn $ pshow ("Act:", x)) `seq` action0 $ TermE x
+action1 (NonTE (nt, ss, trees)) = uPIO (putStrLn $ T.unpack $ pshow ("Act:", nt, ss, trees)) `seq` action0 $ NonTE (nt,ss,trees)
+action1 (TermE x) = uPIO (putStrLn $ T.unpack $ pshow ("Act:", x)) `seq` action0 $ TermE x
 action1 EpsE      = action0 EpsE
 
 dragonPredParse =

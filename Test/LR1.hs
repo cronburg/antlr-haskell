@@ -4,6 +4,7 @@ import Test.Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.LR1
 import Text.ANTLR.Parser
+import qualified Data.Text as T
 import qualified Text.ANTLR.Lex.Tokenizer as T
 
 import Text.ANTLR.Set (fromList, union, empty, Set(..), (\\))
@@ -23,6 +24,7 @@ import Test.QuickCheck
 import qualified Test.QuickCheck.Monadic as TQM
 
 import Test.Text.ANTLR.HUnit
+import Text.ANTLR.Pretty (pshow)
 
 uPIO = unsafePerformIO
 
@@ -335,6 +337,8 @@ testLR1Parse =
   @?=
   slrParse grm action0 w0
 
+testPrettify = unsafePerformIO $ putStrLn $ T.unpack $ pshow testSLRExp
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "closure" testClosure
@@ -353,5 +357,6 @@ main = defaultMainWithOpts
   , testCase "testLR1Parse" testLR1Parse
   , testCase "testLR1Items" testLR1Items
   , testCase "testLR1Table" testLR1Table
+  , testCase "testPrettify" (testPrettify @?= ())
   ] mempty
 

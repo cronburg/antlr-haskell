@@ -1,8 +1,11 @@
-{-# LANGUAGE FlexibleInstances, DefaultSignatures, UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances, DefaultSignatures, UndecidableInstances
+    , OverloadedStrings #-}
 module Text.ANTLR.Pretty where
 import Control.Monad.Trans.State.Lazy
 import qualified Data.Map.Strict as M
 import Data.Data (toConstr, Data(..))
+
+import qualified Data.Text as T
 
 {- I want to have something like Show whereby every time I add a new type to the
  - system, I can implement a function that gets called by existing code which
@@ -20,8 +23,8 @@ import Data.Data (toConstr, Data(..))
 
 data PState = PState
   { indent   :: Int    -- indentation level
-  , vis_chrs :: Int        -- number of visible characters
-  , str :: String      -- constructed String
+  , vis_chrs :: Int    -- number of visible characters
+  , str :: T.Text      -- constructed T.Text
   , columns_soft :: Int
   , columns_hard :: Int
   , curr_col :: Int
@@ -47,7 +50,7 @@ class Prettify t where
 initPState = PState
   { indent       = 0   -- Indentation level
   , vis_chrs     = 0   -- Number of visible characters consumed.
-  , str          = ""  -- The string
+  , str          = T.empty -- The string
   , columns_soft = 80  -- Soft limit on terminal width.
   , columns_hard = 120 -- Hard limit on terminal width.
   , curr_col     = 0   -- Column position in the current row.
@@ -55,33 +58,36 @@ initPState = PState
   }
 
 -- Prettify a string by putting it on the end of the current string state
-pLine :: String -> Pretty
+pLine :: T.Text -> Pretty
 pLine s = do
   pStr s
   _pNewLine
 
+pStr' :: String -> Pretty
+pStr' = pStr . T.pack
+
 -- Currently assuming all input strings contain no newlines, and that this is
 -- only called on relatively small strings because strings running over the end
 -- of the hard column limit get dumped onto the next line *no matter what*.
--- Strings can run over the soft limit, but hitting the soft limit after a call
+-- T.Texts can run over the soft limit, but hitting the soft limit after a call
 -- to pStr forces a newline.
-pStr :: String -> Pretty
+pStr :: T.Text -> Pretty
 pStr s = do
   pstate <- get
-  _doIf _pNewLine (length s + curr_col pstate > columns_hard pstate && curr_col pstate /= 0)
+  _doIf _pNewLine (T.length s + curr_col pstate > columns_hard pstate && curr_col pstate /= 0)
   pstate <- get
   _doIf _pIndent  (curr_col pstate == 0 && indent pstate > 0)
   pstate <- get
   put $ pstate
-    { str = str pstate ++ s
-    , curr_col = (curr_col pstate) + length s
+    { str = T.append (str pstate) s
+    , curr_col = (curr_col pstate) + T.length s
     }
   pstate <- get
   _doIf _pNewLine (curr_col pstate > columns_soft pstate)
 
 -- TODO ...
 pChr :: Char -> Pretty
-pChr c = pStr [c]
+pChr c = pStr $ T.singleton c
 
 -- Get rid of if-then-else lines in the Pretty monad:
 _doIf fncn True  = fncn
@@ -92,7 +98,7 @@ _pIndent :: Pretty
 _pIndent = do
   pstate <- get
   put $ pstate
-    { str      = str pstate ++ replicate (indent pstate) ' '
+    { str      = str pstate `T.append` T.replicate (indent pstate) (T.singleton ' ')
     , curr_col = curr_col pstate + indent pstate
     , vis_chrs = vis_chrs pstate + indent pstate
     }
@@ -102,15 +108,15 @@ _pNewLine :: Pretty
 _pNewLine = do
   pstate <- get
   put $ pstate
-    { str = str pstate ++ "\n"
+    { str = T.snoc (str pstate) '\n'
     , curr_col = 0
     , curr_row = curr_row pstate + 1
     }
 
-pshow :: (Prettify t) => t -> String
+pshow :: (Prettify t) => t -> T.Text
 pshow t = str $ execState (prettify t) initPState
 
-pshowIndent :: (Prettify t) => Int -> t -> String
+pshowIndent :: (Prettify t) => Int -> t -> T.Text
 pshowIndent i t = str $ execState (prettify t) $ initPState { indent = i }
 
 -- Plain-vanilla show of something:
@@ -119,15 +125,15 @@ rshow t = do
   pstate <- get
   let s = show t
   put $ pstate
-    { str      = str pstate ++ s
-    , curr_row = curr_row pstate + (length . filter (== '\n')) s
+    { str      = str pstate `T.append` T.pack s
+    , curr_row = curr_row pstate + (T.length . T.filter (== '\n')) (T.pack s)
     , curr_col = curr_col pstate -- TODO
     }
 
 pParens fncn = do
-  pStr "("
+  pChr '('
   fncn
-  pStr ")"
+  pChr ')'
 
 incrIndent :: Int -> Pretty
 incrIndent n = do
@@ -151,12 +157,12 @@ pCount v = do
 -- Put 
 pListLines :: (Prettify v) => [v] -> Pretty
 pListLines vs = do
-  pStr "[ "
+  pStr $ T.pack "[ "
   col0 <- curr_col <$> get
   i0   <- indent   <$> get
   setIndent (col0 - 2)
-  sepBy (pLine "" >> pStr ", ") (map prettify vs)
-  pLine "" >> pStr "]"
+  sepBy (pLine T.empty >> (pStr $ T.pack ", ")) (map prettify vs)
+  pLine T.empty >> pChr ']'
   setIndent i0 -- Reset indentation back to what it was
 
 instance (Prettify k, Prettify v) => Prettify (M.Map k v) where
@@ -172,9 +178,9 @@ instance (Prettify v) => Prettify (Maybe v) where
 
 prettifyList_ [] = pStr "[]"
 prettifyList_ vs = do
-  pStr "["
+  pChr '['
   sepBy (pStr ", ") (map prettify vs)
-  pStr "]"
+  pChr ']'
 
 instance (Prettify v) => Prettify [v] where
   prettify = prettifyList 
@@ -182,33 +188,33 @@ instance (Prettify v) => Prettify [v] where
 -- TODO: template haskell-ify for larger tuples
 instance (Prettify a, Prettify b) => Prettify (a,b) where
   prettify (a,b) = do
-    pStr "("
+    pChr '('
     prettify a
-    pStr ","
+    pChr ','
     prettify b
-    pStr ")"
+    pChr ')'
 
 instance (Prettify a, Prettify b, Prettify c) => Prettify (a,b,c) where
   prettify (a,b,c) = do
-    pStr "("
+    pChr '('
     prettify a
-    pStr ","
+    pChr ','
     prettify b
-    pStr ","
+    pChr ','
     prettify c
-    pStr ")"
+    pChr ')'
 
 instance (Prettify a, Prettify b, Prettify c, Prettify d) => Prettify (a,b,c,d) where
   prettify (a,b,c,d) = do
-    pStr "("
+    pChr '('
     prettify a
-    pStr ","
+    pChr ','
     prettify b
-    pStr ","
+    pChr ','
     prettify c
-    pStr ","
+    pChr ','
     prettify d
-    pStr ")"
+    pChr ')'
 
 sepBy s [] = return ()
 sepBy s (v:vs) = foldl (_sepBy s) v vs
@@ -217,15 +223,15 @@ _sepBy s ma mb = ma >> s >> mb
 
 instance Prettify Char where
   prettify = pChr
-  prettifyList = pStr
+  prettifyList = pStr . T.pack
 
 instance Prettify () where prettify = rshow
 instance Prettify Bool where prettify = rshow
 instance Prettify Int where prettify = rshow
 
 --class BoundedEnum a where
---  showConstr :: a -> String
-  --default showConstr :: (Data a) => a -> String
+--  showConstr :: a -> T.Text
+  --default showConstr :: (Data a) => a -> T.Text
   --showConstr = show . toConstr
 
 --instance (BoundedEnum a) => Prettify a where

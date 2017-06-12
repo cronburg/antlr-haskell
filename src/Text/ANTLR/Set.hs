@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, DeriveAnyClass, DeriveGeneric #-}
+{-# LANGUAGE GADTs, DeriveAnyClass, DeriveGeneric, OverloadedStrings #-}
 module Text.ANTLR.Set
   ( Set, null, size, member, notMember
   , empty, singleton, insert, delete, union, unions
@@ -126,7 +126,7 @@ instance (Show a, Hashable a, Eq a) => Show (Set a) where
 instance (Prettify a, Hashable a, Eq a) => Prettify (Set a) where
   prettify s = do
     pStr "Set: "; incrIndent 5
-    prettify $ toList s
+    pListLines $ toList s
     incrIndent (-5)
 
 instance (Read a, Hashable a, Eq a) => Read (Set a) where

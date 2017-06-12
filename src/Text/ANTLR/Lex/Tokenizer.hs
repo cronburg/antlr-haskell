@@ -1,4 +1,5 @@
-{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE ScopedTypeVariables, DeriveGeneric, DeriveAnyClass
+  , OverloadedStrings #-}
 module Text.ANTLR.Lex.Tokenizer where
 import Text.ANTLR.Lex.Automata
 import Text.ANTLR.Lex.DFA
@@ -9,17 +10,18 @@ import Text.ANTLR.Set (Hashable, member, Generic(..))
 import Text.ANTLR.Pretty
 import qualified Debug.Trace as D
 import Data.List (find)
+import qualified Data.Text as T
 
 -- Token with name (n) and value (v)
 data Token n v =
     Token n v
   | EOF
-  | Error String -- TODO
+  | Error T.Text -- TODO
   deriving (Show, Ord, Generic, Hashable)
 
 instance (Prettify n, Prettify v) => Prettify (Token n v) where
   prettify EOF = pStr "EOF"
-  prettify (Error s) = pStr $ "Token Error: " ++ s
+  prettify (Error s) = pStr "Token Error: " >> pStr s
   prettify (Token n v) = do
     prettify n
     pParens $ prettify v
@@ -76,7 +78,7 @@ tokenize dfaTuples fncn input0 = let
               (Just (l,d), _) -> Just (s:l, d))
       in case (currInput, oneTok dfaSims0 currInput) of
           ([], _)       -> [EOF]
-          (ss, Nothing) -> [Error $ show ss]
+          (ss, Nothing) -> [Error $ T.pack $ show ss]
           (ss, Just (l, (name,d))) ->
             Token name (fncn l name)
             : allTok dfaSims0 (drop (length l) currInput)

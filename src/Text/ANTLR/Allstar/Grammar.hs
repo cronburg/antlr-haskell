@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses
   , DeriveGeneric, DeriveAnyClass, TypeFamilies, FlexibleContexts
-  , StandaloneDeriving #-}
+  , StandaloneDeriving, OverloadedStrings #-}
 module Text.ANTLR.Allstar.Grammar
   ( Ref(..), sameNTs, sameTs
   , ProdElem(..), ProdElems
@@ -188,10 +188,10 @@ instance Hashable (Predicate s) where
   hashWithSalt salt (Predicate p1 _) = salt `hashWithSalt` p1
 
 instance Prettify (Predicate s) where
-  prettify (Predicate n _) = pStr n
+  prettify (Predicate n _) = pStr' n
 
 instance Prettify (Mutator s) where
-  prettify (Mutator n _) = pStr n
+  prettify (Mutator n _) = pStr' n
 
 data Mutator   s = Mutator String (s -> s)
 

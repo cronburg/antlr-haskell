@@ -8,6 +8,7 @@ import           Data.CallStack
 import Test.HUnit.Lang hiding (assertEqual, (@?=))
 
 import Text.ANTLR.Pretty
+import qualified Data.Text as T
 
 location :: HasCallStack => Maybe SrcLoc
 location = case reverse callStack of
@@ -32,8 +33,8 @@ assertEqual preface expected actual =
     prefaceMsg
       | null preface = Nothing
       | otherwise = Just preface
-    expectedMsg = '\n' : pshowIndent 4 expected
-    actualMsg   = '\n' : pshowIndent 4 actual
+    expectedMsg = '\n' : T.unpack (pshowIndent 4 expected)
+    actualMsg   = '\n' : T.unpack (pshowIndent 4 actual)
 
 -- | Asserts that the specified actual value is equal to the expected value
 --   (with the actual value on the left-hand side).
