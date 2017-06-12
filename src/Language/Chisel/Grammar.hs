@@ -1,10 +1,10 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric, TypeFamilies, QuasiQuotes
-    , DataKinds, ScopedTypeVariables #-}
+    , DataKinds, ScopedTypeVariables, OverloadedStrings #-}
 module Language.Chisel.Grammar
-  ( parse, tokenize, ChiselNTSymbol(..), ChiselTSymbol, ChiselAST
+  ( parse, tokenize, ChiselNTSymbol(..), ChiselTSymbol(..), ChiselAST
   , lowerID, upperID, prim, int, arrow, lparen, rparen, pound
   , vertbar, colon, comma, atsymbol, carrot, dot, linecomm, ws
-  , Primitive(..), chisel
+  , Primitive(..), chisel, TokenValue(..)
   ) where
 
 import Text.ANTLR.Allstar.Grammar
@@ -48,6 +48,7 @@ instance Read Primitive where
 
   prodSimple : UpperID formals magnitude alignment '->' group
              | UpperID formals '->' group
+             | UpperID magnitude alignment '->' group
              ;
 
   formals : LowerID formals
@@ -62,21 +63,20 @@ instance Read Primitive where
 
   group : tuple | alt | flags;
 
-  tuple : '(' tupleExp1 ')'
-        | '(' tupleExp1 ',' tupleExp ')' ;
+  tuple :     tupleExp1
+        | '(' tupleExp1 ')'
+        | '(' tupleExp1 ',' tupleExp1 ')' ;
   
-  tupleExp : tupleExp1
-           | tupleExp1 ',' tupleExp ;
-
-  tupleExp1 : '#' chiselProd
+  tupleExp1 : prodID
+            | '#' chiselProd
             | '#' sizeArith
             | chiselProd
             | sizeArith
-            | group
             | label
             | arith chiselProd
-            | arith prodApp ;
-  
+            | arith prodApp
+            ;
+
   alt   : 'TODO';
   flags : 'TODO';
 
@@ -89,7 +89,14 @@ instance Read Primitive where
            | sizeArith
            ;
 
+  sizeArith : INT
+            | LowerID
+            | INT '^' LowerID
+            | sizeArith Prim
+            ;
+
   labelID  : LowerID;
+  prodID   : UpperID;
 
   carret : '^';
   dot : '.';

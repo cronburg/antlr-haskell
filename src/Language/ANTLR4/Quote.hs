@@ -317,6 +317,19 @@ g4_decls ast = let
           (normalB $ listE (map mkLitR terminalLiterals ++ (catMaybes $ map mkLexR ast)))
           []
 
+    prettyTFncnQ fncnName = let
+        pTFLit lexeme =
+          clause [conP (mkName $ lookupTName "T_" lexeme) []]
+          (normalB [| pStr $(litE $ stringL $ "'" ++ lexeme ++ "'") |])
+          []
+
+        pTFName lexeme = 
+          clause [conP (mkName $ lookupTName "T_" lexeme) []]
+          (normalB [| pStr $(litE $ stringL $ lexeme) |])
+          []
+      in funD fncnName (map pTFLit terminalLiterals ++ map pTFName lexemeNames)
+  -- terminaLiterals, lexemeNames
+
   -- IMPORTANT: Creating type variables in two different haskell type
   -- quasiquoters with the same variable name produces two (uniquely) named type
   -- variables. In order to achieve the same type variable you need to run one
@@ -332,6 +345,7 @@ g4_decls ast = let
             nameToken = mkName (mkUpper gName ++ "Token")
             nameDFAs  = mkName (mkLower gName ++ "DFAs")
             name      = mkName $ mkLower gName
+        prettyTFncnName <- newName "prettifyT"
         
         ntDataDecl <- ntDataDeclQ
         tDataDecl  <- tDataDeclQ
@@ -340,7 +354,7 @@ g4_decls ast = let
         g      <- grammar gTy
         gFunD  <- funD (mkName $ mkLower gName) [clause [] (normalB (return g)) []]
         prettyNT:_     <- [d| instance Prettify $(ntConT) where prettify = rshow |]
-        prettyT:_      <- [d| instance Prettify $(tConT) where prettify = rshow |]
+        prettyT:_      <- [d| instance Prettify $(tConT) where prettify = $(varE prettyTFncnName) |]
         prettyValue:_  <- [d| instance Prettify $(conT tokVal) where prettify = rshow |]
         lookupTokenD   <- lookupTokenFncnDecl
 
@@ -370,12 +384,14 @@ g4_decls ast = let
               slrParse = (P.slrParse $(varE name) event2ast)
           |]
         
+        prettyTFncn <- prettyTFncnQ prettyTFncnName
 
         return $
           [ ntDataDecl, tDataDecl
           , gTySig
           , gFunD
           , tokenNameType, tokenValueType
+          , prettyTFncn
           , prettyNT, prettyT, prettyValue
           , lookupTokenD
           , lexeme2Value

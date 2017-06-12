@@ -116,6 +116,9 @@ _pNewLine = do
 pshow :: (Prettify t) => t -> T.Text
 pshow t = str $ execState (prettify t) initPState
 
+pshow' :: (Prettify t) => t -> String
+pshow' = T.unpack . pshow
+
 pshowIndent :: (Prettify t) => Int -> t -> T.Text
 pshowIndent i t = str $ execState (prettify t) $ initPState { indent = i }
 

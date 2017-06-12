@@ -20,9 +20,12 @@ import Data.Map ( Map(..) )
 import qualified Data.Map as M
 
 import Text.ANTLR.Pretty
-
+import qualified Debug.Trace as D
 import System.IO.Unsafe (unsafePerformIO)
 uPIO = unsafePerformIO
+
+trace = D.trace
+--trace x y = y
 
 data ItemLHS nts =
     Init   nts -- S' if S is the grammar start symbol
@@ -286,7 +289,8 @@ lrParse ::
   ( Ord a, Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t))
   , Eq nts, Eq (Sym t), Eq (StripEOF (Sym t))
   , Ref t, HasEOF (Sym t)
-  , Hashable (Sym t), Hashable t, Hashable a, Hashable nts, Hashable (StripEOF (Sym t)))
+  , Hashable (Sym t), Hashable t, Hashable a, Hashable nts, Hashable (StripEOF (Sym t))
+  , Prettify a, Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
   => Grammar () nts (StripEOF (Sym t)) -> LRTable a nts (StripEOF (Sym t)) -> Goto a nts (StripEOF (Sym t))
   -> Closure a nts (StripEOF (Sym t))  -> LRState a nts (StripEOF (Sym t)) -> Action ast nts t
   -> [t] -> Maybe ast
@@ -301,10 +305,11 @@ lrParse g tbl goto closure s_0 act w = let
               1 -> Just $ head asts
               _ -> Nothing
         lr' (Just Error)     = Nothing
-        lr' (Just (Shift t)) = lr (t:s:states, ws) $ act (TermE a) : asts
-        lr' (Just (Reduce (Production _A (Prod _ β)))) = let
+        lr' (Just (Shift t)) = trace ("Shift: " ++ pshow' t) $ lr (t:s:states, ws) $ act (TermE a) : asts
+        lr' (Just (Reduce p@(Production _A (Prod _ β)))) = let
               ss'@(t:_) = drop (length β) (s:states)
-            in lr (goto t (NT _A) : ss', a:ws)
+            in trace ("Reduce: " ++ pshow' p)
+               lr (goto t (NT _A) : ss', a:ws)
                   ((act $ NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
 
       -- TODO: handle empty file test case
@@ -318,7 +323,8 @@ slrParse ::
   ( Eq (Sym nts), Eq (Sym t), Eq (StripEOF (Sym t))
   , Ref t, HasEOF (Sym t)
   , Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t))
-  , Hashable nts, Hashable (Sym t), Hashable t, Hashable (StripEOF (Sym t)))
+  , Hashable nts, Hashable (Sym t), Hashable t, Hashable (StripEOF (Sym t))
+  , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
   => Grammar () nts (StripEOF (Sym t)) -> Action ast nts t -> [t] -> Maybe ast
 slrParse g = lrParse g (slrTable g) (slrGoto g) (slrClosure g) (slrS0 g)
 
@@ -326,7 +332,8 @@ slrRecognize ::
   ( Eq (Sym nts), Eq (Sym t), Eq (StripEOF (Sym t))
   , Ref t, HasEOF (Sym t)
   , Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t))
-  , Hashable nts, Hashable (Sym t), Hashable t, Hashable (StripEOF (Sym t)))
+  , Hashable nts, Hashable (Sym t), Hashable t, Hashable (StripEOF (Sym t))
+  , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
   => Grammar () nts (StripEOF (Sym t)) -> [t] -> Bool
 slrRecognize g w = (Nothing /=) $ slrParse g (const 0) w
 
@@ -334,7 +341,8 @@ lr1Recognize ::
   ( Eq (Sym nts), Eq (Sym t), Eq (StripEOF (Sym t))
   , Ref t, HasEOF (Sym t)
   , Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t))
-  , Hashable nts, Hashable (Sym t), Hashable t, Hashable (StripEOF (Sym t)))
+  , Hashable nts, Hashable (Sym t), Hashable t, Hashable (StripEOF (Sym t))
+  , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
   => Grammar () nts (StripEOF (Sym t)) -> [t] -> Bool
 lr1Recognize g w = (Nothing /=) $ lr1Parse g (const 0) w
 
@@ -367,7 +375,8 @@ lr1Parse ::
   ( Eq (Sym nts), Eq (Sym t), Eq (StripEOF (Sym t))
   , Ref t, HasEOF (Sym t)
   , Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t))
-  , Hashable nts, Hashable (Sym t), Hashable t, Hashable (StripEOF (Sym t)))
+  , Hashable nts, Hashable (Sym t), Hashable t, Hashable (StripEOF (Sym t))
+  , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
   => Grammar () nts (StripEOF (Sym t)) -> Action ast nts t -> [t] -> Maybe ast
 lr1Parse g = lrParse g (lr1Table g) (lr1Goto g) (lr1Closure g) (lr1S0 g)
 

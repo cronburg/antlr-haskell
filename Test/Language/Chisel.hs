@@ -5,6 +5,7 @@ module Main where
 import Text.ANTLR.Lex.Tokenizer (Token(..))
 import Text.ANTLR.Parser (AST(..))
 import Language.Chisel.Grammar
+import Text.ANTLR.Allstar.Grammar (Grammar(..), ProdElem(..))
 import Language.ANTLR4.FileOpener (open)
 
 import System.IO.Unsafe (unsafePerformIO)
@@ -12,7 +13,7 @@ import Data.Monoid
 import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
-import Test.HUnit hiding ((@?=), assertEqual) 
+import Test.HUnit hiding ((@?=), assertEqual)
 import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
@@ -104,7 +105,23 @@ tokenizeSmall = tokenize "Foo x -> Bar"
 parseTestSmall =
   parse tokenizeSmall
   @?=
-  Just LeafEps
+  Just
+    ( AST ChiselProd [NT ProdSimple]
+      [ AST ProdSimple [T T_UpperID, NT Formals, T T_2, NT Group]
+        [ Leaf $ upperID "Foo"
+        , AST Formals [T T_LowerID] 
+          [ Leaf (Token T_LowerID (V_LowerID "x"))]
+        , Leaf arrow
+        , AST Group [NT Tuple]
+          [ AST Tuple [NT TupleExp1]
+            [ AST TupleExp1 [NT ProdID]
+              [ AST ProdID [T T_UpperID]
+                [ Leaf $ upperID "Bar"]]]]]])
+
+tokenizeSmallTest =
+  tokenizeSmall
+  @?=
+  [upperID "Foo", ws " ", lowerID "x", ws " ", arrow, ws " ", upperID "Bar", EOF]
 
 parseGHCTestBig =
   parse tokenizeGHC_val
@@ -112,15 +129,16 @@ parseGHCTestBig =
   Just LeafEps -- TODO
 
 testPrettify =
-  unsafePerformIO (putStr $ T.unpack $ pshow $ LR1.slrTable chisel)
+  unsafePerformIO (putStr $ T.unpack $ pshow (chisel :: Grammar () ChiselNTSymbol ChiselTSymbol))
   @?= ()
 
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "Tokenize GHC" tokenizeGHC
   , testCase "Tokenize GHC2" tokenizeGHC2
+  , testCase "Tokenize Small" tokenizeSmallTest
   , testCase "Parse Test (Small)" parseTestSmall
   , testCase "Parse GHC"  parseGHCTestBig
-  , testCase "SLR table speed" testPrettify
+  , testCase "Prettify speed" testPrettify
   ] mempty
 
