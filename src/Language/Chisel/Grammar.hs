@@ -61,6 +61,7 @@ instance Prettify Primitive where prettify = rshow
 
   magnitude : '|' '#' sizeArith '|'
             | '|'     sizeArith '|'
+            | '|'     prodID    '|'
             ;
 
   alignment : '@' '(' sizeArith ')';
@@ -84,6 +85,8 @@ instance Prettify Primitive where prettify = rshow
             | label
             | arith chiselProd
             | arith prodApp
+            | sizeArith
+            | '(' labels ')'
             ;
 
   flags : prodID
@@ -94,7 +97,9 @@ instance Prettify Primitive where prettify = rshow
          | label '|' labels
          ;
 
-  label : LowerID ':' labelExp;
+  label : LowerID ':' labelExp
+        ;
+
   labelExp : '#' chiselProd
            | '#' prodApp
            | '#' sizeArith
@@ -107,11 +112,15 @@ instance Prettify Primitive where prettify = rshow
           | prodID
           ;
 
-  sizeArith : INT
-            | LowerID
-            | INT '^' LowerID
-            | sizeArith Prim
+  sizeArith : arith Prim
+            | Prim
             ;
+  
+  arith : INT
+        | LowerID
+        | INT '^' LowerID
+        | sizeArith Prim
+        ;
 
   prodID  : UpperID
           | UpperID '.' prodID
@@ -154,5 +163,5 @@ dot        = lookupToken "."
 linecomm x = T.Token T_LineComment $ V_LineComment x
 ws       x = T.Token T_WS          $ V_WS x
 
-parse = slrParse . filter (not . isWhitespace)
+parse = glrParse . filter (not . isWhitespace)
 

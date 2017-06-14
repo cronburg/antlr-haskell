@@ -5,6 +5,7 @@ module Text.ANTLR.LR
   , kernel, items
   , slrClosure, slrGoto, slrItems, allSLRItems, slrTable, slrParse, slrRecognize
   , lr1Closure, lr1Goto, lr1Items, lr1Table, lr1Parse, lr1Recognize
+  , LR1LookAhead
   , LRState, LRTable, LRAction(..)
   , lrParse, LRResult(..), glrParse, isAccept, isError
   ) where
@@ -294,7 +295,8 @@ data LRResult a nts ts t ast =
   deriving (Eq, Ord, Show, Generic, Hashable)
 
 instance  ( Prettify t, Prettify ast, Prettify a, Prettify nts, Prettify ts
-          , Hashable a, Hashable ts, Hashable nts, Eq a, Eq ts, Eq nts)
+          , Hashable a, Hashable ts, Hashable nts, Eq a, Eq ts, Eq nts, Eq t, Eq ast
+          , Hashable ast, Hashable t)
   => Prettify (LRResult a nts ts t ast) where
   
   prettify (ErrorNoAction (s:states, a:ws) asts) = do
@@ -324,7 +326,9 @@ instance  ( Prettify t, Prettify ast, Prettify a, Prettify nts, Prettify ts
     pStr "Rest of input = "
     prettify ws
     pLine ""
-  
+ 
+  prettify (ResultSet s) = prettify s
+
   prettify (ResultAccept ast)             = prettify ast
 
 isAccept (ResultAccept _) = True
@@ -439,7 +443,7 @@ lr1Parse g = lrParse g (lr1Table g) (lr1Goto g) (lr1Closure g) (lr1S0 g)
 
 glrParse' ::
   forall ast a nts t.
-  ( Ord a, Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t))
+  ( Ord a, Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t)), Ord ast
   , Eq nts, Eq (Sym t), Eq (StripEOF (Sym t)), Eq ast
   , Ref t, HasEOF (Sym t)
   , Hashable (Sym t), Hashable t, Hashable a, Hashable nts, Hashable (StripEOF (Sym t)), Hashable ast
@@ -474,7 +478,10 @@ glrParse' g tbl goto closure s_0 act w = let
       in if S.null lookVal
           then ErrorNoAction (s:states, a:ws) asts
           else (if S.null justAccepts
-                  then ResultSet parseResults
+                  then (case S.size parseResults of
+                          0 -> undefined
+                          1 -> S.findMin parseResults
+                          _ -> ResultSet parseResults)
                   else ResultSet justAccepts)
 
   in lr ([closure s_0], w) []

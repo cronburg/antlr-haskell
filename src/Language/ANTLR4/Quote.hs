@@ -396,6 +396,9 @@ g4_decls ast = let
 
               slrParse :: [$(conT nameToken)] -> LR.LRResult () $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
               slrParse = (LR.slrParse $(varE name) event2ast)
+              
+              glrParse :: [$(conT nameToken)] -> LR.LRResult (LR.LR1LookAhead (StripEOF (Sym $(conT nameToken)))) $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
+              glrParse = (LR.glrParse $(varE name) event2ast)
           |]
         
         prettyTFncn <- prettyTFncnQ prettyTFncnName

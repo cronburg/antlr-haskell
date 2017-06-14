@@ -25,7 +25,7 @@ import qualified Test.QuickCheck.Monadic as TQM
 
 import Test.Text.ANTLR.HUnit
 import Text.ANTLR.Pretty (pshow)
-
+import qualified Debug.Trace as D
 uPIO = unsafePerformIO
 
 grm = dragonBook41
@@ -159,13 +159,13 @@ testSLRTable =
   0
 
 testSLRTable2 =
-  M.size (testSLRExp 
+  M.size (testSLRExp
   `M.difference`
   slrTable grm)
   @?=
   0
 
-testSLRTable3 = 
+testSLRTable3 =
   slrTable grm
   @?=
   testSLRExp
@@ -342,6 +342,22 @@ testLR1Parse =
 
 testPrettify = unsafePerformIO $ putStrLn $ T.unpack $ pshow testSLRExp
 
+testGLRParse =
+  glrParse grm action0 w0
+  @?=
+  (ResultSet $ S.fromList [ ResultAccept (
+    AST "E" [NT "E",T "+",NT "T"]
+      [AST "E" [NT "T"]
+        [AST "T" [NT "T",T "*",NT "F"]
+          [AST "T" [NT "F"]
+            [AST "F" [T "id"] [Leaf "id"]]
+          ,Leaf "*"
+          ,AST "F" [T "id"]
+            [Leaf "id"]]]
+        ,Leaf "+"
+        ,AST "T" [NT "F"]
+          [AST "F" [T "id"] [Leaf "id"]]])])
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "closure" testClosure
@@ -361,5 +377,6 @@ main = defaultMainWithOpts
   , testCase "testLR1Items" testLR1Items
   , testCase "testLR1Table" testLR1Table
   , testCase "testPrettify" (testPrettify @?= ())
+  , testCase "testGLR" testGLRParse
   ] mempty
 
