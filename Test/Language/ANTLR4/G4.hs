@@ -1,10 +1,10 @@
 {-# LANGUAGE QuasiQuotes, DeriveAnyClass, DeriveGeneric, TypeFamilies
-    , DataKinds, ScopedTypeVariables #-}
+    , DataKinds, ScopedTypeVariables, OverloadedStrings #-}
 module Test.Language.ANTLR4.G4 where
 
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Parser
-import qualified Text.ANTLR.LR1 as P
+import qualified Text.ANTLR.LR as P
 --import Language.Chisel.Tokenizer
 import qualified Text.ANTLR.Lex.Tokenizer as T
 import qualified Text.ANTLR.Set as S

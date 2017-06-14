@@ -20,10 +20,10 @@ import qualified Language.ANTLR4.Syntax as G4S
 import qualified Language.ANTLR4.Parser as G4P
 import qualified Language.ANTLR4.Regex  as G4R
 import Text.ANTLR.Allstar.Grammar
-import Text.ANTLR.Parser (AST(..))
+import Text.ANTLR.Parser (AST(..), StripEOF(..))
 import Text.ANTLR.Pretty
 import qualified Text.ANTLR.Lex.Tokenizer as T
-import qualified Text.ANTLR.LR1 as P
+import qualified Text.ANTLR.LR as LR
 
 import Text.ANTLR.Set (Set(..))
 import qualified Text.ANTLR.Set as Set
@@ -328,6 +328,19 @@ g4_decls ast = let
           (normalB [| pStr $(litE $ stringL $ lexeme) |])
           []
       in funD fncnName (map pTFLit terminalLiterals ++ map pTFName lexemeNames)
+
+    prettyVFncnQ fncnName = let
+        pVFLit lexeme =
+          clause [conP (mkName $ lookupTName "V_" lexeme) []]
+          (normalB [| pStr $(litE $ stringL $ "'" ++ lexeme ++ "'") |])
+          []
+
+        pVFName lexeme = 
+          clause [conP (mkName $ lookupTName "V_" lexeme) [varP (mkName "v")]]
+          (normalB [| pChr '\'' >> prettify v >> pChr '\'' |])
+          []
+      in funD fncnName (map pVFLit terminalLiterals ++ map pVFName lexemeNames)
+
   -- terminaLiterals, lexemeNames
 
   -- IMPORTANT: Creating type variables in two different haskell type
@@ -346,6 +359,7 @@ g4_decls ast = let
             nameDFAs  = mkName (mkLower gName ++ "DFAs")
             name      = mkName $ mkLower gName
         prettyTFncnName <- newName "prettifyT"
+        prettyValueFncnName <- newName "prettifyValue"
         
         ntDataDecl <- ntDataDeclQ
         tDataDecl  <- tDataDeclQ
@@ -355,7 +369,7 @@ g4_decls ast = let
         gFunD  <- funD (mkName $ mkLower gName) [clause [] (normalB (return g)) []]
         prettyNT:_     <- [d| instance Prettify $(ntConT) where prettify = rshow |]
         prettyT:_      <- [d| instance Prettify $(tConT) where prettify = $(varE prettyTFncnName) |]
-        prettyValue:_  <- [d| instance Prettify $(conT tokVal) where prettify = rshow |]
+        prettyValue:_  <- [d| instance Prettify $(conT tokVal) where prettify = $(varE prettyValueFncnName) |]
         lookupTokenD   <- lookupTokenFncnDecl
 
         tokenNameType  <- tokenNameTypeQ
@@ -380,18 +394,19 @@ g4_decls ast = let
               tokenize :: String -> [$(conT nameToken)] --T.Token $(conT tokName) $(conT tokVal)]
               tokenize = T.tokenize $(varE nameDFAs) lexeme2value
 
-              slrParse :: [$(conT nameToken)] -> Maybe $(conT nameAST)
-              slrParse = (P.slrParse $(varE name) event2ast)
+              slrParse :: [$(conT nameToken)] -> LR.LRResult () $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
+              slrParse = (LR.slrParse $(varE name) event2ast)
           |]
         
         prettyTFncn <- prettyTFncnQ prettyTFncnName
+        prettyVFncn <- prettyVFncnQ prettyValueFncnName
 
         return $
           [ ntDataDecl, tDataDecl
           , gTySig
           , gFunD
           , tokenNameType, tokenValueType
-          , prettyTFncn
+          , prettyTFncn, prettyVFncn
           , prettyNT, prettyT, prettyValue
           , lookupTokenD
           , lexeme2Value

@@ -7,7 +7,7 @@ module Text.ANTLR.Lex
   ) where
 import qualified Text.ANTLR.Allstar.Grammar as G
 
-import Text.ANTLR.LR1 (lr1Parse)
+import Text.ANTLR.LR (lr1Parse)
 import Text.ANTLR.Parser
 
 import qualified Data.Set.Monad as Set

@@ -19,7 +19,7 @@ import qualified Test.QuickCheck.Monadic as TQM
 
 import Test.Text.ANTLR.HUnit
 import Debug.Trace as D
-import qualified Text.ANTLR.LR1 as LR1
+import qualified Text.ANTLR.LR as LR
 import Text.ANTLR.Pretty (pshow)
 import qualified Data.Text as T
 
@@ -76,7 +76,7 @@ tokenizeGHC_exp =
   , upperID "COMPACT", ws " ", rparen, ws "\n        ", comma, ws " "
   , lowerID "n_blocks", ws " ", colon, ws " "
   , upperID "Stg", dot, upperID "Word32", ws "\n        "
-  , comma, ws " ", lowerID "padD", ws " ", prim Byte, rparen, rparen, rparen, ws "\n      "
+  , comma, ws " ", lowerID "padD", ws " ", prim Byte, rparen, rparen, ws "\n      "
   , linecomm "// +++++++++++++++++++++++++++++++++++++++++\n", ws "    "
   , linecomm "// -------Megablock payload-------------------\n", ws "    ", comma, ws " "
   , lowerID "blocks", ws " ", colon, ws " ", lowerID "n", ws " "
@@ -86,8 +86,8 @@ tokenizeGHC_exp =
   , ws " ", arrow, ws "\n      ", lparen, ws " "
   , lowerID "closures", ws " ", colon, ws " ", pound, ws " "
   , upperID "Stg", dot, upperID "Closures", ws "\n      ", comma, ws " "
-  , lowerID "free", ws "     ", colon, ws " ", pound, ws " ", prim Byte, rparen, ws "\n"
-  , EOF
+  , lowerID "free", ws "     ", colon, ws " ", pound, ws " ", prim Byte, rparen
+  , ws "\n    ", rparen, ws "\n", EOF
   ]
 
 tokenizeGHC =
@@ -103,20 +103,19 @@ tokenizeGHC2 =
 tokenizeSmall = tokenize "Foo x -> Bar"
 
 parseTestSmall =
-  parse tokenizeSmall
+  (D.traceShowId $ parse tokenizeSmall)
   @?=
-  Just
+  LR.ResultAccept
     ( AST ChiselProd [NT ProdSimple]
-      [ AST ProdSimple [T T_UpperID, NT Formals, T T_2, NT Group]
-        [ Leaf $ upperID "Foo"
+      [ AST ProdSimple [NT ProdID, NT Formals, T T_2, NT Group]
+        [ AST ProdID [T T_UpperID] [Leaf $ upperID "Foo"]
         , AST Formals [T T_LowerID] 
-          [ Leaf (Token T_LowerID (V_LowerID "x"))]
+          [ Leaf $ lowerID "x"]
         , Leaf arrow
-        , AST Group [NT Tuple]
-          [ AST Tuple [NT TupleExp1]
+        , AST Group [NT TupleExp1]
             [ AST TupleExp1 [NT ProdID]
               [ AST ProdID [T T_UpperID]
-                [ Leaf $ upperID "Bar"]]]]]])
+                [ Leaf $ upperID "Bar"]]]]])
 
 tokenizeSmallTest =
   tokenizeSmall
@@ -124,9 +123,9 @@ tokenizeSmallTest =
   [upperID "Foo", ws " ", lowerID "x", ws " ", arrow, ws " ", upperID "Bar", EOF]
 
 parseGHCTestBig =
-  parse tokenizeGHC_val
-  @?=
-  Just LeafEps -- TODO
+  case parse tokenizeGHC_val of
+    (LR.ResultAccept _)   -> (1 :: Int) @?= 1
+    e                     -> e @?= LR.ResultAccept LeafEps
 
 testPrettify =
   unsafePerformIO (putStr $ T.unpack $ pshow (chisel :: Grammar () ChiselNTSymbol ChiselTSymbol))

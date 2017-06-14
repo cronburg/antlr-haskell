@@ -22,9 +22,8 @@ data Token n v =
 instance (Prettify n, Prettify v) => Prettify (Token n v) where
   prettify EOF = pStr "EOF"
   prettify (Error s) = pStr "Token Error: " >> pStr s
-  prettify (Token n v) = do
-    prettify n
-    pParens $ prettify v
+  prettify (Token n v) =
+    prettify v
 
 instance Eq n => Eq (Token n v) where
   Token s _ == Token s1 _ = s == s1

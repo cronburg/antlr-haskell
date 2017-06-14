@@ -51,8 +51,8 @@ initPState = PState
   { indent       = 0   -- Indentation level
   , vis_chrs     = 0   -- Number of visible characters consumed.
   , str          = T.empty -- The string
-  , columns_soft = 80  -- Soft limit on terminal width.
-  , columns_hard = 120 -- Hard limit on terminal width.
+  , columns_soft = 60  -- Soft limit on terminal width.
+  , columns_hard = 80  -- Hard limit on terminal width.
   , curr_col     = 0   -- Column position in the current row.
   , curr_row     = 0   -- Number of newlines seen
   }

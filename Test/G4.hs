@@ -19,6 +19,7 @@ import qualified Test.Language.ANTLR4.G4 as G4
 import Test.Language.ANTLR4.Hello
 import Language.ANTLR4.Regex
 import Text.ANTLR.Parser (AST(..))
+import qualified Text.ANTLR.LR as LR
 import qualified Text.ANTLR.Lex.Tokenizer as T
 
 test_g4_basic_type_check = do
@@ -46,12 +47,13 @@ _1 = G4.lookupToken "1"
 test_g4 =
   G4.slrParse (G4.tokenize "1")
   @?=
-  Just (AST G4.Exp [T G4.T_0] [Leaf _1])
+  LR.ResultAccept (AST G4.Exp [T G4.T_0] [Leaf _1])
  
 test_hello =
   slrParse (tokenize "hello Matt")
   @?=
-  (Just $ AST R [T T_0, T T_WS, T T_ID]
+  (LR.ResultAccept $
+        AST R [T T_0, T T_WS, T T_ID]
         [ Leaf (T.Token T_0 V_0)
         , Leaf (T.Token T_WS (V_WS " "))
         , Leaf (T.Token T_ID (V_ID "Matt"))

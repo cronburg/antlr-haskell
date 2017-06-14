@@ -9,7 +9,7 @@ module Language.Chisel.Grammar
 
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Parser
-import qualified Text.ANTLR.LR1 as P
+import qualified Text.ANTLR.LR as LR
 --import Language.Chisel.Tokenizer
 import qualified Text.ANTLR.Lex.Tokenizer as T
 import qualified Text.ANTLR.Set as S
@@ -40,15 +40,19 @@ instance Read Primitive where
     Just x  -> [(x,"")]
     Nothing -> []
 
+instance Prettify Primitive where prettify = rshow
+
 [antlr4|
   grammar Chisel;
   chiselProd : prodSimple
              | '(' prodSimple ')'
              ;
 
-  prodSimple : UpperID formals magnitude alignment '->' group
-             | UpperID formals '->' group
-             | UpperID magnitude alignment '->' group
+  prodSimple : prodID formals magnitude alignment '->' group
+             | prodID formals '->' group
+             | prodID magnitude alignment '->' group
+             | prodID magnitude '->' group
+             | LowerID prodID magnitude alignment '->' group
              ;
 
   formals : LowerID formals
@@ -61,15 +65,20 @@ instance Read Primitive where
 
   alignment : '@' '(' sizeArith ')';
 
-  group : tuple | alt | flags;
-
-  tuple :     tupleExp1
-        | '(' tupleExp1 ')'
-        | '(' tupleExp1 ',' tupleExp1 ')' ;
+  group :     tupleExp1
+        | '(' flags     ')'
+        | '(' tupleExp  ')'
+        | '(' labels    ')'
+        ;
   
+  tupleExp : tupleExp1
+           | tupleExp1 ',' tupleExp
+           ;
+
   tupleExp1 : prodID
             | '#' chiselProd
             | '#' sizeArith
+            | '(' flags ')'
             | chiselProd
             | sizeArith
             | label
@@ -77,10 +86,15 @@ instance Read Primitive where
             | arith prodApp
             ;
 
-  alt   : 'TODO';
-  flags : 'TODO';
+  flags : prodID
+        | prodID '|' flags
+        ;
 
-  label : labelID ':' labelExp;
+  labels : label
+         | label '|' labels
+         ;
+
+  label : LowerID ':' labelExp;
   labelExp : '#' chiselProd
            | '#' prodApp
            | '#' sizeArith
@@ -89,17 +103,21 @@ instance Read Primitive where
            | sizeArith
            ;
 
+  prodApp : prodID prodApp
+          | prodID
+          ;
+
   sizeArith : INT
             | LowerID
             | INT '^' LowerID
             | sizeArith Prim
             ;
 
-  labelID  : LowerID;
-  prodID   : UpperID;
+  prodID  : UpperID
+          | UpperID '.' prodID
+          ;
 
   carret : '^';
-  dot : '.';
 
   Prim     : ( 'bit' | 'byte' ) 's'?      -> Primitive;
   ArchPrim : ( 'page' | 'word' ) 's'?     -> Primitive;

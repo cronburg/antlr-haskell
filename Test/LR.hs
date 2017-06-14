@@ -2,14 +2,14 @@
 module Main where
 import Test.Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Allstar.Grammar
-import Text.ANTLR.LR1
+import Text.ANTLR.LR
 import Text.ANTLR.Parser
 import qualified Data.Text as T
 import qualified Text.ANTLR.Lex.Tokenizer as T
 
 import Text.ANTLR.Set (fromList, union, empty, Set(..), (\\))
 import qualified Text.ANTLR.Set as S
-import qualified Data.Map.Strict as M
+import qualified Text.ANTLR.MultiMap as M
 
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Monoid
@@ -229,7 +229,7 @@ action0 (NonTE (nt, ss, asts))  = AST nt ss asts
 testLRParse =
   slrParse grm action0 w0
   @?=
-  (Just $
+  (ResultAccept $
     AST "E" [NT "E", T "+", NT "T"]
       [ AST "E" [NT "T"]
           [ AST "T" [NT "T", T "*", NT "F"]
@@ -243,9 +243,9 @@ testLRParse =
       ])
 
 testLRParse2 =
-  slrParse grm action0 ["id", "*", "id", "+", "+", ""]
+  isError (slrParse grm action0 ["id", "*", "id", "+", "+", "_"])
   @?=
-  Nothing
+  True
 
 w0 = ["id", "*", "id", "+", "id", ""]
 
@@ -332,10 +332,13 @@ i8 = fromList
 
 i9 = fromList [ Item (ItemNT "C") [NT "C", T "c"] [] IconEOF ]
 
+getAST (ResultAccept ast) = ast
+getAST _ = error "bad parse"
+
 testLR1Parse =
-  lr1Parse grm action0 w0
+  getAST (lr1Parse grm action0 w0)
   @?=
-  slrParse grm action0 w0
+  getAST (slrParse grm action0 w0)
 
 testPrettify = unsafePerformIO $ putStrLn $ T.unpack $ pshow testSLRExp
 

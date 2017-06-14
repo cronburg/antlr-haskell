@@ -131,6 +131,7 @@ data AST nts t =
 deriving instance (Eq (StripEOF (Sym t)), Eq nts, Eq t) => Eq (AST nts t)
 deriving instance (Ord (StripEOF (Sym t)), Ord nts, Ord t) => Ord (AST nts t)
 deriving instance (Show (StripEOF (Sym t)), Show nts, Show t) => Show (AST nts t)
+deriving instance (Hashable (StripEOF (Sym t)), Hashable nts, Hashable t) => Hashable (AST nts t)
 
 instance (Prettify nts, Prettify t) => Prettify (AST nts t) where
   prettify LeafEps  = pStr "ϵ"
