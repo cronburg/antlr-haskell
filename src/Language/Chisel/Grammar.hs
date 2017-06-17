@@ -67,9 +67,7 @@ instance Prettify Primitive where prettify = rshow
   alignment : '@' '(' sizeArith ')';
 
   group :     tupleExp1
-        | '(' flags     ')'
         | '(' tupleExp  ')'
-        | '(' labels    ')'
         ;
   
   tupleExp : tupleExp1
