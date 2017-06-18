@@ -1,5 +1,5 @@
 {-# LANGUAGE QuasiQuotes, TemplateHaskell, ScopedTypeVariables, DataKinds #-}
-module Language.ANTLR4.Quote
+module Language.ANTLR4.Boot.Quote
 ( antlr4, ProdElem(..)
 ) where
 import Prelude hiding (exp, init)
@@ -16,8 +16,8 @@ import Language.Haskell.TH.Syntax (lift, Exp(..))
 import Language.Haskell.TH.Quote (QuasiQuoter(..))
 
 import Control.Monad (mapM)
-import qualified Language.ANTLR4.Syntax as G4S
-import qualified Language.ANTLR4.Parser as G4P
+import qualified Language.ANTLR4.Boot.Syntax as G4S
+import qualified Language.ANTLR4.Boot.Parser as G4P
 import qualified Language.ANTLR4.Regex  as G4R
 import Text.ANTLR.Allstar.Grammar
 import Text.ANTLR.Parser (AST(..), StripEOF(..))
@@ -29,8 +29,8 @@ import Text.ANTLR.Set (Set(..))
 import qualified Text.ANTLR.Set as Set
 import qualified Text.ANTLR.Lex.Regex as R
 
-trace s = D.trace   ("[Language.ANTLR4.Quote] " ++ s)
-traceM s = D.traceM ("[Language.ANTLR4.Quote] " ++ s)
+trace s = D.trace   ("[Language.ANTLR4.Quote.Boot] " ++ s)
+traceM s = D.traceM ("[Language.ANTLR4.Quote.Boot] " ++ s)
 
 --trace s = id
 --traceM = return

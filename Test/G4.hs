@@ -22,6 +22,8 @@ import Text.ANTLR.Parser (AST(..))
 import qualified Text.ANTLR.LR as LR
 import qualified Text.ANTLR.Lex.Tokenizer as T
 
+import qualified Language.ANTLR4.G4 as P -- Parser
+
 test_g4_basic_type_check = do
   let _ = G4.g4Basic
   1 @?= 1

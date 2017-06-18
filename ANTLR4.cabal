@@ -65,11 +65,12 @@ library
                   , Text.ANTLR.MultiMap
                   , Text.ANTLR.Pretty
 
-                  -- ANTLR4 (G4) quasiquoter:
+                  -- ANTLR4 (G4) core quasiquoter:
                   , Language.ANTLR4
-                  , Language.ANTLR4.Parser
-                  , Language.ANTLR4.Quote
-                  , Language.ANTLR4.Syntax
+                  , Language.ANTLR4.Boot.Parser
+                  , Language.ANTLR4.Boot.Quote
+                  , Language.ANTLR4.Boot.Syntax
+                  , Language.ANTLR4.G4
                   , Language.ANTLR4.Regex
                   
                   -- Standalone quasiquoters:

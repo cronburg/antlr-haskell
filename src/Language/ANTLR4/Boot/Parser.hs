@@ -1,5 +1,5 @@
 {-#LANGUAGE QuasiQuotes, TemplateHaskell#-}
-module Language.ANTLR4.Parser where
+module Language.ANTLR4.Boot.Parser where
 -- syntax (Exp)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
@@ -22,10 +22,10 @@ import Text.ParserCombinators.Parsec.Pos      (newPos)
 -- text munging
 import Data.Char
 
-import Language.ANTLR4.Syntax
+import Language.ANTLR4.Boot.Syntax
 import Language.ANTLR4.Regex (Regex(..), parseRegex, regexP)
 
---traceM s = D.traceM ("[ANTLR4.Parser] " ++ s)
+--traceM s = D.traceM ("[ANTLR4.Boot.Parser] " ++ s)
 traceM = return
 
 ------------------------------------------------------------------------------
@@ -84,7 +84,6 @@ prodP = do
       alphaList <- many alphaP
       mMute <- optionMaybe muteP
       return $ PRHS alphaList mPred mMute
-    -- TODO: parse '?' and '+' and '*' into G4
     alphaP = termP <||> nonTermP
     termP = do
       whiteSpace

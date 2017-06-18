@@ -53,7 +53,8 @@ regexP rEOF = let
 
   regexP' :: PS.Parser [RegexC]
   regexP' = do
-    r <- regexElement
+    traceM $ "regexP0"
+    r <- extendedRegex regexElement
     traceM $ "regexP: " ++ show r
     whiteSpace
     b <- try rEOF
@@ -71,17 +72,14 @@ regexP rEOF = let
     xs <- regexP'
     return $ list2regex xs
 
-regexElement :: PS.Parser RegexC
-regexElement = do
+extendedRegex foo = do
   whiteSpace
   negation <- optionMaybe (symbol "~")
-  traceM $ "regexElement1: " ++ show negation
-  r <- charSet <||> literal <||> concatR <||> unionR <||> namedR
-  traceM $ "regexElement2: " ++ show r
+  whiteSpace
+  r <- foo
+  whiteSpace
   p <- optionMaybe (try $ satisfy (`elem` "+*?"))
-  traceM $ "regexElement3: " ++ show p
-  y <- getInput
-  traceM $ show y
+  whiteSpace
   let fncn = (case negation of
                 (Just _) -> Negation
                 _        -> id)
@@ -91,6 +89,21 @@ regexElement = do
     Just '*' -> Kleene   r
     Just '?' -> Question r
     Just _   -> undefined)
+  
+
+regexElement :: PS.Parser RegexC
+regexElement = do
+  whiteSpace
+  r <- extendedRegex (charSet <||> literal <||> concatR <||> namedR <||> parens unionR)
+  y <- getInput
+  traceM $ show y
+  return r
+
+{-
+  return (case rs of
+    [] -> r
+    _  -> Concat (r:rs))
+-}
 
 many2 p = do { x <- p; xs <- many p; return (x:xs) }
 
@@ -103,14 +116,14 @@ namedR = do
 unionR :: PS.Parser RegexC
 unionR = do
   traceM "<unionR>"
-  u <- parens $ sepBy1 regexElement (symbol "|")
+  u <- sepBy1 regexElement (traceM "OR" >> whiteSpace >> symbol "|" >> traceM "OR2")
   traceM "</unionR>"
   return $ Union u
 
 concatR :: PS.Parser RegexC
 concatR = do
   traceM "<concatR>"
-  c <- many1 (charSet <||> literal) >>= return . Concat
+  c <- many1 (extendedRegex (charSet <||> literal <||> parens regexElement)) >>= return . Concat
   traceM "</concatR>"
   return c
 
@@ -119,7 +132,11 @@ parseEscape s = (read $ "\"" ++ s ++ "\"") :: String
 
 -- regex string literal uses single quotes
 literal :: PS.Parser RegexC
-literal = PC.between (symbol "'") (symbol "'") (many singleChar >>= (return . Literal . parseEscape))
+literal = do
+  r <- PC.between (char '\'') (char '\'') (many singleChar >>= (return . Literal . parseEscape))
+  y <- getInput
+  traceM $ "literal: " ++ show y
+  return r
 
 charSet :: PS.Parser RegexC
 charSet = do
@@ -164,10 +181,14 @@ escapedChar = (do
     char '\\'
     char '['
     return '[')
+  <||> (do
+    char '\\'
+    char '\\'
+    return '\\')
 
 regexLexer :: PT.TokenParser ()
 regexLexer = PT.makeTokenParser $ haskellStyle
-  { reservedOpNames = ["[", "]", "\\", "-", "+"] }
+  { reservedOpNames = ["[", "]", "//", "-", "+"] }
 
 whiteSpace    = PT.whiteSpace  regexLexer
 identifier    = PT.identifier  regexLexer

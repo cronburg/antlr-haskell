@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveLift, DeriveAnyClass, DeriveGeneric #-}
-module Language.ANTLR4.Syntax
+module Language.ANTLR4.Boot.Syntax
   ( G4(..), PRHS(..), ProdElem(..), GAnnot(..)
   , LRHS(..), Regex(..)
   ) where
