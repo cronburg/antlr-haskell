@@ -14,6 +14,7 @@ import qualified Language.Haskell.TH as TH
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (lift, Exp(..))
 import Language.Haskell.TH.Quote (QuasiQuoter(..))
+import qualified Language.Haskell.Meta as LHM
 
 import Control.Monad (mapM)
 import qualified Language.ANTLR4.Boot.Syntax as G4S
@@ -32,6 +33,31 @@ import qualified Text.ANTLR.Lex.Regex as R
 trace s = D.trace   ("[Language.ANTLR4.Quote.Boot] " ++ s)
 traceM s = D.traceM ("[Language.ANTLR4.Quote.Boot] " ++ s)
 
+haskellParseExp :: (Monad m) => String -> m TH.Exp
+haskellParseExp s = case LHM.parseExp s of
+  Left err    -> error err
+  Right expTH -> return expTH
+
+haskellParseType :: (Monad m) => String -> m TH.Type
+haskellParseType s = case LHM.parseType s of
+  Left err   -> trace s (error err)
+  Right tyTH -> return tyTH
+
+info2type :: Info -> TH.Type
+info2type i = let
+  
+    i2c :: TH.Type -> TH.Type
+    i2c (ForallT xs ys t) = i2c t
+    i2c ((AppT (AppT ArrowT from) to)) = i2c to
+    i2c t@(VarT _)        = t
+    i2c t@(AppT ListT as) = t
+    i2c t@(ConT _)        = t
+    i2c x = error (show x)
+
+  in case i of
+      (VarI _ t _) -> i2c t
+      _ -> error (show i)
+
 --trace s = id
 --traceM = return
 
@@ -45,10 +71,9 @@ antlr4 =  QuasiQuoter
 -- e.g. Named ("Num", "Int") where 'Num' was a G4 lexeme and 'Int' was given
 -- as a directive specifying the desired type to read (must instance Read).
 data LexemeType =
-    Literal Int     -- A literal lexeme somewhere in the grammar, e.g. ';'
-  | AString         -- Type was unspecified in the G4 lexeme or specified as a String
-  | Named   String  -- Type was specified as a directive in the G4 lexeme
-  deriving (Eq)
+    Literal Int           -- A literal lexeme somewhere in the grammar, e.g. ';'
+  | AString               -- Type was unspecified in the G4 lexeme or specified as a String
+  | Named String TH.TypeQ -- Type was specified as a directive in the G4 lexeme
 
 --   parser in quasiquotation monad
 aparse :: String -> TH.Q [TH.Dec]
@@ -178,9 +203,10 @@ g4_decls ast = let
         lN :: G4S.G4 -> [(String, LexemeType)]
         lN (G4S.Lex{G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Nothing}}) = [(lName, AString)]
         lN (G4S.Lex{G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Just s}})
-          | s == "String" = [(lName, AString)]
-          | null s        = [(lName, AString)] -- quirky G4 parser
-          | otherwise     = [(lName, Named s)]
+          | s == "String"     = [(lName, AString)]
+          | null s            = [(lName, AString)] -- quirky G4 parser
+          | isUpper (head s)  = [(lName, Named s (conT $ mkName s))]
+          | otherwise         = [(lName, Named s (info2type <$> reify (mkName s)))]
         lN _ = []
       in concatMap lN ast
       --map (\s -> normalC (mkName s) []) lN'
@@ -239,13 +265,16 @@ g4_decls ast = let
 
     -- 
     lexemeTypeConstructors = let
-        lTC lex@(G4S.Lex{G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Just d}})
+        lTC (i, lex@(G4S.Lex{G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Just d}}))
           | null lName       = error $ "null lexeme name: " ++ show lex
           | null d           = Just $ normalC (mkName $ "V_" ++ lName) [bangType defBang (conT $ mkName "String")]
           | isUpper $ head d = Just $ normalC (mkName $ "V_" ++ lName) [bangType defBang (conT $ mkName d)]
-          | otherwise        = error $ "unimplemented use of function in G4 directive: " ++ show d
+          | otherwise        = Just $ do
+              info <- reify $ mkName d
+              normalC (mkName $ "V_" ++ lName) [bangType defBang (return $ info2type info)]
+            --Just $ [|| $$(haskellParseExp d) ||] --error $ "unimplemented use of function in G4 directive: " ++ show d
         lTC _ = Nothing
-      in   ((catMaybes $ map lTC ast)
+      in   ((catMaybes $ map lTC (zip [0 .. length ast - 1] ast))
         ++ (map (\s -> normalC (mkName $ lookupTName "V_" s) []) terminalLiterals))
 
     tokenValueTypeQ =
@@ -277,9 +306,12 @@ g4_decls ast = let
         l2VQ (s, AString)   =
           clause [varP lName, conP (mkName $ "T_" ++ s) []]
           (normalB [| $(conE $ mkName $ "V_" ++ s) $(varE lName) |]) []
-        l2VQ (s, Named n)   =
-          clause [varP lName, conP (mkName $ "T_" ++ s) []]
-          (normalB [| $(conE $ mkName $ "V_" ++ s) (read $(varE lName) :: $(conT $ mkName n)) |]) []
+        l2VQ (s, Named n t) =
+              clause [varP lName, conP (mkName $ "T_" ++ s) []]
+              (normalB [| $(conE $ mkName $ "V_" ++ s) (trace $(varE lName) ($(varE $ mkName n) $(varE lName) :: $t)) |]) []
+              
+              --info <- reify $ mkName d
+              --normalC (mkName $ "V_" ++ lName) [bangType defBang (return $ info2type info)]
       
       in funD (mkName "lexeme2value") (map l2VQ allLexicalTypes)
 
@@ -357,16 +389,16 @@ g4_decls ast = let
             nameAST   = mkName (mkUpper gName ++ "AST")
             nameToken = mkName (mkUpper gName ++ "Token")
             nameDFAs  = mkName (mkLower gName ++ "DFAs")
-            name      = mkName $ mkLower gName
+            name      = mkName $ mkLower (gName ++ "Grammar")
         prettyTFncnName <- newName "prettifyT"
         prettyValueFncnName <- newName "prettifyValue"
         
         ntDataDecl <- ntDataDeclQ
         tDataDecl  <- tDataDeclQ
         gTy    <- grammarTy
-        gTySig <- sigD (mkName $ mkLower gName) (return gTy)
+        gTySig <- sigD name (return gTy)
         g      <- grammar gTy
-        gFunD  <- funD (mkName $ mkLower gName) [clause [] (normalB (return g)) []]
+        gFunD  <- funD name [clause [] (normalB (return g)) []]
         prettyNT:_     <- [d| instance Prettify $(ntConT) where prettify = rshow |]
         prettyT:_      <- [d| instance Prettify $(tConT) where prettify = $(varE prettyTFncnName) |]
         prettyValue:_  <- [d| instance Prettify $(conT tokVal) where prettify = $(varE prettyValueFncnName) |]

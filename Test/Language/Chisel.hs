@@ -128,7 +128,7 @@ parseGHCTestBig =
     e                     -> e @?= LR.ResultAccept LeafEps
 
 testPrettify =
-  unsafePerformIO (putStr $ T.unpack $ pshow (chisel :: Grammar () ChiselNTSymbol ChiselTSymbol))
+  unsafePerformIO (putStr $ T.unpack $ pshow (chiselGrammar :: Grammar () ChiselNTSymbol ChiselTSymbol))
   @?= ()
 
 main :: IO ()

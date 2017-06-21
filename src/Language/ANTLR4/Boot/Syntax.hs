@@ -23,9 +23,10 @@ data G4 = Grammar {gName :: String}
 instance Lift Exp
 
 data PRHS = PRHS
-  { alphas   :: [ProdElem]
-  , pred     :: Maybe Exp
-  , mutator  :: Maybe Exp
+  { alphas      :: [ProdElem]
+  , pred        :: Maybe Exp
+  , mutator     :: Maybe Exp
+  , pDirective  :: Maybe Exp
   } deriving (Show, Eq, Lift, Generic)
 
 instance Hashable PRHS where

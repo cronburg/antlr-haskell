@@ -25,8 +25,8 @@ import Data.Char
 import Language.ANTLR4.Boot.Syntax
 import Language.ANTLR4.Regex (Regex(..), parseRegex, regexP)
 
---traceM s = D.traceM ("[ANTLR4.Boot.Parser] " ++ s)
-traceM = return
+traceM s = D.traceM ("[ANTLR4.Boot.Parser] " ++ s)
+--traceM = return
 
 ------------------------------------------------------------------------------
 -- Or-Try Combinator (tries two parsers, one after the other)
@@ -73,7 +73,7 @@ prodP = do
   h <- lower
   t <- manyTill anyChar (reservedOp ":")
   traceM $ "[prodP] " ++ trim (h : t)
-  rhsList <- sepBy1 rhsP (reservedOp "|")
+  rhsList <- sepBy1 rhsP (traceM "rhsList..." >> reservedOp "|")
   traceM $ "[prodP.rhsList] " ++ show rhsList
   reservedOp ";"
   traceM "prodP returning..."
@@ -81,9 +81,13 @@ prodP = do
   where
     rhsP = do
       mPred <- optionMaybe predP
+      traceM $ "[rhsP0] " ++ show mPred
       alphaList <- many alphaP
+      traceM $ "[rhsP] " ++ show alphaList
       mMute <- optionMaybe muteP
-      return $ PRHS alphaList mPred mMute
+      pDir  <- optionMaybe directiveP
+      whiteSpace
+      return $ PRHS alphaList mPred mMute pDir
     alphaP = termP <||> nonTermP
     termP = do
       whiteSpace
@@ -94,8 +98,8 @@ prodP = do
       traceM $ "[prodP.termP.s] " ++ show s
       return $ GTerm s
     nonTermP = do
-      traceM "[nonTermP]"
       s <- identifier
+      traceM $ "[nonTermP] " ++ s
       return $ GNonTerm s
     predP = do
       traceM "[predP]"
@@ -105,6 +109,14 @@ prodP = do
       traceM "[muteP]"
       reservedOp "{"
       haskellParseExpTill "}"
+    directiveP = do
+      whiteSpace
+      symbol "->"
+      whiteSpace
+      str <- manyTill anyChar (char '\n')
+      whiteSpace
+      traceM $ "[directiveP]" ++ show str
+      haskellParseExp str
 
 -- TODO: not use getInput
 rEOF = do
@@ -114,15 +126,6 @@ rEOF = do
     ';':_     -> True
     _         -> False)
 
-{-do
-  c <- try $ lookAhead (symbol "->" <||> symbol ";")
-  traceM $ "c = " ++ show c
-  return (case c of
-    "->" -> True
-    ";"  -> True
-    _    -> False)
--}
-
 lexerP :: PS.Parser G4
 lexerP = do
   mAnnot <- optionMaybe annot
@@ -131,9 +134,9 @@ lexerP = do
   traceM $ "Lexeme Name: " ++ (h:t)
   r <- regexP rEOF
   traceM $ "Regex: " ++ show r
-  optionMaybe $ reservedOp "->"
+  optionMaybe $ symbol "->"
   mDir <- optionMaybe $ manyTill anyToken (reservedOp ";")
-  return $ Lex mAnnot (trim (h : t)) (LRHS r mDir)
+  return $ Lex mAnnot (trim (h : t)) (LRHS r (trim <$> mDir))
   where
     annot = fragment -- <||> ....
     fragment = do
@@ -150,7 +153,7 @@ haskellParseExpTill op = do {
 haskellParseExp :: String -> PS.Parser Exp
 haskellParseExp str =
   case LHM.parseExp str of
-    Left err    -> PP.parserZero
+    Left err    -> error err -- PP.parserZero
     Right expTH -> return expTH
 
 whiteSpaceOrComment = comment <||> whiteSpace
@@ -165,7 +168,7 @@ whiteSpaceOrComment = comment <||> whiteSpace
 -- Lexer
 lexer :: PT.TokenParser ()
 lexer = PT.makeTokenParser $ haskellStyle
- { reservedOpNames = [";", "|", ":", "{", "}", "}?", "'", "->"]
+ { reservedOpNames = [";", "|", ":", "{", "}", "}?", "'"]
  , reservedNames   = ["grammar"]
  , commentLine     = "//"
  , commentStart    = "/*"

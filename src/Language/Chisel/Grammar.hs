@@ -4,7 +4,7 @@ module Language.Chisel.Grammar
   ( parse, tokenize, ChiselNTSymbol(..), ChiselTSymbol(..), ChiselAST
   , lowerID, upperID, prim, int, arrow, lparen, rparen, pound
   , vertbar, colon, comma, atsymbol, carrot, dot, linecomm, ws
-  , Primitive(..), chisel, TokenValue(..)
+  , Primitive(..), chiselGrammar, TokenValue(..)
   ) where
 
 import Text.ANTLR.Allstar.Grammar
@@ -19,6 +19,7 @@ import Control.Arrow ( (&&&) )
 import Text.ANTLR.Lex.Regex
 
 import Language.ANTLR4
+import Language.ANTLR4.G4
 
 import Debug.Trace as D
 
@@ -42,7 +43,7 @@ instance Read Primitive where
 
 instance Prettify Primitive where prettify = rshow
 
-[antlr4|
+[g4|
   grammar Chisel;
   chiselProd : prodSimple
              | '(' prodSimple ')'

@@ -4,12 +4,13 @@
 
 OPTS=--ghc-options="-ddump-splices"
 
-stack test ANTLR4:test-Template $OPTS\
-  && stack test ANTLR4:test-ATN $OPTS\
-  && stack test ANTLR4:test-G4 $OPTS\
+stack test ANTLR4:Template $OPTS\
+  && stack test ANTLR4:ATN $OPTS\
+  && stack test ANTLR4:CoreG4 $OPTS\
   && stack test ANTLR4:LL1 $OPTS\
   && stack test ANTLR4:LR $OPTS\
   && stack test ANTLR4:lexer $OPTS\
-  && stack test ANTLR4:test-Allstar $OPTS\
+  && stack test ANTLR4:Allstar $OPTS\
+  && stack test ANTLR4:G4 $OPTS\
   && stack test ANTLR4:Chisel $OPTS\
 
