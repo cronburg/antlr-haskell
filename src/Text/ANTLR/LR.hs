@@ -44,7 +44,7 @@ instance (Show nts) => Show (ItemLHS nts) where
   show (ItemNT nts) = show nts
 
 -- An Item is a production with a dot in it indicating how far
--- intso the production we have parsed:
+-- into the production we have parsed:
 --                         A        ->  α                          .     β
 data Item a nts sts = Item (ItemLHS nts) (ProdElems nts sts) {- . -} (ProdElems nts sts) a
   deriving (Generic, Eq, Ord, Hashable, Show)
@@ -115,6 +115,8 @@ lr1Closure g is' = let
   in closure' is'
 
 type Goto a nts sts = LRState a nts sts -> ProdElem nts sts -> LRState a nts sts
+
+type LR1Goto nts sts = Goto (LR1LookAhead sts) nts sts
 
 goto ::
   ( Ord a, Ord nts, Ord sts
@@ -187,6 +189,8 @@ allSLRItems g = fromList
 type LRState a nts sts = Set (Item a nts sts)
 -- TODO: String should be an arbitrary Eq and Ord "Symbol" type
 type LRTable a nts sts = M.Map (LRState a nts sts, Icon sts) (LRAction a nts sts)
+
+type LR1Action nts sts = LRAction (LR1LookAhead sts) nts sts
 
 data LRAction a nts sts =
     Shift  (LRState a nts sts)
@@ -286,6 +290,8 @@ look ::
   => (LRState a nts sts, Icon sts) -> LRTable a nts sts -> Set (LRAction a nts sts)
 look (s,a) tbl = --uPIO (prints ("lookup:", s, a, M.lookup (s, a) act)) `seq`
     M.lookup (s, a) tbl
+
+type LR1Result nts sts t ast = LRResult (LR1LookAhead sts) nts sts t ast
 
 data LRResult a nts ts t ast =
     ErrorNoAction (Config a nts ts t) [ast]
@@ -408,6 +414,12 @@ lr1Recognize g w = isAccept $ lr1Parse g (const 0) w
 
 type LR1LookAhead sts = Icon sts -- Single Icon of lookahead for LR1
 
+getLookAheads :: (Hashable sts, Hashable nts, Eq sts, Eq nts) => Set (LR1Item nts sts) -> Set sts
+getLookAheads = let
+    gLA (Item _ _ _ IconEOF)    = Nothing
+    gLA (Item _ _ _ (Icon sts)) = Just sts
+  in S.fromList . catMaybes . S.toList . S.map gLA
+
 lr1Goto ::
   ( Eq nts, Eq sts
   , Ord nts, Ord sts
@@ -415,7 +427,7 @@ lr1Goto ::
   => Grammar () nts sts -> Goto (LR1LookAhead sts) nts sts
 lr1Goto g = goto g (lr1Closure g)
 
-type LR1State nts t = LRState (LR1LookAhead t) nts t
+type LR1State nts sts = LRState (LR1LookAhead sts) nts sts
 
 lr1S0 ::
   ( Eq sts
@@ -487,4 +499,62 @@ glrParse' g tbl goto closure s_0 act w = let
   in lr ([closure s_0], w) []
 
 glrParse g = glrParse' g (lr1Table g) (lr1Goto g) (lr1Closure g) (lr1S0 g)
+
+type Tokenizer t c = Set (StripEOF (Sym t)) -> [c] -> (t, [c])
+
+glrParseInc' ::
+  forall ast nts t c.
+  ( Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t)), Ord ast
+  , Eq nts, Eq (Sym t), Eq (StripEOF (Sym t)), Eq ast
+  , Ref t, HasEOF (Sym t)
+  , Hashable (Sym t), Hashable t, Hashable nts, Hashable (StripEOF (Sym t)), Hashable ast
+  , Prettify t, Prettify nts, Prettify (StripEOF (Sym t))
+  , Eq c, Ord c, Hashable c)
+  => Grammar () nts (StripEOF (Sym t)) -> LR1Table nts (StripEOF (Sym t)) -> LR1Goto nts (StripEOF (Sym t))
+  -> LR1Closure nts (StripEOF (Sym t)) -> LR1State nts (StripEOF (Sym t)) -> Action ast nts t
+  -> Tokenizer t c -> [c] -> LR1Result nts (StripEOF (Sym t)) c ast
+glrParseInc' g tbl goto closure s_0 act tokenizer w = let
+    
+    lr :: Config (LR1LookAhead (StripEOF (Sym t))) nts (StripEOF (Sym t)) c -> [ast] -> LR1Result nts (StripEOF (Sym t)) c ast
+    lr (s:states, cs) asts = let
+
+        -- The set of token symbols that are feasible to be seen next given the
+        -- current grammar context - i.e. the Set of LR1LookAheads stripped from
+        -- the current state on top of the configuration stack. Luckily enough,
+        -- it just so happens that the type stuffed inside an LR1 lookahead Icon
+        -- is precisely the terminal symbol type that the tokenizer uses to name
+        -- DFAs.
+        (a, ws) = tokenizer (getLookAheads s) cs
+        
+        lr' :: LR1Action nts (StripEOF (Sym t)) -> LR1Result nts (StripEOF (Sym t)) c ast
+        lr' Accept    = case length asts of
+              1 -> ResultAccept $ head asts
+              _ -> ErrorAccept (s:states, cs) asts
+        lr' Error     = ErrorNoAction (s:states, cs) asts
+        lr' (Shift t) = trace ("Shift: " ++ pshow' t) $ lr (t:s:states, ws) $ act (TermE a) : asts
+        lr' (Reduce p@(Production _A (Prod _ β))) = let
+              ss'@(t:_) = drop (length β) (s:states)
+            in trace ("Reduce: " ++ pshow' p)
+               lr (goto t (NT _A) : ss', cs)
+                  (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
+
+        lookVal = case stripEOF $ getSymbol a of
+                    Just sym -> look (s, Icon sym) tbl
+                    Nothing  -> look (s, IconEOF)  tbl
+
+        parseResults = S.map lr' lookVal
+        justAccepts  = getAccepts parseResults
+
+      in if S.null lookVal
+          then ErrorNoAction (s:states, cs) asts
+          else (if S.null justAccepts
+                  then (case S.size parseResults of
+                          0 -> undefined
+                          1 -> S.findMin parseResults
+                          _ -> ResultSet parseResults)
+                  else ResultSet justAccepts)
+
+  in lr ([closure s_0], w) []
+
+glrParseInc g = glrParseInc' g (lr1Table g) (lr1Goto g) (lr1Closure g) (lr1S0 g)
 
