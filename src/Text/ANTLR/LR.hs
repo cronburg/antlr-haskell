@@ -7,12 +7,12 @@ module Text.ANTLR.LR
   , lr1Closure, lr1Goto, lr1Items, lr1Table, lr1Parse, lr1Recognize
   , LR1LookAhead
   , LRState, LRTable, LRAction(..)
-  , lrParse, LRResult(..), glrParse, isAccept, isError
+  , lrParse, LRResult(..), LR1Result(..), glrParse, glrParseInc, isAccept, isError
   ) where
 import Text.ANTLR.Allstar.Grammar
 import qualified Text.ANTLR.LL1 as LL
 import Text.ANTLR.Parser
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, mapMaybe, fromMaybe)
 import Text.ANTLR.Set ( Set(..), fromList, empty, member, toList, size
   , union, (\\), insert, toList, singleton
   )
@@ -20,7 +20,7 @@ import qualified Text.ANTLR.Set as S
 import qualified Text.ANTLR.MultiMap as M
 
 --import Data.Map ( Map(..) )
---import qualified Data.Map as M
+import qualified Data.Map as M1
 
 import Text.ANTLR.Pretty
 import qualified Debug.Trace as D
@@ -306,21 +306,21 @@ instance  ( Prettify t, Prettify ast, Prettify a, Prettify nts, Prettify ts
   => Prettify (LRResult a nts ts t ast) where
   
   prettify (ErrorNoAction (s:states, a:ws) asts) = do
-    pStr "Error: Current input = "
+    pStr "ErrorNoAction: Current input = '"
     prettify a
-    pLine ""
+    pLine "'"
     incrIndent 7
     
-    pStr "Current state = "
+    pStr "Current state = <"
     prettify s
-    pLine ""
+    pLine ">"
 
-    pStr "Rest of input = "
+    pStr "Rest of input = '"
     prettify ws
-    pLine ""
+    pLine "'"
     
   prettify (ErrorAccept   (s:states, a:ws) asts) = do
-    pStr "Error: Current input = "
+    pStr "ErrorAccept: Current input = "
     prettify a
     pLine ""
     incrIndent 7
@@ -333,9 +333,9 @@ instance  ( Prettify t, Prettify ast, Prettify a, Prettify nts, Prettify ts
     prettify ws
     pLine ""
  
-  prettify (ResultSet s) = prettify s
+  prettify (ResultSet s) = pStr "ResultSet: " >> prettify s
 
-  prettify (ResultAccept ast)             = prettify ast
+  prettify (ResultAccept ast)             = pStr "ResultAccept: " >> prettify ast
 
 isAccept (ResultAccept _) = True
 isAccept _                = False
@@ -515,6 +515,20 @@ glrParseInc' ::
   -> Tokenizer t c -> [c] -> LR1Result nts (StripEOF (Sym t)) c ast
 glrParseInc' g tbl goto closure s_0 act tokenizer w = let
     
+    first s = let
+        removeIcons (Icon t) = Just t
+        removeIcons IconEps  = Nothing
+        removeIcons IconEOF  = Nothing
+
+        itemHeads (Item (Init   nt) _ [] _) = []
+        itemHeads (Item (ItemNT nt) _ [] _) = S.toList $ LL.follow g nt -- TODO: Use stack context
+        itemHeads (Item _ _ (b:bs)  _)      = S.toList $ LL.first  g [b]
+
+      in S.fromList $ mapMaybe removeIcons $ concatMap itemHeads s
+
+    tokenizerFirstSets :: M1.Map (LR1State nts (StripEOF (Sym t))) (Set (StripEOF (Sym t)))
+    tokenizerFirstSets = M1.fromList [ (s, first $ S.toList s) | ((s, _), _) <- M.toList tbl ]
+
     lr :: Config (LR1LookAhead (StripEOF (Sym t))) nts (StripEOF (Sym t)) c -> [ast] -> LR1Result nts (StripEOF (Sym t)) c ast
     lr (s:states, cs) asts = let
 
@@ -524,7 +538,8 @@ glrParseInc' g tbl goto closure s_0 act tokenizer w = let
         -- it just so happens that the type stuffed inside an LR1 lookahead Icon
         -- is precisely the terminal symbol type that the tokenizer uses to name
         -- DFAs.
-        (a, ws) = tokenizer (getLookAheads s) cs
+        dfaNames = fromMaybe (error "Impossible") $ s `M1.lookup` tokenizerFirstSets
+        (a, ws) = tokenizer dfaNames cs
         
         lr' :: LR1Action nts (StripEOF (Sym t)) -> LR1Result nts (StripEOF (Sym t)) c ast
         lr' Accept    = case length asts of
@@ -542,7 +557,10 @@ glrParseInc' g tbl goto closure s_0 act tokenizer w = let
                     Just sym -> look (s, Icon sym) tbl
                     Nothing  -> look (s, IconEOF)  tbl
 
-        parseResults = S.map lr' lookVal
+        concatSets (ResultSet ss) ss' = ss' `S.union` ss
+        concatSets r              ss' = r   `S.insert` ss'
+
+        parseResults = S.foldr concatSets S.empty $ S.map lr' lookVal
         justAccepts  = getAccepts parseResults
 
       in if S.null lookVal

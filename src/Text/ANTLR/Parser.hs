@@ -50,7 +50,7 @@ data Icon ts =
 -- using this function and then compare icons using Eq because icons throw away
 -- the value of a token, leaving only the Eq-able piece that we care about.
 token2symbol :: Token n v -> TokenSymbol n
-token2symbol (Token n v) = TokenSymbol n
+token2symbol (Token n v _) = TokenSymbol n
 token2symbol EOF = EOFSymbol
 token2symbol (Error s) = EOFSymbol
 

@@ -116,7 +116,7 @@ prodP = do
       str <- manyTill anyChar (char '\n')
       whiteSpace
       traceM $ "[directiveP]" ++ show str
-      haskellParseExp str
+      return str
 
 -- TODO: not use getInput
 rEOF = do

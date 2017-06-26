@@ -222,11 +222,11 @@ dfaGetName x
 tokenizeTest0 =
   tokenize [("ab+", dfaABPlus), ("ws", dfaWS)] const "abab ab ababab"
   @?=
-  [ Token "ab+" "abab"
-  , Token "ws"  " "
-  , Token "ab+" "ab"
-  , Token "ws"  " "
-  , Token "ab+" "ababab"
+  [ Token "ab+" "abab"    4
+  , Token "ws"  " "       1
+  , Token "ab+" "ab"      2
+  , Token "ws"  " "       1
+  , Token "ab+" "ababab"  6
   , EOF
   ]
 
@@ -276,12 +276,12 @@ tokenizeTest1 =
     , (T_EQ, dfaEQ), (T_SEMI, dfaSEMI) ]
     lexeme2value "_matt = 0;"
   @?=
-  [ Token T_ID (ID "_matt")
-  , Token T_WS (WS " ")
-  , Token T_EQ EQSIGN
-  , Token T_WS (WS " ")
-  , Token T_INT (INT 0)
-  , Token T_SEMI SEMI
+  [ Token T_ID (ID "_matt") 5
+  , Token T_WS (WS " ") 1
+  , Token T_EQ EQSIGN 1
+  , Token T_WS (WS " ") 1
+  , Token T_INT (INT 0) 1
+  , Token T_SEMI SEMI 1
   , EOF
   ]
 
@@ -291,7 +291,7 @@ lineCommentTest =
   tokenize [("LineComment", lineCommentDFA)] const
   "// This is a line comment.\n"
   @?=
-  [ Token "LineComment" "// This is a line comment.\n"
+  [ Token "LineComment" "// This is a line comment.\n" 27
   , EOF
   ]
 

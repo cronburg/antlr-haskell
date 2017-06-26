@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveLift, DeriveAnyClass, DeriveGeneric #-}
 module Language.ANTLR4.Boot.Syntax
   ( G4(..), PRHS(..), ProdElem(..), GAnnot(..)
-  , LRHS(..), Regex(..)
+  , LRHS(..), Regex(..), isGTerm, isGNonTerm
   ) where
 import Text.ANTLR.Allstar.Grammar ()
 import Language.Haskell.TH.Lift (Lift(..))
@@ -26,7 +26,7 @@ data PRHS = PRHS
   { alphas      :: [ProdElem]
   , pred        :: Maybe Exp
   , mutator     :: Maybe Exp
-  , pDirective  :: Maybe Exp
+  , pDirective  :: Maybe String
   } deriving (Show, Eq, Lift, Generic)
 
 instance Hashable PRHS where
@@ -36,6 +36,12 @@ data ProdElem =
     GTerm     String
   | GNonTerm  String
   deriving (Show, Eq, Ord, Lift, Generic, Hashable)
+
+isGTerm (GTerm _) = True
+isGTerm _         = False
+
+isGNonTerm (GNonTerm _) = True
+isGNonTerm _            = False
 
 data    GAnnot   = Fragment
   deriving (Show, Eq, Lift, Generic, Hashable)

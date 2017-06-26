@@ -5,16 +5,17 @@ import Text.ANTLR.Lex.Automata
 import Text.ANTLR.Lex.DFA
 
 import qualified Text.ANTLR.Set as Set
-import Text.ANTLR.Set (Hashable, member, Generic(..))
+import Text.ANTLR.Set (Hashable, member, Generic(..), Set(..))
 
 import Text.ANTLR.Pretty
 import qualified Debug.Trace as D
 import Data.List (find)
 import qualified Data.Text as T
 
--- Token with name (n) and value (v)
+-- Token with name (n), value (v), and number of input symbols consumed to match
+-- it.
 data Token n v =
-    Token n v
+    Token n v Int
   | EOF
   | Error T.Text -- TODO
   deriving (Show, Ord, Generic, Hashable)
@@ -22,22 +23,26 @@ data Token n v =
 instance (Prettify n, Prettify v) => Prettify (Token n v) where
   prettify EOF = pStr "EOF"
   prettify (Error s) = pStr "Token Error: " >> pStr s
-  prettify (Token n v) =
+  prettify (Token n v i) =
     prettify v
 
 instance Eq n => Eq (Token n v) where
-  Token s _ == Token s1 _ = s == s1
-  EOF       == EOF        = True
-  Error s   == Error s1   = s == s1
-  _         == _          = False
+  Token s _ _ == Token s1 _ _ = s == s1
+  EOF         == EOF          = True
+  Error s     == Error s1     = s == s1
+  _           == _            = False
 
 -- Token Names are Input Symbols to the parser
 tokenName :: Token n v -> n
-tokenName (Token n v) = n
+tokenName (Token n v _) = n
 
 -- TODO: Debugging information goes in the value
 tokenValue :: Token n v -> v
-tokenValue (Token n v) = v
+tokenValue (Token n v _) = v
+
+tokenSize :: Token n v -> Int
+tokenSize (Token _ _ i) = i
+tokenSize EOF = 0
 
 -- A Lexeme is a sequence of zero or more (matched) input symbols
 type Lexeme s = [s]
@@ -79,7 +84,38 @@ tokenize dfaTuples fncn input0 = let
           ([], _)       -> [EOF]
           (ss, Nothing) -> [Error $ T.pack $ show ss]
           (ss, Just (l, (name,d))) ->
-            Token name (fncn l name)
+            Token name (fncn l name) (length l)
             : allTok dfaSims0 (drop (length l) currInput)
   in allTok (zip dfaTuples (map s0 dfas0)) input0
+
+-- Incremental tokenizer takes in the same list of DFAs and AST value
+-- constructor function, but instead returns an incremental tokenizer function.
+tokenizeInc
+  :: forall s i n v. (Eq i, Ord s, Eq n, Eq s, Show s, Show i, Show n, Show v, Hashable i, Hashable s, Hashable n)
+  => (n -> Bool) -> [(n, DFA s i)] -> (Lexeme s -> n -> v) -> (Set n -> [s] -> (Token n v, [s]))
+tokenizeInc filterF dfaTuples fncn = let
+
+    tI :: Set n -> [s] -> (Token n v, [s])
+    tI ns input = let
+        
+        dfaTuples'  = filter (\(n,_) -> n `Set.member` ns || filterF n) dfaTuples
+        tokenized   = tokenize dfaTuples' fncn input
+        
+        filterF' (Token n _ _) = filterF n
+        filterF' _             = False
+        
+        ignored     = takeWhile filterF' tokenized
+        nextTokens  = dropWhile filterF' tokenized
+        -- Yayy lazy function evaluation.
+        next = case nextTokens of
+                []     -> EOF
+                (t:_)  -> D.traceShowId t
+      
+      in (next, drop (sum $ map tokenSize $ next : ignored) input)
+  in tI
+
+
+
+
+
 

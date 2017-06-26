@@ -72,6 +72,7 @@ library
                   , Language.ANTLR4.Boot.Syntax
                   , Language.ANTLR4.G4
                   , Language.ANTLR4.Regex
+                  , Language.ANTLR4.Syntax
                   
                   -- Standalone quasiquoters:
                   , Language.ANTLR4.FileOpener

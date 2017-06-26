@@ -11,12 +11,13 @@ import qualified Text.ANTLR.Set as S
 import Text.ANTLR.Set (Hashable(..), Generic(..))
 import Text.ANTLR.Pretty
 import Control.Arrow ( (&&&) )
-import Text.ANTLR.Lex.Regex
+import Text.ANTLR.Lex.Regex (regex2dfa)
 
 import Language.Haskell.TH.Quote (QuasiQuoter(..))
 import qualified Language.Haskell.TH as TH
 import Language.ANTLR4
 import Language.ANTLR4.Syntax
+import qualified Language.ANTLR4.Boot.Syntax as G4S
 
 import Debug.Trace as D
 
@@ -27,8 +28,8 @@ import Debug.Trace as D
         | decl1 ';' decls           -> cons
         ;
 
-  decl1 : 'grammar' UpperID         -> Grammar
-        | LowerID ':' prods         -> Prod
+  decl1 : 'grammar' UpperID         -> G4S.Grammar
+        | LowerID ':' prods         -> G4S.Prod
         | UpperID ':' lexemeRHS     -> lexDecl
         ;
 
@@ -36,8 +37,8 @@ import Debug.Trace as D
         | prodRHS '|' prods         -> cons
         ;
 
-  lexemeRHS : regex '->' directive  -> lexemeDirective
-            | regex                 -> lexemeNoDir
+  lexemeRHS : regexes1 '->' directive  -> lexemeDirective
+            | regexes1                 -> lexemeNoDir
             ;
 
   prodRHS : alphas '->' directive   -> prodDirective
@@ -52,9 +53,9 @@ import Debug.Trace as D
          | alpha alphas             -> cons
          ;
 
-  alpha : Literal                   -> GTerm
-        | LowerID                   -> GTerm
-        | UpperID                   -> GNonTerm
+  alpha : Literal                   -> G4S.GTerm
+        | LowerID                   -> G4S.GTerm
+        | UpperID                   -> G4S.GNonTerm
         ;
 
   UpperID : [A-Z][a-zA-Z0-9_]*      -> String;
@@ -63,45 +64,52 @@ import Debug.Trace as D
   LineComment : '//' (~ '\n')* '\n' -> String;
   WS          : [ \t\n\r\f\v]+      -> String;
   
-  SetChar     : ~ '\]' ;
+  SetChar     : ~ '\]'              -> char ;
   EscapedChar : '\\\\' [tnrfv]      -> readEscape ;
 
 
   // Regex Stuff:
 
-  regex   : regex1 '?'
-          | regex1 '*'
-          | regex1 '+'
-          | regex1
+  regexes1 : regexes                -> G4S.Concat
+           ;
+
+  regexes : regex                   -> list
+          | regex regexes           -> cons
           ;
 
-  regex1  : '[' charSet ']'           -> CharSet
-          | Literal                   -> Literal
-          | UpperID                   -> Named
+  regex   :     regex1 '?'          -> G4S.Question
+          |     regex1 '*'          -> G4S.Kleene
+          |     regex1 '+'          -> G4S.PosClos
+          | '~' regex1              -> G4S.Negation
+          |     regex1              -> id
+          ;
+
+  regex1  : '[' charSet ']'           -> G4S.CharSet
+          | Literal                   -> literalRegex
+          | UpperID                   -> G4S.Named
           | '(' regex ')'
-          | unionR                    -> Concat
-          | regex regex
+          | unionR                    -> G4S.Concat
           ;
 
   unionR  : regex '|' regex         -> list2
           | regex '|' unionR        -> cons
           ;
 
-  charSet : charSet1                -> list
-          | charSet1 charSet        -> cons
+  charSet : charSet1                -> id
+          | charSet1 charSet        -> append
           ;
 
   charSet1 : SetChar '-' SetChar    -> range
-           | SetChar
-           | EscapedChar
+           | SetChar                -> list
+           | EscapedChar            -> list
            ;
 
   // LiteralR : '\'' (~ '\'')+ '\''    -> stripQuotes ;
 
 |]
 
-isWhitespace (T.Token T_LineComment _) = True
-isWhitespace (T.Token T_WS _) = True
+isWhitespace T_LineComment = True
+isWhitespace T_WS = True
 isWhitespace _ = False
 
 g4_codeGen :: String -> TH.Q [TH.Dec]
@@ -110,9 +118,14 @@ g4_codeGen input = do
   let fileName = TH.loc_filename loc
   let (line,column) = TH.loc_start loc
 
-  case (glrParse . filter (not . isWhitespace)) $ tokenize input of
+  --case (glrParse . filter (not . isWhitespace)) $ tokenize input of
+  case glrParse isWhitespace input of
     LR.ResultAccept ast -> codeGen ast
-    err                 -> error $ show err
+    LR.ResultSet    s   ->
+      if S.size s == 1
+        then codeGen (S.findMin s)
+        else error $ pshow' s
+    err                 -> error $ pshow' err
 
 -- TODO: Convert a Universal AST into a [G4S.G4]
 codeGen ast = trace (show ast) (return [])

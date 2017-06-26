@@ -43,19 +43,25 @@ haskellParseType s = case LHM.parseType s of
   Left err   -> trace s (error err)
   Right tyTH -> return tyTH
 
-info2type :: Info -> TH.Type
-info2type i = let
-  
-    i2c :: TH.Type -> TH.Type
-    i2c (ForallT xs ys t) = i2c t
-    i2c ((AppT (AppT ArrowT from) to)) = i2c to
-    i2c t@(VarT _)        = t
-    i2c t@(AppT ListT as) = t
-    i2c t@(ConT _)        = t
-    i2c x = error (show x)
+type2returnType :: TH.Type -> TH.Type
+type2returnType = let
+    
+    t2rT :: TH.Type -> TH.Type
+    t2rT (ForallT xs ys t) = t2rT t
+    t2rT ((AppT (AppT ArrowT from) to)) = t2rT to
+    t2rT t@(VarT _)        = t
+    t2rT t@(AppT ListT as) = t
+    t2rT t@(ConT _)        = t
+    t2rT t@(AppT (ConT _) _) = t
+    t2rT x = error (show x)
 
+  in t2rT
+
+info2returnType :: Info -> TH.Type
+info2returnType i = let
+  
   in case i of
-      (VarI _ t _) -> i2c t
+      (VarI _ t _) -> type2returnType t
       _ -> error (show i)
 
 --trace s = id
@@ -166,7 +172,7 @@ g4_decls ast = let
       (mkName ntDataName)
       []
       Nothing
-      (map (\s -> normalC (mkName $ mkUpper s) []) nonterms)
+      (map (\s -> normalC (mkName $ "NT_" ++ s) []) nonterms)
       symbolDerives
     
     -- E.g. ['(', ')', ';', 'exp', 'decl']
@@ -197,7 +203,7 @@ g4_decls ast = let
     ntConT = conT $ mkName ntDataName
     tConT  = conT $ mkName tDataName
 
-    -- e.g. [('exp', AString), ('decl', Named String)]
+    -- e.g. [('UpperID', AString), ('SetChar', Named String)]
     lexemeTypes :: [(String, LexemeType)]
     lexemeTypes = let
         lN :: G4S.G4 -> [(String, LexemeType)]
@@ -206,7 +212,7 @@ g4_decls ast = let
           | s == "String"     = [(lName, AString)]
           | null s            = [(lName, AString)] -- quirky G4 parser
           | isUpper (head s)  = [(lName, Named s (conT $ mkName s))]
-          | otherwise         = [(lName, Named s (info2type <$> reify (mkName s)))]
+          | otherwise         = [(lName, Named s (info2returnType <$> reify (mkName s)))]
         lN _ = []
       in concatMap lN ast
       --map (\s -> normalC (mkName s) []) lN'
@@ -219,16 +225,17 @@ g4_decls ast = let
 
     strBangType = (defBang, conT $ mkName "String")
 
-    mkCon = conE . mkName . mkUpper
+    mkCon   = conE . mkName . mkUpper
+    mkConNT = conE . mkName . ("NT_" ++)
 
     toElem :: G4S.ProdElem -> TH.ExpQ
     toElem (G4S.GTerm s)    = [| $(mkCon "T")  $(mkCon $ lookupTName "T_" s) |] -- $(return $ LitE $ StringL s)) |]
     toElem (G4S.GNonTerm s)
-      | (not . null) s && isLower (head s) = [| $(mkCon "NT") $(mkCon s) |]
+      | (not . null) s && isLower (head s) = [| $(mkCon "NT") $(mkConNT s) |]
       | otherwise = toElem (G4S.GTerm s)
 
     mkProd :: String -> [TH.ExpQ] -> TH.ExpQ
-    mkProd n es = [| $(mkCon "Production") $(conE $ mkName $ mkUpper n) ($(mkCon "Prod") $(mkCon "Pass") $(listE es)) |]
+    mkProd n es = [| $(mkCon "Production") $(conE $ mkName $ "NT_" ++ n) ($(mkCon "Prod") $(mkCon "Pass") $(listE es)) |]
 
     getProds :: [G4S.G4] -> [TH.ExpQ]
     getProds [] = []
@@ -238,7 +245,7 @@ g4_decls ast = let
 
     -- The first NonTerminal in the grammar (TODO: head of list)
     s0 :: TH.ExpQ
-    s0 = conE $ mkName $ mkUpper $ head nonterms
+    s0 = conE $ mkName $ "NT_" ++ head nonterms
 
     grammar gTy = [| (defaultGrammar $(s0) :: $(return gTy))
       { ns = Set.fromList [minBound .. maxBound :: $(ntConT)]
@@ -271,7 +278,7 @@ g4_decls ast = let
           | isUpper $ head d = Just $ normalC (mkName $ "V_" ++ lName) [bangType defBang (conT $ mkName d)]
           | otherwise        = Just $ do
               info <- reify $ mkName d
-              normalC (mkName $ "V_" ++ lName) [bangType defBang (return $ info2type info)]
+              normalC (mkName $ "V_" ++ lName) [bangType defBang (return $ info2returnType info)]
             --Just $ [|| $$(haskellParseExp d) ||] --error $ "unimplemented use of function in G4 directive: " ++ show d
         lTC _ = Nothing
       in   ((catMaybes $ map lTC (zip [0 .. length ast - 1] ast))
@@ -286,7 +293,9 @@ g4_decls ast = let
 
     lookupTokenFncnDecl = let
         lTFD t = clause [litP $ stringL t]
-                  (normalB $ [| T.Token $(conE $ mkName $ lookupTName "T_" t) $(conE $ mkName $ lookupTName "V_" t) |])
+                  (normalB $ [| T.Token $(conE $ mkName   $ lookupTName "T_" t)
+                                        $(conE $ mkName   $ lookupTName "V_" t)
+                                        $(litE $ integerL $ fromIntegral $ length t) |])
                   []
       in funD (mkName "lookupToken")
         (  map lTFD terminalLiterals
@@ -311,7 +320,7 @@ g4_decls ast = let
               (normalB [| $(conE $ mkName $ "V_" ++ s) (trace $(varE lName) ($(varE $ mkName n) $(varE lName) :: $t)) |]) []
               
               --info <- reify $ mkName d
-              --normalC (mkName $ "V_" ++ lName) [bangType defBang (return $ info2type info)]
+              --normalC (mkName $ "V_" ++ lName) [bangType defBang (return $ info2returnType info)]
       
       in funD (mkName "lexeme2value") (map l2VQ allLexicalTypes)
 
@@ -372,6 +381,92 @@ g4_decls ast = let
           (normalB [| pChr '\'' >> prettify v >> pChr '\'' |])
           []
       in funD fncnName (map pVFLit terminalLiterals ++ map pVFName lexemeNames)
+    
+    -- Pattern matches on an AST to produce a Maybe DataType
+    ast2DTFncnsQ nameAST = let
+        
+        a2d G4S.Lex{G4S.lName  = _A, G4S.pattern = G4S.LRHS{G4S.directive = dir}}
+          = Just  [ funD (mkName $ "ast2" ++ _A)
+                    [ clause  [ conP (mkName "Leaf")
+                                [ conP (mkName $ "T.Token")
+                                  [ wildP
+                                  , conP (mkName $ lookupTName "V_" _A)
+                                    [ varP $ mkName "t"]
+                                  , wildP]]]
+                              (normalB (varE $ mkName "t"))
+                              []
+                    ]
+                  ]
+        {-
+        a2d G4S.Lex{G4S.lName  = _A, G4S.pattern = G4S.LRHS{G4S.directive = Just s}}
+          | s == "String" = Just [funD (mkName $ "ast2" ++ _A) [ clause [] (normalB (varE $ mkName "id")) [] ]]
+          | null s        = Just [funD (mkName $ "ast2" ++ _A) [ clause [] (normalB (varE $ mkName "id")) [] ]]
+          | otherwise     = Just [funD (mkName $ "ast2" ++ _A) [ clause [] (normalB (varE $ mkName s)) [] ]]
+        -}
+        a2d G4S.Prod{G4S.pName = _A, G4S.patterns = ps} = let
+
+          fncnName = mkName $ "ast2" ++ _A
+
+          mkConP (G4S.GNonTerm nt)
+            -- Some nonterminals are really terminal tokens (regular expressions):
+            | isUpper (head nt)     = conP (mkName "T")  [conP (mkName $ lookupTName "T_" nt) []]
+            | otherwise             = conP (mkName "NT") [conP (mkName $ "NT_" ++ nt) []]
+          mkConP (G4S.GTerm    t)   = conP (mkName "T")  [conP (mkName $ lookupTName "T_" t) []]
+
+          nonTermVars as = map (\(G4S.GNonTerm t) -> t) (filter G4S.isGNonTerm as)
+
+          vars as = [ (mkName $ "v" ++ show i ++ "_" ++ a, varE $ mkName $ "ast2" ++ a)
+                    | let as' = nonTermVars as
+                    , (i, a) <- zip [0 .. length as'] as'
+                    ]
+
+          astAppRec b (varName, recName) = appE b (appE recName $ varE varName)
+
+          clauses = [ clause  [ [p| AST $(conP (mkName $ "NT_" ++ _A) [])
+                                     $(listP $ map mkConP as)
+                                     $(listP $ map (varP . fst) $ vars as)
+                                |]
+                              ]
+                        (case (dir, vars as) of
+                          (Just d, vs)    ->
+                                      if isUpper (head d)
+                                        then normalB $ foldl astAppRec (conE $ mkName d) vs
+                                        else normalB $ foldl astAppRec (varE $ mkName d) vs
+                          (Nothing, [])   -> normalB $ tupE []
+                          (Nothing, [(v0,rec)]) -> normalB $ appE rec (varE v0)
+                          (Nothing, vs)         -> normalB $ tupE $ map (\(vN,rN) -> appE rN $ varE vN) vs
+                        ) []
+                    | G4S.PRHS{G4S.alphas = as, G4S.pDirective = dir} <- ps
+                    ]
+          
+          retType = let
+            rT G4S.PRHS{G4S.alphas = as, G4S.pDirective = dir}
+              = case (dir, vars as) of
+                  (Just d, vs) ->
+                    if isUpper (head d)
+                      then (do i <- reify $ mkName d
+                               (case i of
+                                        DataConI _ t n -> return $ type2returnType t
+                                        VarI n t _     -> return t
+                                        TyConI (DataD _ n _ _ _ _) -> conT n
+                                        other          -> error $ show other))
+                      else info2returnType <$> reify (mkName d)
+                  (Nothing, [])         -> tupleT 0
+                  (Nothing, [(v0,rec)]) -> tupleT 0
+                  (Nothing, vs)         -> tupleT $ length vs
+            in rT (head ps)
+
+          fncnSig
+            = do rT <- retType
+                 (case rT of
+                    ForallT vs c t  -> forallT vs (cxt []) [t| $(conT nameAST) -> $(return t) |]
+                    t               -> forallT [] (cxt []) [t| $(conT nameAST) -> $(return t) |])
+
+          in Just $ [ --sigD fncnName fncnSig
+                      funD fncnName clauses
+                    ]
+        a2d _ = Nothing
+      in (concat . catMaybes . map a2d) ast
 
   -- terminaLiterals, lexemeNames
 
@@ -429,12 +524,18 @@ g4_decls ast = let
               slrParse :: [$(conT nameToken)] -> LR.LRResult () $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
               slrParse = (LR.slrParse $(varE name) event2ast)
               
-              glrParse :: [$(conT nameToken)] -> LR.LRResult (LR.LR1LookAhead (StripEOF (Sym $(conT nameToken)))) $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
-              glrParse = (LR.glrParse $(varE name) event2ast)
+              --glrParse :: [$(conT nameToken)] -> LR.LRResult $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
+              glrParse :: ($(conT tokName) -> Bool) -> [Char] -> LR.LR1Result $(conT ntSym) 
+                                                                                (StripEOF (Sym $(conT nameToken)))
+                                                                                Char
+                                                                                $(conT nameAST)
+              glrParse filterF = (LR.glrParseInc $(varE name) event2ast (T.tokenizeInc filterF $(varE nameDFAs) lexeme2value))
           |]
         
         prettyTFncn <- prettyTFncnQ prettyTFncnName
         prettyVFncn <- prettyVFncnQ prettyValueFncnName
+
+        ast2DTFncns <- sequence $ ast2DTFncnsQ nameAST
 
         return $
           [ ntDataDecl, tDataDecl
@@ -447,5 +548,5 @@ g4_decls ast = let
           , lexeme2Value
           , regexes
           , dfas, astDecl, tokDecl
-          ] ++ decls
+          ] ++ decls ++ ast2DTFncns
 
