@@ -17,7 +17,8 @@ import Language.Haskell.TH.Quote (QuasiQuoter(..))
 import qualified Language.Haskell.TH as TH
 import Language.ANTLR4
 import Language.ANTLR4.Syntax
-import qualified Language.ANTLR4.Boot.Syntax as G4S
+import qualified Language.ANTLR4.Boot.Syntax  as G4S
+import qualified Language.ANTLR4.Boot.Quote   as G4Q
 
 import Debug.Trace as D
 
@@ -120,7 +121,7 @@ g4_codeGen input = do
 
   --case (glrParse . filter (not . isWhitespace)) $ tokenize input of
   case glrParse isWhitespace input of
-    LR.ResultAccept ast -> codeGen ast
+    r@(LR.ResultAccept ast) -> codeGen r
     LR.ResultSet    s   ->
       if S.size s == 1
         then codeGen (S.findMin s)
@@ -128,7 +129,7 @@ g4_codeGen input = do
     err                 -> error $ pshow' err
 
 -- TODO: Convert a Universal AST into a [G4S.G4]
-codeGen ast = trace (show ast) (return [])
+codeGen (LR.ResultAccept ast) = G4Q.g4_decls $ ast2decls ast --trace (show ast) (return [])
 
 g4 :: QuasiQuoter
 g4 = QuasiQuoter

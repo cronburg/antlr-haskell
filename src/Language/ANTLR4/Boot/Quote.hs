@@ -1,6 +1,6 @@
 {-# LANGUAGE QuasiQuotes, TemplateHaskell, ScopedTypeVariables, DataKinds #-}
 module Language.ANTLR4.Boot.Quote
-( antlr4, ProdElem(..)
+( antlr4, ProdElem(..), g4_decls
 ) where
 import Prelude hiding (exp, init)
 import System.IO.Unsafe (unsafePerformIO)
@@ -315,9 +315,13 @@ g4_decls ast = let
         l2VQ (s, AString)   =
           clause [varP lName, conP (mkName $ "T_" ++ s) []]
           (normalB [| $(conE $ mkName $ "V_" ++ s) $(varE lName) |]) []
-        l2VQ (s, Named n t) =
+        l2VQ (s, Named n t)
+          | isLower (head n) =
               clause [varP lName, conP (mkName $ "T_" ++ s) []]
               (normalB [| $(conE $ mkName $ "V_" ++ s) (trace $(varE lName) ($(varE $ mkName n) $(varE lName) :: $t)) |]) []
+          | otherwise =
+              clause [varP lName, conP (mkName $ "T_" ++ s) []]
+              (normalB [| $(conE $ mkName $ "V_" ++ s) (trace $(varE lName) (read $(varE lName) :: $t)) |]) []
               
               --info <- reify $ mkName d
               --normalC (mkName $ "V_" ++ lName) [bangType defBang (return $ info2returnType info)]
@@ -414,18 +418,31 @@ g4_decls ast = let
           mkConP (G4S.GTerm    t)   = conP (mkName "T")  [conP (mkName $ lookupTName "T_" t) []]
 
           nonTermVars as = map (\(G4S.GNonTerm t) -> t) (filter G4S.isGNonTerm as)
+          
+          justStr (G4S.GNonTerm s) = s
+          justStr (G4S.GTerm s)    = s
 
-          vars as = [ (mkName $ "v" ++ show i ++ "_" ++ a, varE $ mkName $ "ast2" ++ a)
-                    | let as' = nonTermVars as
-                    , (i, a) <- zip [0 .. length as'] as'
+          vars as = catMaybes
+                    [ if G4S.isGNonTerm a
+                        then Just (mkName $ "v" ++ show i ++ "_" ++ justStr a, varE $ mkName $ "ast2" ++ justStr a)
+                        else Nothing
+                    | (i, a) <- zip [0 .. length as] as
                     ]
+
+          astListPattern as = listP $
+                [ if G4S.isGNonTerm a
+                    then varP  $ mkName $ "v" ++ show i ++ "_" ++ justStr a
+                    else wildP
+                | (i, a) <- zip [0 .. length as] as
+                ]
 
           astAppRec b (varName, recName) = appE b (appE recName $ varE varName)
 
           clauses = [ clause  [ [p| AST $(conP (mkName $ "NT_" ++ _A) [])
                                      $(listP $ map mkConP as)
-                                     $(listP $ map (varP . fst) $ vars as)
+                                     $(astListPattern as)
                                 |]
+                                     -- $(listP $ map (varP . fst) $ vars as)
                               ]
                         (case (dir, vars as) of
                           (Just d, vs)    ->
@@ -437,7 +454,8 @@ g4_decls ast = let
                           (Nothing, vs)         -> normalB $ tupE $ map (\(vN,rN) -> appE rN $ varE vN) vs
                         ) []
                     | G4S.PRHS{G4S.alphas = as, G4S.pDirective = dir} <- ps
-                    ]
+                    ] ++
+                    [ clause [ [p| ast2 |] ] (normalB [| error (show ast2) |]) [] ]
           
           retType = let
             rT G4S.PRHS{G4S.alphas = as, G4S.pDirective = dir}

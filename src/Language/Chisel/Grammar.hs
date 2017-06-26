@@ -121,8 +121,8 @@ instance Prettify Primitive where prettify = rshow
         | sizeArith Prim
         ;
 
-  prodID  : UpperID
-          | UpperID '.' prodID
+  prodID  : UpperID               -> list
+          | UpperID '.' prodID    -> cons
           ;
 
   carret : '^';
