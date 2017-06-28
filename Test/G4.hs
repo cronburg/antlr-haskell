@@ -49,16 +49,16 @@ _1 = G4.lookupToken "1"
 test_g4 =
   G4.slrParse (G4.tokenize "1")
   @?=
-  LR.ResultAccept (AST G4.Exp [T G4.T_0] [Leaf _1])
+  LR.ResultAccept (AST G4.NT_exp [T G4.T_0] [Leaf _1])
  
 test_hello =
   slrParse (tokenize "hello Matt")
   @?=
   (LR.ResultAccept $
-        AST R [T T_0, T T_WS, T T_ID]
-        [ Leaf (T.Token T_0 V_0)
-        , Leaf (T.Token T_WS (V_WS " "))
-        , Leaf (T.Token T_ID (V_ID "Matt"))
+        AST NT_r [T T_0, T T_WS, T T_ID]
+        [ Leaf (T.Token T_0 V_0 1)
+        , Leaf (T.Token T_WS (V_WS " ") 1)
+        , Leaf (T.Token T_ID (V_ID "Matt") 4)
         ]
   )
 

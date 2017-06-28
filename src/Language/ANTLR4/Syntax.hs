@@ -23,8 +23,8 @@ range a b = [a .. b]
 readEscape :: String -> Char
 readEscape s = read $ "'" ++ s ++ "'"
 
-stripQuotes :: String -> String
-stripQuotes = init . tail
+stripQuotesReadEscape :: String -> String
+stripQuotesReadEscape s = read $ "\"" ++ (init . tail) s ++ "\""
 
 char :: String -> Char
 char = head

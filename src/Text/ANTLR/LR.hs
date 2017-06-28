@@ -27,8 +27,8 @@ import qualified Debug.Trace as D
 import System.IO.Unsafe (unsafePerformIO)
 uPIO = unsafePerformIO
 
-trace = D.trace
---trace x y = y
+--trace = D.trace
+trace x y = y
 
 data ItemLHS nts =
     Init   nts -- S' if S is the grammar start symbol
@@ -305,9 +305,9 @@ instance  ( Prettify t, Prettify ast, Prettify a, Prettify nts, Prettify ts
           , Hashable ast, Hashable t)
   => Prettify (LRResult a nts ts t ast) where
   
-  prettify (ErrorNoAction (s:states, a:ws) asts) = do
+  prettify (ErrorNoAction (s:states, ws) asts) = do
     pStr "ErrorNoAction: Current input = '"
-    prettify a
+    if null ws then return () else prettify (head ws)
     pLine "'"
     incrIndent 7
     
@@ -319,9 +319,9 @@ instance  ( Prettify t, Prettify ast, Prettify a, Prettify nts, Prettify ts
     prettify ws
     pLine "'"
     
-  prettify (ErrorAccept   (s:states, a:ws) asts) = do
+  prettify (ErrorAccept   (s:states, ws) asts) = do
     pStr "ErrorAccept: Current input = "
-    prettify a
+    (if null ws then return () else prettify (head ws))
     pLine ""
     incrIndent 7
     
@@ -570,7 +570,9 @@ glrParseInc' g tbl goto closure s_0 act tokenizer w = let
                           0 -> undefined
                           1 -> S.findMin parseResults
                           _ -> ResultSet parseResults)
-                  else ResultSet justAccepts)
+                  else (case S.size justAccepts of
+                          1 -> S.findMin justAccepts
+                          _ -> ResultSet justAccepts))
 
   in lr ([closure s_0], w) []
 

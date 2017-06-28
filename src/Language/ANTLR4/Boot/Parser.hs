@@ -25,8 +25,8 @@ import Data.Char
 import Language.ANTLR4.Boot.Syntax
 import Language.ANTLR4.Regex (Regex(..), parseRegex, regexP)
 
-traceM s = D.traceM ("[ANTLR4.Boot.Parser] " ++ s)
---traceM = return
+--traceM s = D.traceM ("[ANTLR4.Boot.Parser] " ++ s)
+traceM = return
 
 ------------------------------------------------------------------------------
 -- Or-Try Combinator (tries two parsers, one after the other)

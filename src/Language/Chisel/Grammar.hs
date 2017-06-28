@@ -20,28 +20,9 @@ import Text.ANTLR.Lex.Regex
 
 import Language.ANTLR4
 import Language.ANTLR4.G4
+import Language.Chisel.Syntax
 
 import Debug.Trace as D
-
-data Primitive = Page | Word | Byte | Bit
-  deriving (Show, Eq, Ord, Generic, Hashable)
-
-lexeme2prim "page"  = Just Page
-lexeme2prim "pages" = Just Page
-lexeme2prim "word"  = Just Word
-lexeme2prim "words" = Just Word
-lexeme2prim "byte"  = Just Byte
-lexeme2prim "bytes" = Just Byte
-lexeme2prim "bit"   = Just Bit
-lexeme2prim "bits"  = Just Bit
-lexeme2prim _       = Nothing
-
-instance Read Primitive where
-  readsPrec _ input = case lexeme2prim input of
-    Just x  -> [(x,"")]
-    Nothing -> []
-
-instance Prettify Primitive where prettify = rshow
 
 [g4|
   grammar Chisel;
@@ -49,88 +30,83 @@ instance Prettify Primitive where prettify = rshow
              | '(' prodSimple ')'
              ;
 
-  prodSimple : prodID formals magnitude alignment '->' group
-             | prodID formals '->' group
-             | prodID magnitude alignment '->' group
-             | prodID magnitude '->' group
-             | LowerID prodID magnitude alignment '->' group
+  prodSimple : prodID formals magnitude alignment '->' group    -> prodFMA
+             | prodID formals '->' group                        -> prodF
+             | prodID magnitude alignment '->' group            -> prodMA
+             | prodID magnitude '->' group                      -> prodM
+             | LowerID prodID magnitude alignment '->' group    -> prodNMA
              ;
 
-  formals : LowerID formals
-          | LowerID
+  formals : LowerID formals             -> cons
+          | LowerID                     -> list
           ;
 
-  magnitude : '|' '#' sizeArith '|'
-            | '|'     sizeArith '|'
-            | '|'     prodID    '|'
+  magnitude : '|' '#' sizeArith '|'     -> magWild
+            | '|'     sizeArith '|'     -> magNorm
+            | '|'     prodID    '|'     -> magID
             ;
 
   alignment : '@' '(' sizeArith ')';
 
-  group :     tupleExp1
-        | '(' tupleExp  ')'
+  group :     groupExp1                 -> list
+        | '(' groupExp  ')'
         ;
   
-  tupleExp : tupleExp1
-           | tupleExp1 ',' tupleExp
+  groupExp : groupExp1                  -> list
+           | groupExp1 ',' groupExp     -> cons
            ;
 
-  tupleExp1 : prodID
-            | '#' chiselProd
-            | '#' sizeArith
-            | '(' flags ')'
-            | chiselProd
-            | sizeArith
-            | label
-            | arith chiselProd
-            | arith prodApp
-            | sizeArith
-            | '(' labels ')'
+  groupExp1 : '#' chiselProd            -> gProdWild
+            | '#' sizeArith             -> gSizeWild
+            | '(' flags ')'             -> GFlags
+            | chiselProd                -> gProdNorm
+            | sizeArith                 -> gSizeNorm
+            | label                     -> GLabel
+            | arith chiselProd          -> gProdArith
+            | arith prodApp             -> GProdApp
+            | '(' labels ')'            -> GLabels
             ;
 
-  flags : prodID
-        | prodID '|' flags
+  flags : prodID                        -> list
+        | prodID '|' flags              -> cons
         ;
 
-  labels : label
-         | label '|' labels
+  labels : label                        -> list
+         | label '|' labels             -> cons
          ;
 
-  label : LowerID ':' labelExp
+  label : LowerID ':' labelExp    -> Label
         ;
 
-  labelExp : '#' chiselProd
-           | '#' prodApp
-           | '#' sizeArith
-           | chiselProd
-           | prodApp
-           | sizeArith
+  labelExp : '#' chiselProd       -> lProdWild
+           | '#' prodApp          -> lProdAppWild
+           | '#' sizeArith        -> lSizeWild
+           | chiselProd           -> lProd
+           | prodApp              -> lProdApp
+           | sizeArith            -> lSize
            ;
 
-  prodApp : prodID prodApp
-          | prodID
+  prodApp : prodID prodApp        -> cons
+          | prodID                -> list
           ;
 
-  sizeArith : arith Prim
-            | Prim
+  sizeArith : arith Prim          -> SizeArith
+            | Prim                -> singleArith
             ;
   
-  arith : INT
-        | LowerID
-        | INT '^' LowerID
-        | sizeArith Prim
+  arith : INT                     -> SizeInt
+        | LowerID                 -> SizeID
+        | arith '^' arith         -> SizeExp
         ;
 
-  prodID  : UpperID               -> list
-          | UpperID '.' prodID    -> cons
+  prodID  : UpperID               -> id
+          | UpperID '.' prodID    -> append
           ;
-
-  carret : '^';
 
   Prim     : ( 'bit' | 'byte' ) 's'?      -> Primitive;
   ArchPrim : ( 'page' | 'word' ) 's'?     -> Primitive;
-  LowerID  : [a-z][a-zA-Z0-9_]*           -> String;
   UpperID  : [A-Z][a-zA-Z0-9_]*           -> String;
+  LowerID  : [a-z][a-zA-Z0-9_]*           -> String;
   INT      : [0-9]+                       -> Int;
   LineComment : '//' (~ '\n')* '\n'       -> String;
   WS      : [ \t\n\r\f\v]+                -> String;
@@ -138,17 +114,17 @@ instance Prettify Primitive where prettify = rshow
 
 -- Types used to the right of the '->' directive must instance Read
 
-isWhitespace (T.Token T_LineComment _) = True
-isWhitespace (T.Token T_WS _) = True
+isWhitespace T_LineComment = True
+isWhitespace T_WS = True
 isWhitespace _ = False
 
 {- Helper functions to construct all the various Tokens from either the desired
  - (arbitrary) lexeme or by looking it up based on the static lexeme it always
  - matches. -}
-lowerID  x = T.Token T_LowerID $   V_LowerID x
-upperID  x = T.Token T_UpperID $   V_UpperID x
-prim     x = T.Token T_Prim    $   V_Prim x
-int      x = T.Token T_INT     $   V_INT x
+lowerID  x = T.Token T_LowerID (V_LowerID x) (length x)
+upperID  x = T.Token T_UpperID (V_UpperID x) (length x)
+prim     x = T.Token T_Prim    (V_Prim x)    (length $ show x)
+int      x = T.Token T_INT     (V_INT x)     (length $ show x)
 arrow      = lookupToken "->"
 lparen     = lookupToken "("
 rparen     = lookupToken ")"
@@ -159,8 +135,8 @@ comma      = lookupToken ","
 atsymbol   = lookupToken "@"
 carrot     = lookupToken "^"
 dot        = lookupToken "."
-linecomm x = T.Token T_LineComment $ V_LineComment x
-ws       x = T.Token T_WS          $ V_WS x
+linecomm x = T.Token T_LineComment (V_LineComment x) (length x)
+ws       x = T.Token T_WS          (V_WS x)          (length x)
 
-parse = glrParse . filter (not . isWhitespace)
+parse = glrParse isWhitespace
 

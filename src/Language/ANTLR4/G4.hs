@@ -55,19 +55,18 @@ import Debug.Trace as D
          ;
 
   alpha : Literal                   -> G4S.GTerm
-        | LowerID                   -> G4S.GTerm
+        | LowerID                   -> G4S.GNonTerm
         | UpperID                   -> G4S.GNonTerm
         ;
 
   UpperID : [A-Z][a-zA-Z0-9_]*      -> String;
   LowerID : [a-z][a-zA-Z0-9_]*      -> String;
-  Literal     : '\'' (~ '\'')+ '\'' -> stripQuotes;
+  Literal     : '\'' (~ '\'')+ '\'' -> stripQuotesReadEscape;
   LineComment : '//' (~ '\n')* '\n' -> String;
-  WS          : [ \t\n\r\f\v]+      -> String;
   
-  SetChar     : ~ '\]'              -> char ;
   EscapedChar : '\\\\' [tnrfv]      -> readEscape ;
-
+  SetChar     : ~ '\]'              -> char ;
+  WS          : [ \t\n\r\f\v]+      -> String;
 
   // Regex Stuff:
 
@@ -89,7 +88,7 @@ import Debug.Trace as D
           | Literal                   -> literalRegex
           | UpperID                   -> G4S.Named
           | '(' regex ')'
-          | unionR                    -> G4S.Concat
+          | unionR                    -> G4S.Union
           ;
 
   unionR  : regex '|' regex         -> list2

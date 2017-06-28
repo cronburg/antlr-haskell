@@ -79,6 +79,7 @@ library
                   
                   --, Language.Chisel.Tokenizer
                   , Language.Chisel.Grammar
+                  , Language.Chisel.Syntax
 
   -- Modules included in this library but not exported.
   -- other-modules:

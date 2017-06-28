@@ -30,8 +30,11 @@ import Text.ANTLR.Set (Set(..))
 import qualified Text.ANTLR.Set as Set
 import qualified Text.ANTLR.Lex.Regex as R
 
-trace s = D.trace   ("[Language.ANTLR4.Quote.Boot] " ++ s)
-traceM s = D.traceM ("[Language.ANTLR4.Quote.Boot] " ++ s)
+--trace s = D.trace   ("[Language.ANTLR4.Boot.Quote] " ++ s)
+--traceM s = D.traceM ("[Language.ANTLR4.Boot.Quote] " ++ s)
+
+trace s x = x
+traceM s x = x
 
 haskellParseExp :: (Monad m) => String -> m TH.Exp
 haskellParseExp s = case LHM.parseExp s of

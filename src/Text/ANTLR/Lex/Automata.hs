@@ -19,6 +19,7 @@ instance (Eq e, Eq s, Eq i, Hashable e, Hashable s, Hashable i, Show e, Show s, 
     ++ "\n  Δ:  " ++ show delta
     ++ "\n  s0: " ++ show s0
     ++ "\n  F:  " ++ show f
+    ++ "\n"
 
 type AutomataEdge e = (Bool, Set e)
 

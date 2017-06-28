@@ -5,6 +5,7 @@ module Main where
 import Text.ANTLR.Lex.Tokenizer (Token(..))
 import Text.ANTLR.Parser (AST(..))
 import Language.Chisel.Grammar
+import Language.Chisel.Syntax
 import Text.ANTLR.Allstar.Grammar (Grammar(..), ProdElem(..))
 import Language.ANTLR4.FileOpener (open)
 
@@ -25,7 +26,8 @@ import qualified Data.Text as T
 
 chi = id
 
-tokenizeGHC_val = tokenize [open| Test/Language/Chisel/Examples/GHC.chi |]
+ghc_val = [open| Test/Language/Chisel/Examples/GHC.chi |]
+tokenizeGHC_val = tokenize ghc_val
 
 tokenizeGHC_exp =
   [ upperID "Heap", ws " ", lowerID "m", ws " ", lowerID "k", ws " ", arrow
@@ -100,30 +102,32 @@ tokenizeGHC2 =
   @?=
   []
 
-tokenizeSmall = tokenize "Foo x -> Bar"
+tokenizeSmall = tokenize "Foo x -> x Bar"
 
 parseTestSmall =
-  (D.traceShowId $ parse tokenizeSmall)
+  D.traceShowId (parse "Foo x -> x Bar")
   @?=
   LR.ResultAccept
-    ( AST ChiselProd [NT ProdSimple]
-      [ AST ProdSimple [NT ProdID, NT Formals, T T_2, NT Group]
-        [ AST ProdID [T T_UpperID] [Leaf $ upperID "Foo"]
-        , AST Formals [T T_LowerID] 
+    ( AST NT_chiselProd [NT NT_prodSimple]
+      [ AST NT_prodSimple [NT NT_prodID, NT NT_formals, T T_2, NT NT_group]
+        [ AST NT_prodID [T T_UpperID] [Leaf $ upperID "Foo"]
+        , AST NT_formals [T T_LowerID] 
           [ Leaf $ lowerID "x"]
         , Leaf arrow
-        , AST Group [NT TupleExp1]
-            [ AST TupleExp1 [NT ProdID]
-              [ AST ProdID [T T_UpperID]
-                [ Leaf $ upperID "Bar"]]]]])
+        , AST NT_group [NT NT_groupExp1]
+            [ AST NT_groupExp1 [NT NT_arith, NT NT_prodApp]
+              [ AST NT_arith [T T_LowerID] [Leaf $ lowerID "x"]
+              , AST NT_prodApp [NT NT_prodID]
+                [ AST NT_prodID [T T_UpperID] [Leaf $ upperID "Bar"] ]
+                ]]]])
 
 tokenizeSmallTest =
   tokenizeSmall
   @?=
-  [upperID "Foo", ws " ", lowerID "x", ws " ", arrow, ws " ", upperID "Bar", EOF]
+  [upperID "Foo", ws " ", lowerID "x", ws " ", arrow, ws " ", lowerID "x", ws " ", upperID "Bar", EOF]
 
 parseGHCTestBig =
-  case parse tokenizeGHC_val of
+  case parse ghc_val of
     (LR.ResultAccept _)   -> (1 :: Int) @?= 1
     e                     -> e @?= LR.ResultAccept LeafEps
 

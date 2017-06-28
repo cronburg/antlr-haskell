@@ -109,7 +109,7 @@ tokenizeInc filterF dfaTuples fncn = let
         -- Yayy lazy function evaluation.
         next = case nextTokens of
                 []     -> EOF
-                (t:_)  -> D.traceShowId t
+                (t:_)  -> t --D.traceShowId t
       
       in (next, drop (sum $ map tokenSize $ next : ignored) input)
   in tI
