@@ -1,4 +1,4 @@
-module AllStar where
+module ParserGenerator.AllStar where
 
 import Data.List
 import Test.HUnit
