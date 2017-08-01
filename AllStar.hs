@@ -88,16 +88,14 @@ data AST = Node Char [AST] | Leaf Char deriving (Show)
 
 parse :: InputSeq -> GrammarSymbol -> ATNEnv -> (Maybe Bool, AST)
 parse input startSym atnEnv  =
-  let parseLoop input currState stack dfaEnv derivation ast astAcc astStack =
+  let parseLoop input currState stack dfaEnv derivation subtrees astStack =
         case (currState, startSym) of
           (FINAL c, NT c') -> if c == c' then
-                                (Just True, ast)
+                                (Just True, Node c subtrees)
                               else
                                 case (stack, astStack) of
-                                  (q : stack', parent : astStack') ->
-                                    case parent of
-                                      Node nt leftChildren -> parseLoop input q stack' dfaEnv derivation (Node c ast : leftChildren) [] astStack'
-                                      Leaf _               -> error "this shouldn't happen"
+                                  (q : stack', leftSiblings : astStack') ->
+                                    parseLoop input q stack' dfaEnv derivation (leftSiblings ++ [Node c subtrees]) astStack'
                                   _ -> error "this shouldn't happen"
           (_, _) -> case (outgoingEdge currState atnEnv) of
                       Nothing -> error ("No matching edge found for " ++ (show currState))
@@ -108,20 +106,20 @@ parse input startSym atnEnv  =
                                              let newDerivationStep = case last (last derivation) of
                                                                      NT _ -> init (last derivation) ++ [t]
                                                                      T _  -> last derivation ++ [t]
-                                             in  parseLoop cs q stack dfaEnv (derivation ++ [newDerivationStep]) ast (Leaf b : astAcc) astStack
+                                             in  parseLoop cs q stack dfaEnv (derivation ++ [newDerivationStep]) (subtrees ++ [Leaf b]) astStack
                                            else
-                                             (Just False, ast)
+                                             (Just False, Leaf 'z')
                           (NT b, _)     -> let stack' = q : stack
                                                i      = adaptivePredict t input stack' dfaEnv
                                                newDerivationStep = case last (last derivation) of
                                                                      NT _ -> init (last derivation) ++ [t]
                                                                      T _  -> last derivation ++ [t]
-                                           in  parseLoop input (CHOICE b i) stack' dfaEnv (derivation ++ [newDerivationStep]) ast [] (Node b astAcc : astStack)
-                          (EPS, _)      -> parseLoop input q stack dfaEnv derivation ast astAcc astStack
+                                           in  parseLoop input (CHOICE b i) stack' dfaEnv (derivation ++ [newDerivationStep]) [] (subtrees : astStack)
+                          (EPS, _)      -> parseLoop input q stack dfaEnv derivation subtrees astStack
                              
       iStart = adaptivePredict startSym input emptyStack emptyEnv
       
-  in  case startSym of (NT c) -> parseLoop input (CHOICE c iStart) emptyStack emptyEnv [[startSym]] (Node 'S' []) [] []
+  in  case startSym of (NT c) -> parseLoop input (CHOICE c iStart) emptyStack emptyEnv [[startSym]] [] []
                        _      -> error "Start symbol must be a nonterminal"
 
   where
