@@ -33,7 +33,7 @@ data DFA      = DFA { initialState :: DFAState
 data DFAState = D [ATNConfig] | F Int | Derror deriving (Eq, Show)
 type DFAEnv   = [(GrammarSymbol, DFA)]
 
--- Input sequence type (this will probably change to [Token])
+-- Input sequence type
 type InputSeq = [Token]
 type Token    = Char
 
@@ -83,16 +83,22 @@ allEqual (x : xs) = all (== x) xs
 --------------------------------ALL(*) FUNCTIONS--------------------------------
 -- should parse() also return residual input sequence?
 
-parse :: InputSeq -> GrammarSymbol -> ATNEnv -> (Maybe Bool, [[GrammarSymbol]])
+
+data AST = Node Char [AST] | Leaf Char deriving (Show)
+
+parse :: InputSeq -> GrammarSymbol -> ATNEnv -> (Maybe Bool, AST)
 parse input startSym atnEnv  =
-  let parseLoop input currState stack dfaEnv derivation =
+  let parseLoop input currState stack dfaEnv derivation ast astAcc astStack =
         case (currState, startSym) of
           (FINAL c, NT c') -> if c == c' then
-                                (Just True, derivation)
+                                (Just True, ast)
                               else
-                                case stack of
-                                  []         -> error "Can't pop from an empty stack"
-                                  q : stack' -> parseLoop input q stack' dfaEnv derivation
+                                case (stack, astStack) of
+                                  (q : stack', parent : astStack') ->
+                                    case parent of
+                                      Node nt leftChildren -> parseLoop input q stack' dfaEnv derivation (Node c ast : leftChildren) [] astStack'
+                                      Leaf _               -> error "this shouldn't happen"
+                                  _ -> error "this shouldn't happen"
           (_, _) -> case (outgoingEdge currState atnEnv) of
                       Nothing -> error ("No matching edge found for " ++ (show currState))
                       Just (p, t, q) ->
@@ -102,20 +108,20 @@ parse input startSym atnEnv  =
                                              let newDerivationStep = case last (last derivation) of
                                                                      NT _ -> init (last derivation) ++ [t]
                                                                      T _  -> last derivation ++ [t]
-                                             in  parseLoop cs q stack dfaEnv (derivation ++ [newDerivationStep])
+                                             in  parseLoop cs q stack dfaEnv (derivation ++ [newDerivationStep]) ast (Leaf b : astAcc) astStack
                                            else
-                                             (Just False, derivation)
+                                             (Just False, ast)
                           (NT b, _)     -> let stack' = q : stack
                                                i      = adaptivePredict t input stack' dfaEnv
                                                newDerivationStep = case last (last derivation) of
                                                                      NT _ -> init (last derivation) ++ [t]
                                                                      T _  -> last derivation ++ [t]
-                                           in  parseLoop input (CHOICE b i) stack' dfaEnv (derivation ++ [newDerivationStep])
-                          (EPS, _)      -> parseLoop input q stack dfaEnv derivation
+                                           in  parseLoop input (CHOICE b i) stack' dfaEnv (derivation ++ [newDerivationStep]) ast [] (Node b astAcc : astStack)
+                          (EPS, _)      -> parseLoop input q stack dfaEnv derivation ast astAcc astStack
                              
       iStart = adaptivePredict startSym input emptyStack emptyEnv
       
-  in  case startSym of (NT c) -> parseLoop input (CHOICE c iStart) emptyStack emptyEnv [[startSym]]
+  in  case startSym of (NT c) -> parseLoop input (CHOICE c iStart) emptyStack emptyEnv [[startSym]] (Node 'S' []) [] []
                        _      -> error "Start symbol must be a nonterminal"
 
   where
