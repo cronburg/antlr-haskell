@@ -24,12 +24,8 @@ type ATNEnv    = [(GrammarSymbol, ATN)]
 type ATNConfig = (ATNState, Int, ATNStack)
 
 -- DFA types
--- to do: add transition function field to DFA when it's needed
---        consider defining DFA solely in terms of transition function
-data DFA      = DFA { initialState :: DFAState
-                    , finalStates  :: [DFAState]
-                    , sigma        :: [Char]
-                    }
+type DFA      = [DFAEdge]
+type DFAEdge  = (DFAState, Token, DFAState)
 data DFAState = D [ATNConfig] | F Int | Derror deriving (Eq, Show)
 type DFAEnv   = [(GrammarSymbol, DFA)]
 
@@ -37,10 +33,13 @@ type DFAEnv   = [(GrammarSymbol, DFA)]
 type InputSeq = [Token]
 type Token    = Char
 
+-- Return type of parse function
+data AST = Node Char [AST] | Leaf Char deriving (Show)
+
 --------------------------------CONSTANTS---------------------------------------
 
-emptyEnv    = []
-emptyStack  = []
+emptyEnv        = []
+emptyStack      = []
 emptyDerivation = []
 
 --------------------------------AUXILIARY FUNCTIONS-----------------------------
@@ -76,6 +75,10 @@ getProdSetsPerState q =
                  in  groupBy (\(p, _, _) (p', _, _) -> p == p')
                              sortedConfigs
 
+dfaTrans :: DFAState -> Token -> DFA -> Maybe DFAEdge
+dfaTrans d t dfa =find (\(d1, label, _) -> d1 == d && label == t) dfa
+
+
 allEqual :: Eq a => [a] -> Bool
 allEqual []       = True
 allEqual (x : xs) = all (== x) xs
@@ -83,43 +86,36 @@ allEqual (x : xs) = all (== x) xs
 --------------------------------ALL(*) FUNCTIONS--------------------------------
 -- should parse() also return residual input sequence?
 
-
-data AST = Node Char [AST] | Leaf Char deriving (Show)
-
 parse :: InputSeq -> GrammarSymbol -> ATNEnv -> (Maybe Bool, AST)
 parse input startSym atnEnv  =
-  let parseLoop input currState stack dfaEnv derivation subtrees astStack =
+  let parseLoop input currState stack dfaEnv subtrees astStack =
         case (currState, startSym) of
-          (FINAL c, NT c') -> if c == c' then
-                                (Just True, Node c subtrees)
-                              else
-                                case (stack, astStack) of
-                                  (q : stack', leftSiblings : astStack') ->
-                                    parseLoop input q stack' dfaEnv derivation (leftSiblings ++ [Node c subtrees]) astStack'
-                                  _ -> error "this shouldn't happen"
-          (_, _) -> case (outgoingEdge currState atnEnv) of
-                      Nothing -> error ("No matching edge found for " ++ (show currState))
-                      Just (p, t, q) ->
-                        case (t, input) of
-                          (T b, [])     -> error "Input has been exhausted"
-                          (T b, c : cs) -> if b == c then
-                                             let newDerivationStep = case last (last derivation) of
-                                                                     NT _ -> init (last derivation) ++ [t]
-                                                                     T _  -> last derivation ++ [t]
-                                             in  parseLoop cs q stack dfaEnv (derivation ++ [newDerivationStep]) (subtrees ++ [Leaf b]) astStack
-                                           else
-                                             (Just False, Leaf 'z')
-                          (NT b, _)     -> let stack' = q : stack
-                                               i      = adaptivePredict t input stack' dfaEnv
-                                               newDerivationStep = case last (last derivation) of
-                                                                     NT _ -> init (last derivation) ++ [t]
-                                                                     T _  -> last derivation ++ [t]
-                                           in  parseLoop input (CHOICE b i) stack' dfaEnv (derivation ++ [newDerivationStep]) [] (subtrees : astStack)
-                          (EPS, _)      -> parseLoop input q stack dfaEnv derivation subtrees astStack
+          (FINAL c, NT c') ->
+            if c == c' then
+              (Just True, Node c subtrees)
+            else
+              case (stack, astStack) of
+                (q : stack', leftSiblings : astStack') ->
+                  parseLoop input q stack' dfaEnv (leftSiblings ++ [Node c subtrees]) astStack'
+                _ -> error "this shouldn't happen"
+          (_, _) ->
+            case (outgoingEdge currState atnEnv) of
+              Nothing -> error ("No matching edge found for " ++ (show currState))
+              Just (p, t, q) ->
+                case (t, input) of
+                  (T b, [])     -> error "Input has been exhausted"
+                  (T b, c : cs) -> if b == c then
+                                     parseLoop cs q stack dfaEnv (subtrees ++ [Leaf b]) astStack
+                                   else
+                                     (Just False, Leaf 'z')
+                  (NT b, _)     -> let stack' = q : stack
+                                       i      = adaptivePredict t input stack' dfaEnv
+                                   in  parseLoop input (CHOICE b i) stack' dfaEnv [] (subtrees : astStack)
+                  (EPS, _)      -> parseLoop input q stack dfaEnv subtrees astStack
                              
       iStart = adaptivePredict startSym input emptyStack emptyEnv
       
-  in  case startSym of (NT c) -> parseLoop input (CHOICE c iStart) emptyStack emptyEnv [[startSym]] [] []
+  in  case startSym of (NT c) -> parseLoop input (CHOICE c iStart) emptyStack (map (\(sym, _) -> (sym, [])) atnEnv) [] emptyStack
                        _      -> error "Start symbol must be a nonterminal"
 
   where
@@ -128,14 +124,13 @@ parse input startSym atnEnv  =
       case lookup sym dfaEnv of
         Just dfa -> -1 
         Nothing  -> let d0     = startState sym emptyStack
+                        -- Do I actually need to create the final states ahead of time?
+                        {-
                         finals = case (lookup sym atnEnv) of
                                    Just ess -> [F i | i <- map fst (zip [0..] ess)]
                                    Nothing  -> trace (error ("aP No ATN for symbol " ++ show sym)) [Derror]
-                        dfa    = DFA { initialState = d0
-                                     , finalStates = finals
-                                     , sigma = ['a', 'b', 'c']
-                                     }  --derive alphabet from the ATNs?
-                        alt    = sllPredict sym input d0 stack
+                        -}
+                        alt    = sllPredict sym input d0 stack dfaEnv
                     in  alt
 
     startState sym stack =
@@ -177,19 +172,30 @@ parse input startSym atnEnv  =
           (FINAL _, q : gamma') -> currConfig : closure busy' (q, i, gamma')
           _                     -> currConfig : loopOverEdges pEdges
 
-    sllPredict sym input d0 stack =
+    sllPredict sym input d0 stack dfaEnv =
       let predictionLoop d tokens =
-            case (d, tokens) of
-              (Derror, _)            -> error ("No target DFA state found " ++
-                                               show d)
-              (F i, _)               -> i
-              (D atnConfigs, [])     -> llPredict sym input stack --error ("Empty input in sllPredict, " ++ "DFA cursor is " ++ show d)
-              (D atnConfigs, t : ts) ->
-                let (d', stackSensitive) = target d t
-                in  if stackSensitive then
-                      llPredict sym input stack
-                    else
-                      predictionLoop d' ts
+            case tokens of
+              []     -> llPredict sym input stack -- empty input
+              t : ts ->
+                let d' = case lookup sym dfaEnv of
+                           Nothing  -> error ("No DFA found for nonterminal " ++ show sym ++ show dfaEnv)
+                           Just dfa ->
+                             case dfaTrans d t dfa of
+                               Just (_, _, d2) -> d2
+                               Nothing         -> target d t
+                in  case d' of
+                      Derror            -> error ("No target DFA state found " ++ show d)
+                      F i               -> i
+                      D atnConfigs      ->
+                        let conflictSets   = getConflictSetsPerLoc d'
+                            prodSets       = getProdSetsPerState d'
+                            stackSensitive =
+                              any (\cSet -> length cSet > 1) conflictSets &&
+                              not (any (\pSet -> length pSet == 1) prodSets)
+                        in  if stackSensitive then
+                              llPredict sym input stack
+                            else
+                              predictionLoop d' ts
       in  predictionLoop d0 input
 
     llPredict sym input stack =
@@ -215,7 +221,7 @@ parse input startSym atnEnv  =
                                     else
                                       predictionLoop d' ts
       in  predictionLoop d0 input
-
+{-
     target d a =
       let mv = move d a
           d' = D (concat (map (closure []) mv))
@@ -231,7 +237,18 @@ parse input startSym atnEnv  =
                              not (any (\pSet -> length pSet == 1) prodSets)
                            ss' = stackSensitive
                        in  (d', ss')
+-}
 
+    target d a =
+      let mv = move d a
+          d' = D (concat (map (closure []) mv))
+      in  case d' of
+            D []         -> Derror
+            D atnConfigs ->
+              case nub (map (\(_, j, _) -> j) atnConfigs) of
+                [i] -> F i
+                _   -> d'
+                
     move q t = 
       case q of
         D atnConfigs ->
