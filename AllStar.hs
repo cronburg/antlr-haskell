@@ -26,7 +26,7 @@ type ATNConfig = (ATNState, Int, ATNStack)
 -- DFA types
 type DFA      = [DFAEdge]
 type DFAEdge  = (DFAState, Token, DFAState)
-data DFAState = D [ATNConfig] | F Int | Derror deriving (Eq, Show)
+data DFAState = Dinit [ATNConfig] | D [ATNConfig] | F Int | Derror deriving (Eq, Show)
 type DFAEnv   = [(GrammarSymbol, DFA)]
 
 -- Input sequence type
@@ -76,7 +76,16 @@ getProdSetsPerState q =
                              sortedConfigs
 
 dfaTrans :: DFAState -> Token -> DFA -> Maybe DFAEdge
-dfaTrans d t dfa =find (\(d1, label, _) -> d1 == d && label == t) dfa
+dfaTrans d t dfa = find (\(d1, label, _) -> d1 == d && label == t) dfa
+
+findInitialState :: DFA -> Maybe DFAState
+findInitialState dfa =
+  let isInit d = case d of
+                   Dinit _ -> True
+                   _       -> False
+  in  case find (\(d1, _, _) -> isInit d1) dfa of
+        Just (d1, _, _) -> Just d1
+        Nothing         -> Nothing
 
 
 allEqual :: Eq a => [a] -> Bool
@@ -112,26 +121,30 @@ parse input startSym atnEnv  =
                                        i      = adaptivePredict t input stack' dfaEnv
                                    in  parseLoop input (CHOICE b i) stack' dfaEnv [] (subtrees : astStack)
                   (EPS, _)      -> parseLoop input q stack dfaEnv subtrees astStack
+
+      initialDfaEnv = (map (\(sym, _) -> (sym, [])) atnEnv)
                              
-      iStart = adaptivePredict startSym input emptyStack emptyEnv
+      iStart = adaptivePredict startSym input emptyStack initialDfaEnv
       
-  in  case startSym of (NT c) -> parseLoop input (CHOICE c iStart) emptyStack (map (\(sym, _) -> (sym, [])) atnEnv) [] emptyStack
+  in  case startSym of (NT c) -> parseLoop input (CHOICE c iStart) emptyStack initialDfaEnv [] emptyStack
                        _      -> error "Start symbol must be a nonterminal"
 
   where
 
     adaptivePredict sym input stack dfaEnv =
       case lookup sym dfaEnv of
-        Just dfa -> -1 
-        Nothing  -> let d0     = startState sym emptyStack
-                        -- Do I actually need to create the final states ahead of time?
-                        {-
-                        finals = case (lookup sym atnEnv) of
-                                   Just ess -> [F i | i <- map fst (zip [0..] ess)]
-                                   Nothing  -> trace (error ("aP No ATN for symbol " ++ show sym)) [Derror]
-                        -}
-                        alt    = sllPredict sym input d0 stack dfaEnv
+        Nothing  -> error ("No DFA found for " ++ show sym)
+        Just dfa -> let d0  = case findInitialState dfa of
+                                Just d0 -> d0
+                                Nothing -> startState sym emptyStack
+                        alt = sllPredict sym input d0 stack dfaEnv
                     in  alt
+      -- Do I actually need to create the final states ahead of time?
+      {-
+         finals = case (lookup sym atnEnv) of
+         Just ess -> [F i | i <- map fst (zip [0..] ess)]
+         Nothing  -> trace (error ("aP No ATN for symbol " ++ show sym)) [Derror]
+      -}
 
     startState sym stack =
       case lookup sym atnEnv of
@@ -173,7 +186,8 @@ parse input startSym atnEnv  =
           _                     -> currConfig : loopOverEdges pEdges
 
     sllPredict sym input d0 stack dfaEnv =
-      let predictionLoop d tokens =
+--       trace ("calling sllPredict with sym " ++ show sym)
+      (let predictionLoop d tokens =
             case tokens of
               []     -> llPredict sym input stack -- empty input
               t : ts ->
@@ -182,7 +196,7 @@ parse input startSym atnEnv  =
                            Just dfa ->
                              case dfaTrans d t dfa of
                                Just (_, _, d2) -> d2
-                               Nothing         -> target d t
+                               Nothing         -> trace ("No target DFA state found for " ++ show d) target d t
                 in  case d' of
                       Derror            -> error ("No target DFA state found " ++ show d)
                       F i               -> i
@@ -196,7 +210,7 @@ parse input startSym atnEnv  =
                               llPredict sym input stack
                             else
                               predictionLoop d' ts
-      in  predictionLoop d0 input
+      in  predictionLoop d0 input)
 
     llPredict sym input stack =
       let d0 = startState sym stack
