@@ -24,7 +24,7 @@ Haskell we have followed the following principles:
 The library can be built with:
 
 ```
-stack init # Currently selects lts-6.26 resolver
+stack init # Currently selects lts-9.0 resolver
 stack repl
 ```
 
