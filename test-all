@@ -1,16 +1,16 @@
 #!/bin/bash
 
-#  && stack test ANTLR4:Stacks \
+#  && stack test antlr-haskell:Stacks \
 
 OPTS=--ghc-options="-ddump-splices"
 
-stack test ANTLR4:Template $OPTS\
-  && stack test ANTLR4:ATN $OPTS\
-  && stack test ANTLR4:CoreG4 $OPTS\
-  && stack test ANTLR4:LL1 $OPTS\
-  && stack test ANTLR4:LR $OPTS\
-  && stack test ANTLR4:lexer $OPTS\
-  && stack test ANTLR4:Allstar $OPTS\
-  && stack test ANTLR4:G4 $OPTS\
-  && stack test ANTLR4:Chisel $OPTS\
+stack test antlr-haskell:Template $OPTS\
+  && stack test antlr-haskell:ATN $OPTS\
+  && stack test antlr-haskell:CoreG4 $OPTS\
+  && stack test antlr-haskell:LL1 $OPTS\
+  && stack test antlr-haskell:LR $OPTS\
+  && stack test antlr-haskell:lexer $OPTS\
+  && stack test antlr-haskell:Allstar $OPTS\
+  && stack test antlr-haskell:G4 $OPTS\
+  && stack test antlr-haskell:Chisel $OPTS\
 
