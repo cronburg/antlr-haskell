@@ -20,3 +20,8 @@ fromAllstarAST (Leaf tok)     = P.Leaf tok
 atnOf :: G.Grammar s nt t -> ATN nt t
 atnOf = undefined
 
+toAllstarSymbol :: G.ProdElem nts ts -> GrammarSymbol nt t
+toAllstarSymbol (NT nts) = G.NT nts
+toAllstarSymbol (T  ts)  = G.T  ts
+toAllstarSymbol EPS      = G.Eps
+
