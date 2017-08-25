@@ -9,7 +9,7 @@ module Text.ANTLR.LR
   , LRState, LRTable, LRAction(..)
   , lrParse, LRResult(..), LR1Result(..), glrParse, glrParseInc, isAccept, isError
   ) where
-import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Grammar
 import qualified Text.ANTLR.LL1 as LL
 import Text.ANTLR.Parser
 import Data.Maybe (catMaybes, mapMaybe, fromMaybe)

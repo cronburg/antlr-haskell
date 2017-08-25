@@ -1,8 +1,8 @@
 {-# LANGUAGE ExplicitForAll, DeriveAnyClass, DeriveGeneric, TypeFamilies
  , DeriveDataTypeable #-}
-module Test.Text.ANTLR.Allstar.Grammar where
+module Test.Text.ANTLR.Grammar where
 import Text.ANTLR.Set (fromList, member, (\\), empty, Generic(..), Hashable(..))
-import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Grammar
 import Text.ANTLR.Pretty
 import Data.Data (toConstr, Data(..))
 

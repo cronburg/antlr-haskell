@@ -49,7 +49,7 @@ cabal-version:       >=1.10
 library
   -- Modules exported by the library.
    exposed-modules: Text.ANTLR.Allstar
-                  , Text.ANTLR.Allstar.Grammar
+                  , Text.ANTLR.Grammar
                   , Text.ANTLR.Allstar.Stacks
                   , Text.ANTLR.Allstar.ATN
                   , Text.ANTLR.Lex
@@ -121,7 +121,7 @@ Test-Suite ATN
   Type:           exitcode-stdio-1.0
   Main-Is:        Test/ATN.hs
   other-modules:  Test.Text.ANTLR.Allstar.ATN
-                , Test.Text.ANTLR.Allstar.Grammar
+                , Test.Text.ANTLR.Grammar
   build-depends:  base
                 , antlr-haskell, set-monad
                 , QuickCheck
@@ -172,7 +172,7 @@ Test-Suite G4
 Test-Suite LL1
   Type:           exitcode-stdio-1.0
   Main-Is:        Test/LL1.hs
-  other-modules:  Test.Text.ANTLR.HUnit, Test.Text.ANTLR.Allstar.Grammar
+  other-modules:  Test.Text.ANTLR.HUnit, Test.Text.ANTLR.Grammar
   build-depends:  base
                 , antlr-haskell, set-monad, deepseq, call-stack
                 , QuickCheck
@@ -187,7 +187,7 @@ Test-Suite LL1
 Test-Suite LR
   Type:           exitcode-stdio-1.0
   Main-Is:        Test/LR.hs
-  other-modules:  Test.Text.ANTLR.HUnit, Test.Text.ANTLR.Allstar.Grammar
+  other-modules:  Test.Text.ANTLR.HUnit, Test.Text.ANTLR.Grammar
   build-depends:  base
                 , antlr-haskell, set-monad, deepseq, call-stack
                 , QuickCheck

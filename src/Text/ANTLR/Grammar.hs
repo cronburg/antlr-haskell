@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses
   , DeriveGeneric, DeriveAnyClass, TypeFamilies, FlexibleContexts
   , StandaloneDeriving, OverloadedStrings #-}
-module Text.ANTLR.Allstar.Grammar
+module Text.ANTLR.Grammar
   ( Ref(..), sameNTs, sameTs
   , ProdElem(..), ProdElems
   , Production(..), ProdRHS(..), StateFncn(..)

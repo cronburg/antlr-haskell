@@ -14,7 +14,7 @@ import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
 import Language.ANTLR4
-import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Grammar
 import qualified Test.Language.ANTLR4.G4 as G4
 import Test.Language.ANTLR4.Hello
 import Language.ANTLR4.Regex

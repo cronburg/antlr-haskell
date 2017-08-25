@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric #-}
 module Main where
-import Test.Text.ANTLR.Allstar.Grammar
-import Text.ANTLR.Allstar.Grammar
+import Test.Text.ANTLR.Grammar
+import Text.ANTLR.Grammar
 import Text.ANTLR.LR
 import Text.ANTLR.Parser
 import qualified Data.Text as T

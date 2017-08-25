@@ -6,7 +6,7 @@ import Text.ANTLR.Lex.Tokenizer (Token(..))
 import Text.ANTLR.Parser (AST(..))
 import Language.Chisel.Grammar
 import Language.Chisel.Syntax
-import Text.ANTLR.Allstar.Grammar (Grammar(..), ProdElem(..))
+import Text.ANTLR.Grammar (Grammar(..), ProdElem(..))
 import Language.ANTLR4.FileOpener (open)
 
 import System.IO.Unsafe (unsafePerformIO)

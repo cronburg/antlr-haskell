@@ -9,7 +9,7 @@ module Text.ANTLR.LL1
   , removeEpsilons
   , leftFactor, Prime(..)
   ) where
-import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Grammar
 import Text.ANTLR.Pretty
 import Text.ANTLR.Parser
 import Text.ANTLR.Allstar.ATN

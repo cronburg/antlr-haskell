@@ -3,7 +3,7 @@ module Language.ANTLR4.Boot.Syntax
   ( G4(..), PRHS(..), ProdElem(..), GAnnot(..)
   , LRHS(..), Regex(..), isGTerm, isGNonTerm
   ) where
-import Text.ANTLR.Allstar.Grammar ()
+import Text.ANTLR.Grammar ()
 import Language.Haskell.TH.Lift (Lift(..))
 
 import Language.ANTLR4.Regex (Regex(..))

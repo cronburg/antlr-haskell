@@ -3,7 +3,7 @@
            , OverloadedStrings #-}
 module Text.ANTLR.Allstar.ATN where
 -- Augmented Transition Network
-import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Grammar
 --import Text.ANTLR.Allstar.GSS hiding (Edge, Node)
 import Text.ANTLR.Allstar.Stacks
 import Text.ANTLR.Set (Set(..), empty, fromList, toList)

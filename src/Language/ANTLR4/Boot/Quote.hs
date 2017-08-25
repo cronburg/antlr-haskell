@@ -20,7 +20,7 @@ import Control.Monad (mapM)
 import qualified Language.ANTLR4.Boot.Syntax as G4S
 import qualified Language.ANTLR4.Boot.Parser as G4P
 import qualified Language.ANTLR4.Regex  as G4R
-import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Grammar
 import Text.ANTLR.Parser (AST(..), StripEOF(..))
 import Text.ANTLR.Pretty
 import qualified Text.ANTLR.Lex.Tokenizer as T

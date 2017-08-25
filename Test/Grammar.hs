@@ -1,5 +1,5 @@
 module Main where
-import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Grammar
 
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Monoid

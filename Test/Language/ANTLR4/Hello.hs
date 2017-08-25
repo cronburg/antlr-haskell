@@ -2,7 +2,7 @@
 		, DataKinds, ScopedTypeVariables, OverloadedStrings #-}
 module Test.Language.ANTLR4.Hello where
 
-import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Grammar
 import Text.ANTLR.Parser
 import qualified Text.ANTLR.LR as P
 --import Language.Chisel.Tokenizer

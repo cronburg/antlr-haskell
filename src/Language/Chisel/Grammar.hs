@@ -7,7 +7,7 @@ module Language.Chisel.Grammar
   , Primitive(..), chiselGrammar, TokenValue(..)
   ) where
 
-import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Grammar
 import Text.ANTLR.Parser
 import qualified Text.ANTLR.LR as LR
 --import Language.Chisel.Tokenizer

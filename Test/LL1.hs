@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Main where
-import Test.Text.ANTLR.Allstar.Grammar
-import Text.ANTLR.Allstar.Grammar
+import Test.Text.ANTLR.Grammar
+import Text.ANTLR.Grammar
 import Text.ANTLR.Parser
 import Text.ANTLR.Pretty
 import qualified Data.Text as T

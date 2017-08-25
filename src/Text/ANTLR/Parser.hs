@@ -3,7 +3,7 @@
            , ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses
            , OverloadedStrings #-}
 module Text.ANTLR.Parser where
-import Text.ANTLR.Allstar.Grammar
+import Text.ANTLR.Grammar
 import Text.ANTLR.Pretty
 import Text.ANTLR.Set (Generic(..))
 import Text.ANTLR.Lex.Tokenizer (Token(..))
