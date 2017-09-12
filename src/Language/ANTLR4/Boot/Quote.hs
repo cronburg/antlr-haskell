@@ -25,6 +25,7 @@ import Text.ANTLR.Parser (AST(..), StripEOF(..))
 import Text.ANTLR.Pretty
 import qualified Text.ANTLR.Lex.Tokenizer as T
 import qualified Text.ANTLR.LR as LR
+import qualified Text.ANTLR.Allstar as ALL
 
 import Text.ANTLR.Set (Set(..))
 import qualified Text.ANTLR.Set as Set
@@ -551,6 +552,16 @@ g4_decls ast = let
                                                                                 Char
                                                                                 $(conT nameAST)
               glrParse filterF = (LR.glrParseInc $(varE name) event2ast (T.tokenizeInc filterF $(varE nameDFAs) lexeme2value))
+         
+              instance ALL.Token $(conT nameToken) where
+                type Label $(conT nameToken) = StripEOF (Sym $(conT nameToken))
+                getLabel = fromJust . stripEOF . getSymbol
+
+                type Literal $(conT nameToken) = $(conT tokVal)
+                getLiteral = T.tokenValue
+
+              allstarParse :: [$(conT nameToken)] -> Either String $(conT nameAST)
+              allstarParse inp = ALL.parse inp (ALL.NT $(s0)) (ALL.atnOf $(varE name)) True
           |]
         
         prettyTFncn <- prettyTFncnQ prettyTFncnName

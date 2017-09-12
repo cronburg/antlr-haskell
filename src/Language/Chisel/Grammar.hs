@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric, TypeFamilies, QuasiQuotes
-    , DataKinds, ScopedTypeVariables, OverloadedStrings #-}
+    , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
+    , FlexibleInstances, UndecidableInstances #-}
 module Language.Chisel.Grammar
   ( parse, tokenize, ChiselNTSymbol(..), ChiselTSymbol(..), ChiselAST
   , lowerID, upperID, prim, int, arrow, lparen, rparen, pound

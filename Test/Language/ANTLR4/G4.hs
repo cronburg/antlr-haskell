@@ -1,5 +1,6 @@
 {-# LANGUAGE QuasiQuotes, DeriveAnyClass, DeriveGeneric, TypeFamilies
-    , DataKinds, ScopedTypeVariables, OverloadedStrings #-}
+    , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
+    , FlexibleInstances, UndecidableInstances #-}
 module Test.Language.ANTLR4.G4 where
 
 import Text.ANTLR.Grammar
@@ -12,6 +13,7 @@ import Text.ANTLR.Set (Hashable(..), Generic(..))
 import Text.ANTLR.Pretty
 import Control.Arrow ( (&&&) )
 import Text.ANTLR.Lex.Regex
+import qualified Text.ANTLR.Allstar as ALL
 
 import Language.ANTLR4
 

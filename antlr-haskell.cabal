@@ -169,9 +169,9 @@ Test-Suite G4
   other-modules:    Test.Language.ANTLR4.G4
                   , Test.Language.ANTLR4.Hello
 
-Test-Suite LL1
+Test-Suite LL
   Type:           exitcode-stdio-1.0
-  Main-Is:        Test/LL1.hs
+  Main-Is:        Test/LL.hs
   other-modules:  Test.Text.ANTLR.HUnit, Test.Text.ANTLR.Grammar
   build-depends:  base
                 , antlr-haskell, set-monad, deepseq, call-stack

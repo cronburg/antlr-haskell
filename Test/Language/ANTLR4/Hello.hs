@@ -1,5 +1,6 @@
 {-# LANGUAGE QuasiQuotes, DeriveAnyClass, DeriveGeneric, TypeFamilies
-		, DataKinds, ScopedTypeVariables, OverloadedStrings #-}
+		, DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
+    , FlexibleInstances, UndecidableInstances #-}
 module Test.Language.ANTLR4.Hello where
 
 import Text.ANTLR.Grammar

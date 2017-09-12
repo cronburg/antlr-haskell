@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric, TypeFamilies, QuasiQuotes
-    , DataKinds, ScopedTypeVariables, OverloadedStrings #-}
+    , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
+    , FlexibleInstances, UndecidableInstances #-}
 module Language.ANTLR4.G4 (g4) where
 
 import Text.ANTLR.Grammar
