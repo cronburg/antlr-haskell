@@ -4,7 +4,7 @@ packages:
 - .
 - location:
     git: https://github.com/cronburg/AllStar.git
-    commit: 15850dd6349740e5c9b7ff391b90d7da2c8537c2
+    commit: 22bd423
   extra-dep: true
 
 extra-deps: []
