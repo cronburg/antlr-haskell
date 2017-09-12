@@ -62,6 +62,11 @@ test_hello =
         ]
   )
 
+test_hello_allstar =
+  allstarParse (tokenize "hello Matt")
+  @?=
+  Right (AST NT_r [] [])
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "g4_basic_compilation_type_check" test_g4_basic_type_check
@@ -69,5 +74,6 @@ main = defaultMainWithOpts
   , testCase "regex_test" regex_test
   , testCase "test_g4" test_g4
   , testCase "test_hello" test_hello
+  , testCase "test_hello_allstar" test_hello_allstar
   ] mempty
 
