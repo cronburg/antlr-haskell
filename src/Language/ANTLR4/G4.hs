@@ -16,7 +16,7 @@ import Text.ANTLR.Lex.Regex (regex2dfa)
 
 import Language.Haskell.TH.Quote (QuasiQuoter(..))
 import qualified Language.Haskell.TH as TH
-import Language.ANTLR4
+import Language.ANTLR4.Boot.Quote (antlr4)
 import Language.ANTLR4.Syntax
 import qualified Language.ANTLR4.Boot.Syntax  as G4S
 import qualified Language.ANTLR4.Boot.Quote   as G4Q

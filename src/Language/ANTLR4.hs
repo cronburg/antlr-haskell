@@ -1,5 +1,7 @@
 module Language.ANTLR4
-(antlr4)
+(g4)
 where
 
-  import Language.ANTLR4.Boot.Quote
+import Language.ANTLR4.G4
+--import Language.ANTLR4.Boot.Quote
+

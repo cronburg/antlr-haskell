@@ -16,7 +16,7 @@ import Text.ANTLR.Lex.Regex
 
 import Language.ANTLR4
 
-[antlr4|
+[g4|
 	// Hello World grammar
 	// https://github.com/antlr/grammars-v4/blob/master/antlr4/examples/Hello.g4
 	grammar Hello;

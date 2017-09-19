@@ -18,7 +18,7 @@ import qualified Text.ANTLR.Allstar as ALL
 import Language.ANTLR4
 
 --g4_basic =
-[antlr4|
+[g4|
   grammar G4Basic;
   exp : '1'
       | '2'
