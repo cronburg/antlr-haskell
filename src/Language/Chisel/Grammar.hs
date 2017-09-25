@@ -2,28 +2,13 @@
     , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
     , FlexibleInstances, UndecidableInstances #-}
 module Language.Chisel.Grammar
-  ( parse, tokenize, ChiselNTSymbol(..), ChiselTSymbol(..), ChiselAST
+  ( parse, Language.Chisel.Grammar.tokenize, ChiselNTSymbol(..), ChiselTSymbol(..), ChiselAST
   , lowerID, upperID, prim, int, arrow, lparen, rparen, pound
   , vertbar, colon, comma, atsymbol, carrot, dot, linecomm, ws
   , Primitive(..), chiselGrammar, TokenValue(..)
   ) where
-
-import Text.ANTLR.Grammar
-import Text.ANTLR.Parser
-import qualified Text.ANTLR.LR as LR
---import Language.Chisel.Tokenizer
-import qualified Text.ANTLR.Lex.Tokenizer as T
-import qualified Text.ANTLR.Set as S
-import Text.ANTLR.Set (Hashable(..), Generic(..))
-import Text.ANTLR.Pretty
-import Control.Arrow ( (&&&) )
-import Text.ANTLR.Lex.Regex
-
 import Language.ANTLR4
-import Language.ANTLR4.G4
 import Language.Chisel.Syntax
-
-import Debug.Trace as D
 
 [g4|
   grammar Chisel;
@@ -122,10 +107,10 @@ isWhitespace _ = False
 {- Helper functions to construct all the various Tokens from either the desired
  - (arbitrary) lexeme or by looking it up based on the static lexeme it always
  - matches. -}
-lowerID  x = T.Token T_LowerID (V_LowerID x) (length x)
-upperID  x = T.Token T_UpperID (V_UpperID x) (length x)
-prim     x = T.Token T_Prim    (V_Prim x)    (length $ show x)
-int      x = T.Token T_INT     (V_INT x)     (length $ show x)
+lowerID  x = Token T_LowerID (V_LowerID x) (length x)
+upperID  x = Token T_UpperID (V_UpperID x) (length x)
+prim     x = Token T_Prim    (V_Prim x)    (length $ show x)
+int      x = Token T_INT     (V_INT x)     (length $ show x)
 arrow      = lookupToken "->"
 lparen     = lookupToken "("
 rparen     = lookupToken ")"
@@ -136,8 +121,8 @@ comma      = lookupToken ","
 atsymbol   = lookupToken "@"
 carrot     = lookupToken "^"
 dot        = lookupToken "."
-linecomm x = T.Token T_LineComment (V_LineComment x) (length x)
-ws       x = T.Token T_WS          (V_WS x)          (length x)
+linecomm x = Token T_LineComment (V_LineComment x) (length x)
+ws       x = Token T_WS          (V_WS x)          (length x)
 
 parse = glrParse isWhitespace
 

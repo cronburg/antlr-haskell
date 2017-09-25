@@ -13,7 +13,7 @@ import Test.HUnit
 import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
-import Language.ANTLR4
+import Language.ANTLR4 hiding (tokenize, Regex(..))
 import Text.ANTLR.Grammar
 import qualified Test.Language.ANTLR4.G4 as G4
 import Test.Language.ANTLR4.Hello
@@ -65,7 +65,9 @@ test_hello =
 test_hello_allstar =
   allstarParse (tokenize "hello Matt")
   @?=
-  Right (AST NT_r [] [])
+  Right (AST NT_r [] [Leaf (Token T_0 V_0 5),Leaf (Token T_WS (V_WS " ") 1),Leaf
+  (Token T_ID (V_ID "Matt") 4)])
+  --Right (AST NT_r [] [])
 
 main :: IO ()
 main = defaultMainWithOpts

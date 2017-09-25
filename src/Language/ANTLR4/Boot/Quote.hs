@@ -23,8 +23,8 @@ import qualified Language.ANTLR4.Regex  as G4R
 import Text.ANTLR.Grammar
 import Text.ANTLR.Parser (AST(..), StripEOF(..))
 import Text.ANTLR.Pretty
-import qualified Text.ANTLR.Lex.Tokenizer as T
-import qualified Text.ANTLR.LR as LR
+import Text.ANTLR.Lex.Tokenizer as T
+import Text.ANTLR.LR as LR
 import qualified Text.ANTLR.Allstar as ALL
 
 import Text.ANTLR.Set (Set(..))
@@ -297,7 +297,7 @@ g4_decls ast = let
 
     lookupTokenFncnDecl = let
         lTFD t = clause [litP $ stringL t]
-                  (normalB $ [| T.Token $(conE $ mkName   $ lookupTName "T_" t)
+                  (normalB $ [| Token   $(conE $ mkName   $ lookupTName "T_" t)
                                         $(conE $ mkName   $ lookupTName "V_" t)
                                         $(litE $ integerL $ fromIntegral $ length t) |])
                   []
@@ -396,7 +396,7 @@ g4_decls ast = let
         a2d G4S.Lex{G4S.lName  = _A, G4S.pattern = G4S.LRHS{G4S.directive = dir}}
           = Just  [ funD (mkName $ "ast2" ++ _A)
                     [ clause  [ conP (mkName "Leaf")
-                                [ conP (mkName $ "T.Token")
+                                [ conP (mkName $ "Token")
                                   [ wildP
                                   , conP (mkName $ lookupTName "V_" _A)
                                     [ varP $ mkName "t"]
@@ -533,14 +533,14 @@ g4_decls ast = let
         dfas <- funD dfasName [clause [] (normalB [| map (fst &&& regex2dfa . snd) $(regexesE) |]) []]
 
         astDecl <-tySynD nameAST   [] [t| AST $(conT ntSym) $(conT nameToken) |]
-        tokDecl <- tySynD nameToken [] [t| T.Token $(conT tSym) $(conT tokVal) |]
+        tokDecl <- tySynD nameToken [] [t| Token $(conT tSym) $(conT tokVal) |]
         
         decls <-
           [d| instance Ref $(conT ntSym) where
                 type Sym $(conT ntSym) = $(conT ntSym)
                 getSymbol = id
               
-              tokenize :: String -> [$(conT nameToken)] --T.Token $(conT tokName) $(conT tokVal)]
+              tokenize :: String -> [$(conT nameToken)] --Token $(conT tokName) $(conT tokVal)]
               tokenize = T.tokenize $(varE nameDFAs) lexeme2value
 
               slrParse :: [$(conT nameToken)] -> LR.LRResult () $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)

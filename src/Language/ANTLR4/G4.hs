@@ -7,7 +7,7 @@ import Text.ANTLR.Grammar
 import Text.ANTLR.Parser
 import qualified Text.ANTLR.LR as LR
 --import Language.Chisel.Tokenizer
-import qualified Text.ANTLR.Lex.Tokenizer as T
+import Text.ANTLR.Lex.Tokenizer as T
 import qualified Text.ANTLR.Set as S
 import Text.ANTLR.Set (Hashable(..), Generic(..))
 import Text.ANTLR.Pretty

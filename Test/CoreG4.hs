@@ -13,14 +13,12 @@ import Test.HUnit
 import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
-import Language.ANTLR4
-import Text.ANTLR.Grammar
+import Language.ANTLR4 hiding (tokenize, Regex(..))
 import qualified Test.Language.ANTLR4.G4 as G4
 import Test.Language.ANTLR4.Hello
-import Language.ANTLR4.Regex
 import Text.ANTLR.Parser (AST(..))
 import qualified Text.ANTLR.LR as LR
-import qualified Text.ANTLR.Lex.Tokenizer as T
+import Language.ANTLR4.Regex (parseRegex, Regex(..))
 
 import qualified Language.ANTLR4.G4 as P -- Parser
 
@@ -56,9 +54,9 @@ test_hello =
   @?=
   (LR.ResultAccept $
         AST NT_r [T T_0, T T_WS, T T_ID]
-        [ Leaf (T.Token T_0 V_0 1)
-        , Leaf (T.Token T_WS (V_WS " ") 1)
-        , Leaf (T.Token T_ID (V_ID "Matt") 4)
+        [ Leaf (Token T_0 V_0 1)
+        , Leaf (Token T_WS (V_WS " ") 1)
+        , Leaf (Token T_ID (V_ID "Matt") 4)
         ]
   )
 
