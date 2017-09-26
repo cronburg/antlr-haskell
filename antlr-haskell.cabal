@@ -77,10 +77,6 @@ library
                   -- Standalone quasiquoters:
                   , Language.ANTLR4.FileOpener
                   
-                  --, Language.Chisel.Tokenizer
-                  , Language.Chisel.Grammar
-                  , Language.Chisel.Syntax
-
   -- Modules included in this library but not exported.
   -- other-modules:
 
@@ -217,6 +213,8 @@ Test-Suite Chisel
   Type:             exitcode-stdio-1.0
   Main-Is:          Test/Language/Chisel.hs
   other-modules:    Test.Text.ANTLR.HUnit
+                  , Test.Language.Chisel.Grammar
+                  , Test.Language.Chisel.Syntax
   build-depends:    base
                   , antlr-haskell, set-monad, deepseq, call-stack
                   , QuickCheck

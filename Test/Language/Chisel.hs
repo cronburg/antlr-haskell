@@ -4,8 +4,8 @@ module Main where
 --import Language.Chisel.Tokenizer
 import Text.ANTLR.Lex.Tokenizer (Token(..))
 import Text.ANTLR.Parser (AST(..))
-import Language.Chisel.Grammar
-import Language.Chisel.Syntax
+import Test.Language.Chisel.Grammar
+import Test.Language.Chisel.Syntax
 import Text.ANTLR.Grammar (Grammar(..), ProdElem(..))
 import Language.ANTLR4.FileOpener (open)
 

@@ -26,7 +26,6 @@ import Control.Arrow ( (&&&) )
 import Text.ANTLR.Lex.Regex
 
 import Language.ANTLR4.G4
-import Language.Chisel.Syntax
 
 import Debug.Trace as D
 
