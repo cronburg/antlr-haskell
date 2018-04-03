@@ -16,10 +16,10 @@ version:             0.1.0.0
 synopsis:            A Haskell implementation of the ANTLR top-down parser generator
 
 -- A longer description of the package.
--- description:
+description:         A Haskell implementation of the ANTLR top-down parser generator.
 
 -- The license under which the package is released.
--- license:
+license:             MIT
 
 -- The file containing the license text.
 license-file:        LICENSE
@@ -87,7 +87,7 @@ library
                      , DeriveLift
 
   -- Other library packages from which modules are imported.
-  build-depends:       base, containers, mtl, parsec
+  build-depends:       base <= 5.0, containers, mtl, parsec
                      , parsec, template-haskell, haskell-src-meta >= 0.4
                      , set-monad, th-lift, unordered-containers, deepseq
                      , hashable, text, pretty, transformers

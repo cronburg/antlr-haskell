@@ -167,7 +167,7 @@ g4_decls ast = let
     tDataName  = gName ++ "TSymbol"
 
     -- Things Symbols must derive:
-    symbolDerives = cxt $ map (conT . mkName)
+    symbolDerives = derivClause Nothing $ map (conT . mkName)
       [ "Eq", "Ord", "Show", "Hashable", "Generic", "Bounded", "Enum"]
 
     ntDataDeclQ :: DecQ
@@ -177,7 +177,7 @@ g4_decls ast = let
       []
       Nothing
       (map (\s -> normalC (mkName $ "NT_" ++ s) []) nonterms)
-      symbolDerives
+      [symbolDerives]
     
     -- E.g. ['(', ')', ';', 'exp', 'decl']
     allLexicalSymbols :: [String]
@@ -202,7 +202,7 @@ g4_decls ast = let
         Nothing 
         (map (\s -> normalC (mkName s) []) (map ("T_" ++) allLexicalSymbols))
         --(\s -> normalC (mkName $ lookupTName "T_" s) []) lexemes) ++ (lexemeNames "T_"))
-        symbolDerives
+        [symbolDerives]
 
     ntConT = conT $ mkName ntDataName
     tConT  = conT $ mkName tDataName
@@ -271,7 +271,7 @@ g4_decls ast = let
     
     defBang = bang noSourceUnpackedness noSourceStrictness
 
-    lexemeValueDerives = cxt $ map (conT . mkName)
+    lexemeValueDerives = derivClause Nothing $ map (conT . mkName)
       ["Show", "Ord", "Eq", "Generic", "Hashable"]
 
     -- 
@@ -291,7 +291,7 @@ g4_decls ast = let
     tokenValueTypeQ =
       dataD (cxt []) (mkName "TokenValue") [] Nothing
       lexemeTypeConstructors
-      lexemeValueDerives
+      [lexemeValueDerives]
 
     mkTyVar s f = return $ f $ mkName s
 
