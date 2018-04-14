@@ -1,5 +1,4 @@
 module Main where
-import Text.ANTLR.Grammar
 
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Monoid
@@ -14,5 +13,4 @@ main :: IO ()
 main = defaultMainWithOpts
   [
   ] mempty
-
 

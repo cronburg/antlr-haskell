@@ -1,14 +1,14 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric, TypeFamilies, QuasiQuotes
     , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
     , FlexibleInstances, UndecidableInstances #-}
-module Test.Language.Chisel.Grammar
-  ( parse, Test.Language.Chisel.Grammar.tokenize, ChiselNTSymbol(..), ChiselTSymbol(..), ChiselAST
+module Language.Chisel.Grammar
+  ( parse, Language.Chisel.Grammar.tokenize, ChiselNTSymbol(..), ChiselTSymbol(..), ChiselAST
   , lowerID, upperID, prim, int, arrow, lparen, rparen, pound
   , vertbar, colon, comma, atsymbol, carrot, dot, linecomm, ws
   , Primitive(..), chiselGrammar, TokenValue(..)
   ) where
 import Language.ANTLR4
-import Test.Language.Chisel.Syntax
+import Language.Chisel.Syntax
 
 [g4|
   grammar Chisel;

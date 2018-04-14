@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric #-}
-module Test.Language.Chisel.Syntax where
+module Language.Chisel.Syntax where
 import Text.ANTLR.Pretty
 import Text.ANTLR.Set (Hashable(..), Generic(..))
 

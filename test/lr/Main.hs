@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric #-}
 module Main where
-import Test.Text.ANTLR.Grammar
+import Text.ANTLR.Example.Grammar
 import Text.ANTLR.Grammar
 import Text.ANTLR.LR
 import Text.ANTLR.Parser
@@ -23,7 +23,7 @@ import Test.QuickCheck
 --  )
 import qualified Test.QuickCheck.Monadic as TQM
 
-import Test.Text.ANTLR.HUnit
+import Text.ANTLR.HUnit
 import Text.ANTLR.Pretty (pshow)
 import qualified Debug.Trace as D
 uPIO = unsafePerformIO

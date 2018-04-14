@@ -1,7 +1,7 @@
 {-# LANGUAGE QuasiQuotes, DeriveAnyClass, DeriveGeneric, TypeFamilies
 		, DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
     , FlexibleInstances, UndecidableInstances #-}
-module Test.Language.ANTLR4.Hello where
+module Language.ANTLR4.Example.Hello where
 import Language.ANTLR4
 
 [g4|

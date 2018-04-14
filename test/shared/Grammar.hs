@@ -1,6 +1,5 @@
-module Main where
--- Allstar imports go here, e.g.:
--- import Text.ANTLR.Allstar.ATN (..)
+module Grammar where
+import Text.ANTLR.Grammar
 
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Monoid
@@ -15,4 +14,5 @@ main :: IO ()
 main = defaultMainWithOpts
   [
   ] mempty
+
 

@@ -4,8 +4,8 @@ module Main where
 --import Language.Chisel.Tokenizer
 import Text.ANTLR.Lex.Tokenizer (Token(..))
 import Text.ANTLR.Parser (AST(..))
-import Test.Language.Chisel.Grammar
-import Test.Language.Chisel.Syntax
+import Language.Chisel.Grammar
+import Language.Chisel.Syntax
 import Text.ANTLR.Grammar (Grammar(..), ProdElem(..))
 import Language.ANTLR4.FileOpener (open)
 
@@ -18,7 +18,7 @@ import Test.HUnit hiding ((@?=), assertEqual)
 import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
-import Test.Text.ANTLR.HUnit
+import Text.ANTLR.HUnit
 import Debug.Trace as D
 import qualified Text.ANTLR.LR as LR
 import Text.ANTLR.Pretty (pshow)
@@ -26,7 +26,7 @@ import qualified Data.Text as T
 
 chi = id
 
-ghc_val = [open| Test/Language/Chisel/Examples/GHC.chi |]
+ghc_val = [open| test/chisel/Language/Chisel/Examples/GHC.chi |]
 tokenizeGHC_val = tokenize ghc_val
 
 tokenizeGHC_exp =

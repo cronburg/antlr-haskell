@@ -1,4 +1,4 @@
-module Test.Text.ANTLR.HUnit where
+module Text.ANTLR.HUnit where
 import           Control.DeepSeq
 import           Control.Exception as E
 import           Control.Monad

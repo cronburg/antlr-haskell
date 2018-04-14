@@ -1,6 +1,5 @@
 module Main where
--- Allstar imports go here, e.g.:
--- import Text.ANTLR.Allstar.ATN (..)
+
 import Text.ANTLR.Lex
 import Text.ANTLR.Lex.Automata
 import Text.ANTLR.Lex.NFA as NFA

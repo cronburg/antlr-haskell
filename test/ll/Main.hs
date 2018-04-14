@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Main where
-import Test.Text.ANTLR.Grammar
+import Text.ANTLR.Example.Grammar
 import Text.ANTLR.Grammar
 import Text.ANTLR.Parser
 import Text.ANTLR.Pretty
@@ -22,7 +22,7 @@ import Test.HUnit hiding ((@?=), assertEqual)
 import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
-import Test.Text.ANTLR.HUnit
+import Text.ANTLR.HUnit
 
 type LL1NonTerminal = String
 type LL1Terminal    = String

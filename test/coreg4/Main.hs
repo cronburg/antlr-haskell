@@ -1,8 +1,4 @@
-
 module Main where
--- Allstar imports go here, e.g.:
--- import Text.Allstar.ATN (..)
-
 
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Monoid
@@ -14,13 +10,11 @@ import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
 import Language.ANTLR4 hiding (tokenize, Regex(..))
-import Text.ANTLR.Grammar
-import qualified Test.Language.ANTLR4.G4 as G4
-import Test.Language.ANTLR4.Hello
-import Language.ANTLR4.Regex
+import qualified Language.ANTLR4.Example.G4 as G4
+import Language.ANTLR4.Example.Hello
 import Text.ANTLR.Parser (AST(..))
 import qualified Text.ANTLR.LR as LR
-import qualified Text.ANTLR.Lex.Tokenizer as T
+import Language.ANTLR4.Regex (parseRegex, Regex(..))
 
 import qualified Language.ANTLR4.G4 as P -- Parser
 
@@ -56,18 +50,11 @@ test_hello =
   @?=
   (LR.ResultAccept $
         AST NT_r [T T_0, T T_WS, T T_ID]
-        [ Leaf (T.Token T_0 V_0 1)
-        , Leaf (T.Token T_WS (V_WS " ") 1)
-        , Leaf (T.Token T_ID (V_ID "Matt") 4)
+        [ Leaf (Token T_0 V_0 1)
+        , Leaf (Token T_WS (V_WS " ") 1)
+        , Leaf (Token T_ID (V_ID "Matt") 4)
         ]
   )
-
-test_hello_allstar =
-  allstarParse (tokenize "hello Matt")
-  @?=
-  Right (AST NT_r [] [Leaf (Token T_0 V_0 5),Leaf (Token T_WS (V_WS " ") 1),Leaf
-  (Token T_ID (V_ID "Matt") 4)])
-  --Right (AST NT_r [] [])
 
 main :: IO ()
 main = defaultMainWithOpts
@@ -76,6 +63,5 @@ main = defaultMainWithOpts
   , testCase "regex_test" regex_test
   , testCase "test_g4" test_g4
   , testCase "test_hello" test_hello
-  , testCase "test_hello_allstar" test_hello_allstar
   ] mempty
 
