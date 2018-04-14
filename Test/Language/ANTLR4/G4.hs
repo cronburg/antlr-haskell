@@ -1,6 +1,6 @@
 {-# LANGUAGE QuasiQuotes, DeriveAnyClass, DeriveGeneric, TypeFamilies
     , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
-    , FlexibleInstances, UndecidableInstances #-}
+    , FlexibleInstances, UndecidableInstances, FlexibleContexts #-}
 module Test.Language.ANTLR4.G4 where
 import Language.ANTLR4
 
