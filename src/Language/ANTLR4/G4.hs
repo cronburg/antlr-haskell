@@ -23,6 +23,11 @@ import qualified Language.ANTLR4.Boot.Quote   as G4Q
 
 import Debug.Trace as D
 
+gterm         = G4S.GTerm    G4S.NoAnnot
+gnonTerm      = G4S.GNonTerm G4S.NoAnnot
+maybeGTerm    = G4S.GTerm    (G4S.Regular '?')
+maybeGNonTerm = G4S.GNonTerm (G4S.Regular '?')
+
 [antlr4|
   grammar G4;
 
@@ -55,9 +60,12 @@ import Debug.Trace as D
          | alpha alphas             -> cons
          ;
 
-  alpha : Literal                   -> G4S.GTerm
-        | LowerID                   -> G4S.GNonTerm
-        | UpperID                   -> G4S.GNonTerm
+  alpha : Literal                   -> gterm
+        | LowerID                   -> gnonTerm
+        | UpperID                   -> gnonTerm
+        | Literal '?'               -> maybeGTerm
+        | LowerID '?'               -> maybeGNonTerm
+        | UpperID '?'               -> maybeGNonTerm
         ;
 
   UpperID : [A-Z][a-zA-Z0-9_]*      -> String;

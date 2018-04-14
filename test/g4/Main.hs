@@ -11,6 +11,7 @@ import qualified Test.QuickCheck.Monadic as TQM
 
 import Language.ANTLR4 hiding (tokenize, Regex(..))
 import Text.ANTLR.Grammar
+import qualified Language.ANTLR4.Example.Optionals as Opt
 import qualified Language.ANTLR4.Example.G4 as G4
 import Language.ANTLR4.Example.Hello
 import Language.ANTLR4.Regex
@@ -65,6 +66,11 @@ test_hello_allstar =
   (Token T_ID (V_ID "Matt") 4)])
   --Right (AST NT_r [] [])
 
+test_optional =
+  Opt.glrParse Opt.isWS "a b c "
+  @?=
+  (LR.ResultAccept $ AST Opt.NT_r [] [])
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "g4_basic_compilation_type_check" test_g4_basic_type_check
@@ -73,5 +79,6 @@ main = defaultMainWithOpts
   , testCase "test_g4" test_g4
   , testCase "test_hello" test_hello
   , testCase "test_hello_allstar" test_hello_allstar
+  , testCase "test_optional" test_optional
   ] mempty
 

@@ -134,13 +134,13 @@ g4_decls ast = let
     -- Find all terminals *literals* in a production like '(' and ')' and ';'
     justTerms :: [G4S.ProdElem] -> [String]
     justTerms [] = []
-    justTerms ((G4S.GTerm s) : as) = s : justTerms as
+    justTerms ((G4S.GTerm _ s) : as) = s : justTerms as
     justTerms (_:as) = justTerms as
 
     -- Find all nonterminals in a production like 'exp' and 'decl'
     justNonTerms :: [G4S.ProdElem] -> [String]
     justNonTerms [] = []
-    justNonTerms (G4S.GNonTerm s:as)
+    justNonTerms (G4S.GNonTerm _ s:as)
       | (not . null) s && isLower (head s) = s : justNonTerms as
       | otherwise = justNonTerms as
     justNonTerms (_:as) = justNonTerms as
@@ -233,10 +233,10 @@ g4_decls ast = let
     mkConNT = conE . mkName . ("NT_" ++)
 
     toElem :: G4S.ProdElem -> TH.ExpQ
-    toElem (G4S.GTerm s)    = [| $(mkCon "T")  $(mkCon $ lookupTName "T_" s) |] -- $(return $ LitE $ StringL s)) |]
-    toElem (G4S.GNonTerm s)
+    toElem (G4S.GTerm _ s)    = [| $(mkCon "T")  $(mkCon $ lookupTName "T_" s) |] -- $(return $ LitE $ StringL s)) |]
+    toElem (G4S.GNonTerm _ s)
       | (not . null) s && isLower (head s) = [| $(mkCon "NT") $(mkConNT s) |]
-      | otherwise = toElem (G4S.GTerm s)
+      | otherwise = toElem (G4S.GTerm G4S.NoAnnot s)
 
     mkProd :: String -> [TH.ExpQ] -> TH.ExpQ
     mkProd n es = [| $(mkCon "Production") $(conE $ mkName $ "NT_" ++ n) ($(mkCon "Prod") $(mkCon "Pass") $(listE es)) |]
@@ -415,20 +415,20 @@ g4_decls ast = let
 
           fncnName = mkName $ "ast2" ++ _A
 
-          mkConP (G4S.GNonTerm nt)
+          mkConP (G4S.GNonTerm _ nt)
             -- Some nonterminals are really terminal tokens (regular expressions):
             | isUpper (head nt)     = conP (mkName "T")  [conP (mkName $ lookupTName "T_" nt) []]
             | otherwise             = conP (mkName "NT") [conP (mkName $ "NT_" ++ nt) []]
-          mkConP (G4S.GTerm    t)   = conP (mkName "T")  [conP (mkName $ lookupTName "T_" t) []]
+          mkConP (G4S.GTerm _  t)   = conP (mkName "T")  [conP (mkName $ lookupTName "T_" t) []]
 
-          nonTermVars as = map (\(G4S.GNonTerm t) -> t) (filter G4S.isGNonTerm as)
+          nonTermVars as = map (\(G4S.GNonTerm _ t) -> t) (filter G4S.isGNonTerm as)
           
-          justStr (G4S.GNonTerm s) = s
-          justStr (G4S.GTerm s)    = s
+          justStr (G4S.GNonTerm _ s) = s
+          justStr (G4S.GTerm _ s)  = s
 
           vars as = catMaybes
                     [ if G4S.isGNonTerm a
-                        then Just (mkName $ "v" ++ show i ++ "_" ++ justStr a, varE $ mkName $ "ast2" ++ justStr a)
+                        then Just (a, mkName $ "v" ++ show i ++ "_" ++ justStr a, varE $ mkName $ "ast2" ++ justStr a)
                         else Nothing
                     | (i, a) <- zip [0 .. length as] as
                     ]
@@ -440,7 +440,10 @@ g4_decls ast = let
                 | (i, a) <- zip [0 .. length as] as
                 ]
 
-          astAppRec b (varName, recName) = appE b (appE recName $ varE varName)
+          astAppRec b (alpha, varName, recName) = case G4S.annot alpha of
+              G4S.NoAnnot       -> appE b (appE recName $ varE varName)
+              (G4S.Regular '?') -> appE b (appE recName $ varE varName)
+              otherwise         -> error $ show alpha
 
           clauses = [ clause  [ [p| AST $(conP (mkName $ "NT_" ++ _A) [])
                                      $(listP $ map mkConP as)
@@ -454,8 +457,8 @@ g4_decls ast = let
                                         then normalB $ foldl astAppRec (conE $ mkName d) vs
                                         else normalB $ foldl astAppRec (varE $ mkName d) vs
                           (Nothing, [])   -> normalB $ tupE []
-                          (Nothing, [(v0,rec)]) -> normalB $ appE rec (varE v0)
-                          (Nothing, vs)         -> normalB $ tupE $ map (\(vN,rN) -> appE rN $ varE vN) vs
+                          (Nothing, [(a,v0,rec)]) -> normalB $ appE rec (varE v0)
+                          (Nothing, vs)         -> normalB $ tupE $ map (\(a,vN,rN) -> appE rN $ varE vN) vs
                         ) []
                     | G4S.PRHS{G4S.alphas = as, G4S.pDirective = dir} <- ps
                     ] ++
@@ -474,7 +477,7 @@ g4_decls ast = let
                                         other          -> error $ show other))
                       else info2returnType <$> reify (mkName d)
                   (Nothing, [])         -> tupleT 0
-                  (Nothing, [(v0,rec)]) -> tupleT 0
+                  (Nothing, [(a,v0,rec)]) -> tupleT 0
                   (Nothing, vs)         -> tupleT $ length vs
             in rT (head ps)
 

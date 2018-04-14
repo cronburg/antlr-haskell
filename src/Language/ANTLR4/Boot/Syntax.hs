@@ -2,6 +2,7 @@
 module Language.ANTLR4.Boot.Syntax
   ( G4(..), PRHS(..), ProdElem(..), GAnnot(..)
   , LRHS(..), Regex(..), isGTerm, isGNonTerm
+  , TermAnnot(..), isMaybeAnnot, isNoAnnot, annot
   ) where
 import Text.ANTLR.Grammar ()
 import Language.Haskell.TH.Lift (Lift(..))
@@ -32,16 +33,30 @@ data PRHS = PRHS
 instance Hashable PRHS where
   hashWithSalt salt prhs = salt `hashWithSalt` alphas prhs
 
-data ProdElem =
-    GTerm     String
-  | GNonTerm  String
+data TermAnnot =
+    Regular Char  -- Regular expression modifier (e.g. +, ?, *)
+  | NoAnnot
   deriving (Show, Eq, Ord, Lift, Generic, Hashable)
 
-isGTerm (GTerm _) = True
-isGTerm _         = False
+annot (GTerm a _) = a
+annot (GNonTerm a _) = a
 
-isGNonTerm (GNonTerm _) = True
-isGNonTerm _            = False
+isMaybeAnnot (Regular '?') = True
+isMaybeAnnot _             = False
+
+isNoAnnot NoAnnot = True
+isNoAnnot _       = False
+
+data ProdElem =
+    GTerm     TermAnnot String
+  | GNonTerm  TermAnnot String
+  deriving (Show, Eq, Ord, Lift, Generic, Hashable)
+
+isGTerm (GTerm _ _) = True
+isGTerm _           = False
+
+isGNonTerm (GNonTerm _ _) = True
+isGNonTerm _              = False
 
 data    GAnnot   = Fragment
   deriving (Show, Eq, Lift, Generic, Hashable)
