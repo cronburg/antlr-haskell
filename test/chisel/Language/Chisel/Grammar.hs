@@ -10,6 +10,10 @@ module Language.Chisel.Grammar
 import Language.ANTLR4
 import Language.Chisel.Syntax
 
+list a = [a]
+cons = (:)
+append = (++)
+
 [g4|
   grammar Chisel;
   chiselProd : prodSimple

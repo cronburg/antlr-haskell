@@ -67,7 +67,7 @@ test_hello_allstar =
   --Right (AST NT_r [] [])
 
 test_optional =
-  Opt.glrParse Opt.isWS "a b c "
+  Opt.glrParse Opt.isWS "a b d"
   @?=
   (LR.ResultAccept $ AST Opt.NT_r [] [])
 

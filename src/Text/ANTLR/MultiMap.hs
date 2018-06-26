@@ -8,7 +8,7 @@ import Prelude hiding (lookup)
 import Text.ANTLR.Pretty
 
 newtype Map k v = Map (M.Map k (Set v))
-  deriving (Generic, Hashable, Eq)
+  deriving (Generic, Hashable, Eq, Show)
 
 instance (Prettify k, Prettify v, Hashable v, Eq v) => Prettify (Map k v) where
   prettify (Map m) = prettify m

@@ -106,7 +106,3 @@ instance Read Primitive where
 
 instance Prettify Primitive where prettify = rshow
 
-list a = [a]
-cons = (:)
-append = (++)
-

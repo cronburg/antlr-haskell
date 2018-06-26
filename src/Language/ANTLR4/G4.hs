@@ -25,8 +25,15 @@ import Debug.Trace as D
 
 gterm         = G4S.GTerm    G4S.NoAnnot
 gnonTerm      = G4S.GNonTerm G4S.NoAnnot
+
 maybeGTerm    = G4S.GTerm    (G4S.Regular '?')
 maybeGNonTerm = G4S.GNonTerm (G4S.Regular '?')
+
+starGTerm    = G4S.GTerm    (G4S.Regular '*')
+starGNonTerm = G4S.GNonTerm (G4S.Regular '*')
+
+plusGTerm    = G4S.GTerm    (G4S.Regular '+')
+plusGNonTerm = G4S.GNonTerm (G4S.Regular '+')
 
 [antlr4|
   grammar G4;
@@ -60,12 +67,18 @@ maybeGNonTerm = G4S.GNonTerm (G4S.Regular '?')
          | alpha alphas             -> cons
          ;
 
-  alpha : Literal                   -> gterm
-        | LowerID                   -> gnonTerm
-        | UpperID                   -> gnonTerm
-        | Literal '?'               -> maybeGTerm
+  alpha : Literal '?'               -> maybeGTerm
         | LowerID '?'               -> maybeGNonTerm
         | UpperID '?'               -> maybeGNonTerm
+        | Literal '*'               -> starGTerm
+        | LowerID '*'               -> starGNonTerm
+        | UpperID '*'               -> starGNonTerm
+        | Literal '+'               -> plusGTerm
+        | LowerID '+'               -> plusGNonTerm
+        | UpperID '+'               -> plusGNonTerm
+        | Literal                   -> gterm
+        | LowerID                   -> gnonTerm
+        | UpperID                   -> gnonTerm
         ;
 
   UpperID : [A-Z][a-zA-Z0-9_]*      -> String;

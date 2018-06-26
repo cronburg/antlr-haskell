@@ -34,7 +34,7 @@ instance Hashable PRHS where
   hashWithSalt salt prhs = salt `hashWithSalt` alphas prhs
 
 data TermAnnot =
-    Regular Char  -- Regular expression modifier (e.g. +, ?, *)
+    Regular Char -- Regular expression modifier (e.g. +, ?, *)
   | NoAnnot
   deriving (Show, Eq, Ord, Lift, Generic, Hashable)
 

@@ -1,4 +1,5 @@
-{-# LANGUAGE QuasiQuotes, TemplateHaskell, ScopedTypeVariables, DataKinds #-}
+{-# LANGUAGE  QuasiQuotes, TemplateHaskell, ScopedTypeVariables, DataKinds,
+              LambdaCase  #-}
 module Language.ANTLR4.Boot.Quote
 ( antlr4, ProdElem(..), g4_decls
 ) where
@@ -26,16 +27,17 @@ import Text.ANTLR.Pretty
 import Text.ANTLR.Lex.Tokenizer as T
 import Text.ANTLR.LR as LR
 import qualified Text.ANTLR.Allstar as ALL
+import qualified Text.ANTLR.LL1 as LL
 
 import Text.ANTLR.Set (Set(..))
 import qualified Text.ANTLR.Set as Set
 import qualified Text.ANTLR.Lex.Regex as R
 
---trace s = D.trace   ("[Language.ANTLR4.Boot.Quote] " ++ s)
---traceM s = D.traceM ("[Language.ANTLR4.Boot.Quote] " ++ s)
+trace s = D.trace   ("[Language.ANTLR4.Boot.Quote] " ++ s)
+traceM s = D.traceM ("[Language.ANTLR4.Boot.Quote] " ++ s)
 
-trace s x = x
-traceM s x = x
+--trace s x = x
+--traceM s x = x
 
 haskellParseExp :: (Monad m) => String -> m TH.Exp
 haskellParseExp s = case LHM.parseExp s of
@@ -176,7 +178,7 @@ g4_decls ast = let
       (mkName ntDataName)
       []
       Nothing
-      (map (\s -> normalC (mkName $ "NT_" ++ s) []) nonterms)
+      (map (\s -> normalC (mkName $ "NT_" ++ s) []) $ nonterms ++ regexNonTermSymbols)
       [symbolDerives]
     
     -- E.g. ['(', ')', ';', 'exp', 'decl']
@@ -232,13 +234,64 @@ g4_decls ast = let
     mkCon   = conE . mkName . mkUpper
     mkConNT = conE . mkName . ("NT_" ++)
 
+    -- 
+    genTermAnnotProds :: [G4S.G4] -> [G4S.G4]
+    genTermAnnotProds [] = []
+    genTermAnnotProds (G4S.Prod {G4S.pName = n, G4S.patterns = ps}:xs) = let
+        
+        withAlphas newName d a = G4S.Prod {G4S.pName = newName, G4S.patterns =
+          [ G4S.PRHS
+              { G4S.pred        = Nothing
+              , G4S.alphas      = a
+              , G4S.mutator     = Nothing
+              , G4S.pDirective  = Just d
+              }
+          ]}
+        
+        gTAP :: G4S.ProdElem -> [G4S.G4]
+        gTAP (G4S.GNonTerm (G4S.Regular '?') nt) = trace (show nt)
+          [ withAlphas (nt ++ "_quest") "Maybe" [G4S.GNonTerm G4S.NoAnnot nt]
+          , withAlphas (nt ++ "_quest") "Maybe" [] -- epsilon
+          ]
+        gTAP (G4S.GNonTerm (G4S.Regular '*') nt) =
+          [ withAlphas (nt ++ "_star")  "cons"  [G4S.GNonTerm G4S.NoAnnot nt, G4S.GNonTerm G4S.NoAnnot (nt ++ "_star")]
+          , withAlphas (nt ++ "_star")  "list"  [G4S.GNonTerm G4S.NoAnnot nt]
+          , withAlphas (nt ++ "_star")  "list"  []
+          ]
+        gTAP (G4S.GNonTerm (G4S.Regular '+') nt) =
+          [ withAlphas (nt ++ "_plus")  "cons"  [G4S.GNonTerm G4S.NoAnnot nt, G4S.GNonTerm G4S.NoAnnot (nt ++ "_plus")]
+          , withAlphas (nt ++ "_plus")  "list"  [G4S.GNonTerm G4S.NoAnnot nt]
+          ]
+        gTAP (G4S.GNonTerm G4S.NoAnnot nt) = []
+        gTAP (G4S.GTerm _ t) = []
+        gTAP term = error $  show term
+      in concat (concatMap (map gTAP) (map G4S.alphas ps)) ++ genTermAnnotProds xs
+    genTermAnnotProds (_:xs) = genTermAnnotProds xs
+
+    annotName G4S.NoAnnot s = s
+    annotName (G4S.Regular '?') s = s ++ "_quest"
+    annotName (G4S.Regular '*') s = s ++ "_star"
+    annotName (G4S.Regular '+') s = s ++ "_plus"
+    annotName (G4S.Regular c)   s = s ++ [c] -- TODO: warning on unknown character annotation
+
+    annotName' (G4S.GTerm annot s) = annotName annot s
+    annotName' (G4S.GNonTerm annot s) = annotName annot s
+
+    regexNonTermSymbols = let
+        
+        rNTS (G4S.Prod {G4S.patterns = ps}) = Just $ map G4S.alphas ps
+        rNTS _ = Nothing
+    
+      in nub $ map annotName' $ filter (not . G4S.isNoAnnot . G4S.annot) (concat $ concat $ catMaybes $ map rNTS ast)
+
     toElem :: G4S.ProdElem -> TH.ExpQ
-    toElem (G4S.GTerm _ s)    = [| $(mkCon "T")  $(mkCon $ lookupTName "T_" s) |] -- $(return $ LitE $ StringL s)) |]
-    toElem (G4S.GNonTerm _ s)
-      | (not . null) s && isLower (head s) = [| $(mkCon "NT") $(mkConNT s) |]
+    toElem (G4S.GTerm annot s)    = [| $(mkCon "T")  $(mkCon $ lookupTName "T_" (annotName annot s)) |] -- $(return $ LitE $ StringL s)) |]
+    toElem (G4S.GNonTerm annot s)
+      | (not . null) s && isLower (head s) = [| $(mkCon "NT") $(mkConNT (annotName annot s)) |]
       | otherwise = toElem (G4S.GTerm G4S.NoAnnot s)
 
     mkProd :: String -> [TH.ExpQ] -> TH.ExpQ
+    mkProd n [] = [| $(mkCon "Production") $(conE $ mkName $ "NT_" ++ n) ($(mkCon "Prod") $(mkCon "Pass") [Eps]) |]
     mkProd n es = [| $(mkCon "Production") $(conE $ mkName $ "NT_" ++ n) ($(mkCon "Prod") $(mkCon "Pass") $(listE es)) |]
 
     getProds :: [G4S.G4] -> [TH.ExpQ]
@@ -254,10 +307,13 @@ g4_decls ast = let
     grammar gTy = [| (defaultGrammar $(s0) :: $(return gTy))
       { ns = Set.fromList [minBound .. maxBound :: $(ntConT)]
       , ts = Set.fromList [minBound .. maxBound :: $(tConT)]
-      , ps = $(listE $ getProds ast)
+      , ps = $(listE $ getProds $ ast ++ genTermAnnotProds ast)
       } |]
 
-    grammarTy = [t| forall s. Grammar s $(ntConT) $(tConT) |]
+    --grammarTy s = [t| forall $(s). (Prettify $(s)) => $(justGrammarTy s) |]
+    grammarTy s = [t| (Prettify $(s)) => $(justGrammarTy s) |]
+
+    justGrammarTy s = [t| Grammar $(s) $(ntConT) $(tConT) |]
 
     mkLower [] = []
     mkLower (a:as) = toLower a : as
@@ -415,16 +471,16 @@ g4_decls ast = let
 
           fncnName = mkName $ "ast2" ++ _A
 
-          mkConP (G4S.GNonTerm _ nt)
+          mkConP (G4S.GNonTerm annot nt)
             -- Some nonterminals are really terminal tokens (regular expressions):
-            | isUpper (head nt)     = conP (mkName "T")  [conP (mkName $ lookupTName "T_" nt) []]
-            | otherwise             = conP (mkName "NT") [conP (mkName $ "NT_" ++ nt) []]
-          mkConP (G4S.GTerm _  t)   = conP (mkName "T")  [conP (mkName $ lookupTName "T_" t) []]
+            | isUpper (head nt)     = conP (mkName "T")  [conP (mkName $ lookupTName "T_" $ annotName annot nt) []]
+            | otherwise             = conP (mkName "NT") [conP (mkName $ "NT_" ++ annotName annot nt) []]
+          mkConP (G4S.GTerm annot t)   = conP (mkName "T")  [conP (mkName $ lookupTName "T_" $ annotName annot t) []]
 
           nonTermVars as = map (\(G4S.GNonTerm _ t) -> t) (filter G4S.isGNonTerm as)
-          
-          justStr (G4S.GNonTerm _ s) = s
-          justStr (G4S.GTerm _ s)  = s
+         
+          justStr (G4S.GNonTerm annot s) = annotName annot s
+          justStr (G4S.GTerm    _     s) = s
 
           vars as = catMaybes
                     [ if G4S.isGNonTerm a
@@ -443,6 +499,9 @@ g4_decls ast = let
           astAppRec b (alpha, varName, recName) = case G4S.annot alpha of
               G4S.NoAnnot       -> appE b (appE recName $ varE varName)
               (G4S.Regular '?') -> appE b (appE recName $ varE varName)
+              -- TODO: Below two cases:
+              (G4S.Regular '*') -> appE b (appE recName $ varE varName)
+              (G4S.Regular '+') -> appE b (appE recName $ varE varName)
               otherwise         -> error $ show alpha
 
           clauses = [ clause  [ [p| AST $(conP (mkName $ "NT_" ++ _A) [])
@@ -491,7 +550,36 @@ g4_decls ast = let
                       funD fncnName clauses
                     ]
         a2d _ = Nothing
-      in (concat . catMaybes . map a2d) ast
+
+        -- ast2* functions necessary to support '?', '+', and '*' in G4 syntax.
+        -- This assumes productions look like how LL.removeEpsilons generates
+        -- them
+        regex_a2d :: G4S.G4 -> [DecQ]
+        regex_a2d G4S.Prod{G4S.pName = _A, G4S.patterns = ps} = let
+          
+            fncnName s = mkName $ "ast2" ++ s
+                    
+            clauses = [ clause [ [p| ast2 |] ] (normalB [| error (show ast2) |]) [] ]
+      
+
+            eachAlpha (G4S.GNonTerm (G4S.Regular '?') s) = mkFncn $ s ++ "_quest"
+            eachAlpha (G4S.GNonTerm (G4S.Regular '*') s) = mkFncn $ s ++ "_star"
+            eachAlpha (G4S.GNonTerm (G4S.Regular '+') s) = mkFncn $ s ++ "_plus"
+            eachAlpha (G4S.GNonTerm G4S.NoAnnot s) = []
+            eachAlpha (G4S.GTerm annot s) = []
+          
+            mkFncn s = [ funD (fncnName s) clauses ]
+      
+            -- TODO
+            makeEpsilonClauses _ = []
+
+          in (concatMap eachAlpha . concatMap G4S.alphas) ps
+          --in concatMap makeEpsilonClauses ps
+        regex_a2d _ = []
+          
+          --concat $ (concatMap eachAlpha . map G4S.alphas) ps
+
+      in (concat . catMaybes . map a2d) ast ++ (concatMap regex_a2d) ast
 
   -- terminaLiterals, lexemeNames
 
@@ -509,15 +597,26 @@ g4_decls ast = let
             nameAST   = mkName (mkUpper gName ++ "AST")
             nameToken = mkName (mkUpper gName ++ "Token")
             nameDFAs  = mkName (mkLower gName ++ "DFAs")
-            name      = mkName $ mkLower (gName ++ "Grammar")
+            name      = mkName $ mkLower (gName ++ "Grammar'")
+            nameUnit  = mkName $ mkLower (gName ++ "Grammar")
         prettyTFncnName <- newName "prettifyT"
         prettyValueFncnName <- newName "prettifyValue"
+       
+        stateTypeName <- newName "s"
+        let stateType = varT stateTypeName
         
+        let unitTy = [t| () |]
+        
+        gTyUnit <- justGrammarTy unitTy
+        gUnitFunD <- funD nameUnit [clause [] (normalB $ [| LL.removeEpsilons $(varE name) |]) []]
+        gTySigUnit <- sigD nameUnit (return gTyUnit)
+
         ntDataDecl <- ntDataDeclQ
         tDataDecl  <- tDataDeclQ
-        gTy    <- grammarTy
+        gTy    <- grammarTy stateType
+        gTy'   <- justGrammarTy stateType
         gTySig <- sigD name (return gTy)
-        g      <- grammar gTy
+        g      <- grammar gTy'
         gFunD  <- funD name [clause [] (normalB (return g)) []]
         prettyNT:_     <- [d| instance Prettify $(ntConT) where prettify = rshow |]
         prettyT:_      <- [d| instance Prettify $(tConT) where prettify = $(varE prettyTFncnName) |]
@@ -537,7 +636,7 @@ g4_decls ast = let
 
         astDecl <-tySynD nameAST   [] [t| AST $(conT ntSym) $(conT nameToken) |]
         tokDecl <- tySynD nameToken [] [t| Token $(conT tSym) $(conT tokVal) |]
-        
+       
         decls <-
           [d| instance Ref $(conT ntSym) where
                 type Sym $(conT ntSym) = $(conT ntSym)
@@ -547,14 +646,14 @@ g4_decls ast = let
               tokenize = T.tokenize $(varE nameDFAs) lexeme2value
 
               slrParse :: [$(conT nameToken)] -> LR.LRResult () $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
-              slrParse = (LR.slrParse $(varE name) event2ast)
+              slrParse = (LR.slrParse $(varE nameUnit) event2ast)
               
               --glrParse :: [$(conT nameToken)] -> LR.LRResult $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
               glrParse :: ($(conT tokName) -> Bool) -> [Char] -> LR.LR1Result $(conT ntSym) 
                                                                                 (StripEOF (Sym $(conT nameToken)))
                                                                                 Char
                                                                                 $(conT nameAST)
-              glrParse filterF = (LR.glrParseInc $(varE name) event2ast (T.tokenizeInc filterF $(varE nameDFAs) lexeme2value))
+              glrParse filterF = (LR.glrParseInc $(varE nameUnit) event2ast (T.tokenizeInc filterF $(varE nameDFAs) lexeme2value))
          
               instance ALL.Token $(conT nameToken) where
                 type Label $(conT nameToken) = StripEOF (Sym $(conT nameToken))
@@ -564,7 +663,8 @@ g4_decls ast = let
                 getLiteral = T.tokenValue
 
               allstarParse :: [$(conT nameToken)] -> Either String $(conT nameAST)
-              allstarParse inp = ALL.parse inp (ALL.NT $(s0)) (ALL.atnOf $(varE name)) True
+              allstarParse inp = ALL.parse inp (ALL.NT $(s0)) (ALL.atnOf ($(varE nameUnit) :: $(justGrammarTy unitTy))) True
+
           |]
         
         prettyTFncn <- prettyTFncnQ prettyTFncnName
@@ -574,8 +674,8 @@ g4_decls ast = let
 
         return $
           [ ntDataDecl, tDataDecl
-          , gTySig
-          , gFunD
+          , gTySig,     gFunD
+          , gTySigUnit, gUnitFunD
           , tokenNameType, tokenValueType
           , prettyTFncn, prettyVFncn
           , prettyNT, prettyT, prettyValue
