@@ -67,9 +67,24 @@ test_hello_allstar =
   --Right (AST NT_r [] [])
 
 test_optional =
-  Opt.glrParse Opt.isWS "a b d"
+  Opt.glrParse Opt.isWS "a"
   @?=
-  (LR.ResultAccept $ AST Opt.NT_r [] [])
+  (LR.ResultAccept $ AST Opt.NT_r [NT Opt.NT_a] [AST Opt.NT_a [T Opt.T_0] [Leaf (Token Opt.T_0 Opt.V_0 1)]])
+
+test_optional2 =
+  case Opt.glrParse Opt.isWS "a a b c d" of
+    LR.ResultAccept ast -> Opt.ast2r ast @?= "accept"
+    err                 -> error $ show err
+
+test_optional3 =
+  case Opt.glrParse Opt.isWS "a b b b c c d" of
+    LR.ResultAccept ast -> Opt.ast2r ast @?= "accept"
+    err                 -> error $ show err
+
+test_optional4 =
+  case Opt.glrParse Opt.isWS "a" of
+    LR.ResultAccept ast -> Opt.ast2r ast @?= "reject"
+    err                 -> error $ show err
 
 main :: IO ()
 main = defaultMainWithOpts
@@ -80,5 +95,8 @@ main = defaultMainWithOpts
   , testCase "test_hello" test_hello
   , testCase "test_hello_allstar" test_hello_allstar
   , testCase "test_optional" test_optional
+  , testCase "test_optional2" test_optional2
+  , testCase "test_optional3" test_optional3
+  , testCase "test_optional4" test_optional4
   ] mempty
 

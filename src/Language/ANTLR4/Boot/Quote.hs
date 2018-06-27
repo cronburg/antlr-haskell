@@ -5,7 +5,8 @@ module Language.ANTLR4.Boot.Quote
 ) where
 import Prelude hiding (exp, init)
 import System.IO.Unsafe (unsafePerformIO)
-import Data.List (nub, elemIndex)
+import Data.List (nub, elemIndex, groupBy, sortBy)
+import Data.Ord (comparing)
 import Data.Char (toLower, toUpper, isLower, isUpper)
 import Data.Maybe (fromJust, catMaybes)
 
@@ -33,11 +34,11 @@ import Text.ANTLR.Set (Set(..))
 import qualified Text.ANTLR.Set as Set
 import qualified Text.ANTLR.Lex.Regex as R
 
-trace s = D.trace   ("[Language.ANTLR4.Boot.Quote] " ++ s)
-traceM s = D.traceM ("[Language.ANTLR4.Boot.Quote] " ++ s)
+--trace s = D.trace   ("[Language.ANTLR4.Boot.Quote] " ++ s)
+--traceM s = D.traceM ("[Language.ANTLR4.Boot.Quote] " ++ s)
 
---trace s x = x
---traceM s x = x
+trace s x = x
+traceM s x = x
 
 haskellParseExp :: (Monad m) => String -> m TH.Exp
 haskellParseExp s = case LHM.parseExp s of
@@ -99,6 +100,12 @@ aparse input = do
  case G4P.parseANTLR fileName line column input of
    Left err -> unsafePerformIO $ fail $ show err
    Right x  -> g4_decls x
+
+data BaseType = List | Mybe
+  deriving (Eq, Ord, Show)
+
+baseType (G4S.Regular '?') = Mybe
+baseType (G4S.Regular '*') = List
 
 g4_decls :: [G4S.G4] -> TH.Q [TH.Dec] -- exp :: G4
 g4_decls ast = let
@@ -172,6 +179,7 @@ g4_decls ast = let
     symbolDerives = derivClause Nothing $ map (conT . mkName)
       [ "Eq", "Ord", "Show", "Hashable", "Generic", "Bounded", "Enum"]
 
+    -- Nonterminal symbol data type (enum) for this grammar:
     ntDataDeclQ :: DecQ
     ntDataDeclQ =
       dataD (cxt [])
@@ -197,6 +205,8 @@ g4_decls ast = let
         Nothing -> undefined
         Just i  -> (s, Literal i)
 
+    -- Terminal symbol data type (enum) for this grammar:
+    tDataDeclQ :: DecQ
     tDataDeclQ =
       dataD (cxt [])
         (mkName tDataName)  
@@ -223,6 +233,8 @@ g4_decls ast = let
       in concatMap lN ast
       --map (\s -> normalC (mkName s) []) lN'
 
+    -- Map from a terminal's syntax to the name of the data type instance from
+    -- tDataDeclQ:
     lookupTName :: String -> String -> String
     lookupTName pfx s = pfx ++
       (case s `elemIndex` terminalLiterals of
@@ -449,9 +461,11 @@ g4_decls ast = let
     -- Pattern matches on an AST to produce a Maybe DataType
     ast2DTFncnsQ nameAST = let
         
+        astFncnName s = mkName $ "ast2" ++ s
+        
         a2d G4S.Lex{G4S.lName  = _A, G4S.pattern = G4S.LRHS{G4S.directive = dir}}
-          = Just  [ funD (mkName $ "ast2" ++ _A)
-                    [ clause  [ conP (mkName "Leaf")
+          = Just [(mkName $ "ast2" ++ _A
+                   ,[ clause  [ conP (mkName "Leaf")
                                 [ conP (mkName $ "Token")
                                   [ wildP
                                   , conP (mkName $ lookupTName "V_" _A)
@@ -460,7 +474,7 @@ g4_decls ast = let
                               (normalB (varE $ mkName "t"))
                               []
                     ]
-                  ]
+                  )]
         {-
         a2d G4S.Lex{G4S.lName  = _A, G4S.pattern = G4S.LRHS{G4S.directive = Just s}}
           | s == "String" = Just [funD (mkName $ "ast2" ++ _A) [ clause [] (normalB (varE $ mkName "id")) [] ]]
@@ -469,16 +483,12 @@ g4_decls ast = let
         -}
         a2d G4S.Prod{G4S.pName = _A, G4S.patterns = ps} = let
 
-          fncnName = mkName $ "ast2" ++ _A
-
           mkConP (G4S.GNonTerm annot nt)
             -- Some nonterminals are really terminal tokens (regular expressions):
             | isUpper (head nt)     = conP (mkName "T")  [conP (mkName $ lookupTName "T_" $ annotName annot nt) []]
             | otherwise             = conP (mkName "NT") [conP (mkName $ "NT_" ++ annotName annot nt) []]
           mkConP (G4S.GTerm annot t)   = conP (mkName "T")  [conP (mkName $ lookupTName "T_" $ annotName annot t) []]
 
-          nonTermVars as = map (\(G4S.GNonTerm _ t) -> t) (filter G4S.isGNonTerm as)
-         
           justStr (G4S.GNonTerm annot s) = annotName annot s
           justStr (G4S.GTerm    _     s) = s
 
@@ -520,8 +530,7 @@ g4_decls ast = let
                           (Nothing, vs)         -> normalB $ tupE $ map (\(a,vN,rN) -> appE rN $ varE vN) vs
                         ) []
                     | G4S.PRHS{G4S.alphas = as, G4S.pDirective = dir} <- ps
-                    ] ++
-                    [ clause [ [p| ast2 |] ] (normalB [| error (show ast2) |]) [] ]
+                    ]
           
           retType = let
             rT G4S.PRHS{G4S.alphas = as, G4S.pDirective = dir}
@@ -547,28 +556,107 @@ g4_decls ast = let
                     t               -> forallT [] (cxt []) [t| $(conT nameAST) -> $(return t) |])
 
           in Just $ [ --sigD fncnName fncnSig
-                      funD fncnName clauses
+                      (astFncnName _A, clauses)
                     ]
         a2d _ = Nothing
 
         -- ast2* functions necessary to support '?', '+', and '*' in G4 syntax.
         -- This assumes productions look like how LL.removeEpsilons generates
         -- them
-        regex_a2d :: G4S.G4 -> [DecQ]
+        --regex_a2d :: G4S.G4 -> [DecQ]
+        regex_a2d :: G4S.G4 -> [(Name, [ClauseQ])]
         regex_a2d G4S.Prod{G4S.pName = _A, G4S.patterns = ps} = let
           
-            fncnName s = mkName $ "ast2" ++ s
-                    
             clauses = [ clause [ [p| ast2 |] ] (normalB [| error (show ast2) |]) [] ]
       
 
-            eachAlpha (G4S.GNonTerm (G4S.Regular '?') s) = mkFncn $ s ++ "_quest"
-            eachAlpha (G4S.GNonTerm (G4S.Regular '*') s) = mkFncn $ s ++ "_star"
-            eachAlpha (G4S.GNonTerm (G4S.Regular '+') s) = mkFncn $ s ++ "_plus"
+            eachAlpha (G4S.GNonTerm (G4S.Regular '?') s) = let -- "_quest"
+                ntName = "NT_" ++ s
+              in
+              [( astFncnName $ s ++ "_quest",
+                [ -- First, the "zero or more" base case (returns a singleton list):
+                  do  let n      = mkName ntName
+                          nQuest = mkName $ ntName ++ "_quest"
+                          base   = varE $ astFncnName s
+                      param <- newName "param"
+                      clause [ [p| AST $(conP nQuest []) [NT $(conP n [])] [$(varP param)] |] ]
+                        (normalB [| Just ($(base) $(varE param)) |])
+                        []
+                , do  param <- newName "param"
+                      clause [ [p| $(varP param) |] ]
+                        (normalB [| error $ $(litE $ stringL ntName) ++ ": " ++ show $(varE param) |])
+                        []
+                ]
+              )]
+              {-
+              [( astFncnName $ s ++ "_quest",
+                [ do  param <- newName "param"
+                      let base = varE $ astFncnName s
+                      clause [ [p| $(varP param) |] ] (normalB [| Just $ $(base) ($(varE param) :: $(conT nameAST))|]) []
+                ])]
+              -}
+            eachAlpha (G4S.GNonTerm (G4S.Regular '*') s) = let -- "_star"
+                ntName = "NT_" ++ s
+
+              in
+              [( astFncnName $ s ++ "_star",
+                [ -- First, the "zero or more" base case (returns a singleton list):
+                  do  let n     = mkName ntName
+                          nStar = mkName $ ntName ++ "_star"
+                          base  = varE $ astFncnName s
+                      param <- newName "param"
+                      clause [ [p| AST $(conP nStar []) [NT $(conP n [])] [$(varP param)] |] ]
+                        (normalB [| [$(base) $(varE param)] |])
+                        []
+                  -- Second, the "zero or more" recursive case (cons the current
+                  -- thing onto a recursive call)
+                , do  let n     = mkName ntName
+                          nStar = mkName $ ntName ++ "_star"
+                      first <- newName "x"
+                      rest  <- newName "xs"
+                      let me   = varE $ astFncnName $ s ++ "_star"
+                          base = varE $ astFncnName s
+                      clause [ [p| AST $(conP nStar []) [NT $(conP n []), NT $(conP nStar [])] [ $(varP first), $(varP rest) ] |] ] 
+                        (normalB [| ($(base) $(varE first)) : ($(me) $(varE rest)) |]) 
+                        []
+                , do  param <- newName "param"
+                      clause [ [p| $(varP param) |] ]
+                        (normalB [| error $ $(litE $ stringL ntName) ++ ": " ++ show $(varE param) |])
+                        []
+                ])]
+            eachAlpha (G4S.GNonTerm (G4S.Regular '+') s) = let -- "_plus"
+                ntName = "NT_" ++ s
+
+              in
+              [( astFncnName $ s ++ "_plus",
+                [ -- First, the "zero or more" base case (returns a singleton list):
+                  do  let n     = mkName ntName
+                          nPlus = mkName $ ntName ++ "_plus"
+                          base  = varE $ astFncnName s
+                      param <- newName "param"
+                      clause [ [p| AST $(conP nPlus []) [NT $(conP n [])] [$(varP param)] |] ]
+                        (normalB [| [$(base) $(varE param)] |])
+                        []
+                  -- Second, the "zero or more" recursive case (cons the current
+                  -- thing onto a recursive call)
+                , do  let n     = mkName ntName
+                          nPlus = mkName $ ntName ++ "_plus"
+                      first <- newName "x"
+                      rest  <- newName "xs"
+                      let me   = varE $ astFncnName $ s ++ "_plus"
+                          base = varE $ astFncnName s
+                      clause [ [p| AST $(conP nPlus []) [NT $(conP n []), NT $(conP nPlus [])] [ $(varP first), $(varP rest) ] |] ] 
+                        (normalB [| ($(base) $(varE first)) : ($(me) $(varE rest)) |]) 
+                        []
+                , do  param <- newName "param"
+                      clause [ [p| $(varP param) |] ]
+                        (normalB [| error $ $(litE $ stringL ntName) ++ ": " ++ show $(varE param) |])
+                        []
+                ])]
             eachAlpha (G4S.GNonTerm G4S.NoAnnot s) = []
             eachAlpha (G4S.GTerm annot s) = []
           
-            mkFncn s = [ funD (fncnName s) clauses ]
+            mkFncn s = map (\c -> (astFncnName s, [c])) clauses
       
             -- TODO
             makeEpsilonClauses _ = []
@@ -576,10 +664,129 @@ g4_decls ast = let
           in (concatMap eachAlpha . concatMap G4S.alphas) ps
           --in concatMap makeEpsilonClauses ps
         regex_a2d _ = []
+                    
+        a2d_error_clauses G4S.Prod{G4S.pName = _A} =
+          [(astFncnName _A, [ clause [ [p| ast2 |] ] (normalB [| error (show ast2) |]) [] ])]
+        a2d_error_clauses _ = []
           
           --concat $ (concatMap eachAlpha . map G4S.alphas) ps
 
-      in (concat . catMaybes . map a2d) ast ++ (concatMap regex_a2d) ast
+        epsilon_a2d (G4S.Prod{G4S.pName = _A, G4S.patterns = ps}) = let
+          
+            mkConP (G4S.GNonTerm annot nt)
+              -- Some nonterminals are really terminal tokens (regular expressions):
+              | isUpper (head nt)     = conP (mkName "T")  [conP (mkName $ lookupTName "T_" $ annotName annot nt) []]
+              | otherwise             = conP (mkName "NT") [conP (mkName $ "NT_" ++ annotName annot nt) []]
+            mkConP (G4S.GTerm annot t)   = conP (mkName "T")  [conP (mkName $ lookupTName "T_" $ annotName annot t) []]
+
+            justStr (G4S.GNonTerm annot s) = annotName annot s
+            justStr (G4S.GTerm    _     s) = s
+            
+            justStr' (Left a) = Just $ justStr a
+            justStr' _        = Nothing
+                
+            maybeBaseType (Left _) = Nothing
+            maybeBaseType (Right x) = Just x
+
+            vars :: [Either G4S.ProdElem BaseType] -> [(Maybe BaseType, String, String)]
+            vars as = let
+                vars' (base_type, i, Just s)   = (base_type, "v" ++ show i ++ "_" ++ s, "ast2" ++ s)
+                vars' (base_type, i, Nothing)  = (base_type, "Nothing", "undefined")
+                --vars' (base_type, i, Nothing)  = (base_type, "[]", "undefined")
+                      
+                isValid (Left x)   = G4S.isGNonTerm x
+                isValid (Right _)  = True
+                --isValid _          = False
+
+              in (map vars' . map (\(i,a) -> (maybeBaseType a, i, justStr' a)) . zip [0 .. length as] . filter isValid) as
+
+            astListPattern as = listP $ catMaybes
+                  [ case a of
+                      Right x                     -> Nothing
+                      Left (G4S.GNonTerm annot s) -> Just $ varP  $ mkName $ "v" ++ show i ++ "_" ++ annotName annot s
+                      otherwise                   -> Just wildP
+                  | (i, a) <- zip [0 .. length as] as
+                  ]
+
+            astAppRec b (Just Mybe, varName, _) = appE b (conE $ mkName varName)
+            astAppRec b (Just List, varName, _) = appE b (listE [])
+            astAppRec b (base_type, varName@(v:_), recName)
+              | isLower v = appE b (appE (varE $ mkName recName) $ varE $ mkName varName)
+              | otherwise = appE b (appE (varE $ mkName recName) $ conE $ mkName varName)
+                {-
+                G4S.NoAnnot       -> appE b (appE recName $ varE $ mkName varName)
+                (G4S.Regular '?') -> appE b (appE recName $ varE $ mkName varName)
+                (G4S.Regular '*') -> appE b (appE recName $ varE $ mkName varName)
+                (G4S.Regular '+') -> appE b (appE recName $ varE $ mkName varName)
+                otherwise         -> error $ show (b,(varName,recName))
+                -}
+                
+            catLefts [] = []
+            catLefts (((Left x)):rst) = x : catLefts rst
+            catLefts (_:rst) = catLefts rst
+
+            pats as = [ [p| AST  $(conP (mkName $ "NT_" ++ _A) [])
+                                  $(listP $ map mkConP $ catLefts as)
+                                  $(astListPattern as)
+                         |]
+                       ]
+            
+            appBodyType (base_type, vN@(v:_), rN)
+              | isLower v = appE (varE $ mkName rN) $ varE $ mkName vN
+              | otherwise = conE $ mkName vN
+            
+            body dir as = (case (dir, vars as) of
+                            (Just d, vs)    ->
+                                        if isUpper (head d)
+                                          then foldl astAppRec (conE $ mkName d) vs
+                                          else foldl astAppRec (varE $ mkName d) vs
+                            (Nothing, [])   -> tupE []
+                            (Nothing, [(base_type, v0@(v:_), rec)])
+                              | isUpper v   -> conE $ mkName v0 -- 'Nothing' base case
+                              | otherwise   -> appE (varE $ mkName rec) (varE $ mkName v0)
+                            (Nothing, vs) -> tupE $ map appBodyType vs
+                          )
+
+            e_a2d (G4S.PRHS{G4S.alphas = as0, G4S.pDirective = dir}) = let
+               
+                isEpsilonAnnot (G4S.Regular '?') = True
+                isEpsilonAnnot (G4S.Regular '*') = True
+                isEpsilonAnnot _ = False
+
+                combos' :: [Either G4S.ProdElem BaseType] -> [Either G4S.ProdElem BaseType] -> [[Either G4S.ProdElem BaseType]]
+                combos' ys [] = []
+                combos' ys (a@(Left a'):as)
+                  | (isEpsilonAnnot . G4S.annot) a'
+                      = (reverse ys ++ (Right $ baseType $ G4S.annot a'):as)  -- Production with epsilon-able alpha 'a' removed
+                      : (reverse ys ++ a:as)        -- Production without epsilon-able alpha 'a' removed
+                      : (  combos' ((Right $ baseType $ G4S.annot a'):ys) as  -- Recursively with epsilon-able alpha 'a' removed
+                        ++ combos' (a:ys) as)       -- Recursively *without* it removed
+                  | otherwise = combos' (a:ys) as
+                combos' ys ((Right _):as) = error "Can't have 'Right' in second list"
+
+                orderNub ps p1
+                  | p1 `elem` ps = ps
+                  | otherwise    = p1 : ps
+
+                combos xs = foldl orderNub [] (combos' [] $ map Left xs)
+                
+              in  [(astFncnName _A,
+                    map (\as' -> clause (pats as') (normalB $ body dir as') []) $ combos as0
+                  )]
+
+          in concatMap e_a2d ps
+        epsilon_a2d _ = []
+
+        allClauses :: [(Name, [ClauseQ])]
+        allClauses = (concat . catMaybes . map a2d) ast -- standard clauses ignoring optionals (?,+,*) syntax
+                  ++ (concatMap regex_a2d) ast          -- Epsilon-removed optional ast conversion functions
+                  ++ (concatMap epsilon_a2d) ast        -- Clauses for productions with epsilons
+                  ++ (concatMap a2d_error_clauses) ast  -- Catch-all error clauses
+
+        funDecls lst@((name, _):_) = Just $ funD name $ concatMap snd lst
+        funDecls [] = error "groupBy can't return an empty list"
+
+      in (catMaybes . map funDecls . groupBy (\a b -> fst a == fst b) . sortBy (comparing fst)) allClauses
 
   -- terminaLiterals, lexemeNames
 
@@ -684,4 +891,5 @@ g4_decls ast = let
           , regexes
           , dfas, astDecl, tokDecl
           ] ++ decls ++ ast2DTFncns
+
 
