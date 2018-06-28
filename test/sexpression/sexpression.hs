@@ -68,9 +68,13 @@ data Item
 
   WHITESPACE : [ \n\t\r]+ -> String;
 
-  NUMBER : ('+' | '-')? [0-9]+ ('.' [0-9]+)? -> String;
+  NUMBER : ('+' | '-')? DIGIT+ ('.' DIGIT+)? -> String;
 
-  SYMBOL : [a-zA-Z+\-*/.][a-zA-Z+\-*/.0-9]* -> String;
+  SYMBOL : SYMBOL_START (SYMBOL_START | DIGIT)* -> String;
+
+  fragment SYMBOL_START : [a-zA-Z+\-*/.] ;
+
+  fragment DIGIT : [0-9] ;
 
 |]
 

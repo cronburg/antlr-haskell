@@ -44,9 +44,10 @@ regexAnyChar = G4S.Negation (G4S.CharSet [])
         | decl1 ';' decls           -> cons
         ;
 
-  decl1 : 'grammar' UpperID         -> G4S.Grammar
-        | LowerID ':' prods         -> G4S.Prod
-        | UpperID ':' lexemeRHS     -> lexDecl
+  decl1 : 'grammar' UpperID                 -> G4S.Grammar
+        | LowerID ':' prods                 -> G4S.Prod
+        | UpperID ':' lexemeRHS             -> lexDecl
+        | 'fragment' UpperID ':' lexemeRHS  -> lexFragment
         ;
 
   prods : prodRHS                   -> list

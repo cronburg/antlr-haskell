@@ -219,12 +219,13 @@ g4_decls ast = let
     ntConT = conT $ mkName ntDataName
     tConT  = conT $ mkName tDataName
 
+    -- THIS EXCLUDES LEXEME FRAGMENTS:
     -- e.g. [('UpperID', AString), ('SetChar', Named String)]
     lexemeTypes :: [(String, LexemeType)]
     lexemeTypes = let
         lN :: G4S.G4 -> [(String, LexemeType)]
-        lN (G4S.Lex{G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Nothing}}) = [(lName, AString)]
-        lN (G4S.Lex{G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Just s}})
+        lN (G4S.Lex{G4S.annotation = Nothing, G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Nothing}}) = [(lName, AString)]
+        lN (G4S.Lex{G4S.annotation = Nothing, G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Just s}})
           | s == "String"     = [(lName, AString)]
           | null s            = [(lName, AString)] -- quirky G4 parser
           | isUpper (head s)  = [(lName, Named s (conT $ mkName s))]
@@ -344,7 +345,7 @@ g4_decls ast = let
 
     -- 
     lexemeTypeConstructors = let
-        lTC (i, lex@(G4S.Lex{G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Just d}}))
+        lTC (i, lex@(G4S.Lex{G4S.annotation = Nothing, G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Just d}}))
           | null lName       = error $ "null lexeme name: " ++ show lex
           | null d           = Just $ normalC (mkName $ "V_" ++ lName) [bangType defBang (conT $ mkName "String")]
           | isUpper $ head d = Just $ normalC (mkName $ "V_" ++ lName) [bangType defBang (conT $ mkName d)]
@@ -402,8 +403,8 @@ g4_decls ast = let
 
     -- Convert a G4 regex into the backend regex type (for constructing token
     -- recognizers as DFAs):
-    convertRegex :: (Show c) => G4R.Regex c -> R.Regex c
-    convertRegex = let
+    convertRegex :: (Show c) => (String -> G4R.Regex c) -> G4R.Regex c -> R.Regex c
+    convertRegex getNamedR = let
         cR G4R.Epsilon       = R.Epsilon
         cR (G4R.Literal [])  = R.Epsilon
         cR (G4R.Literal [c]) = R.Symbol c
@@ -417,18 +418,28 @@ g4_decls ast = let
         cR (G4R.Negation (G4R.CharSet cs)) = R.NotClass cs
         cR (G4R.Negation (G4R.Literal s)) = R.NotClass s
         cR r@(G4R.Negation _) = error $ "unimplemented: " ++ show r
-        cR (G4R.Named _)    = error "unimplemented"
+        cR (G4R.Named n)    = convertRegex getNamedR $ getNamedR n
       in cR
+
+    getNamedRegex :: String -> G4R.Regex Char
+    getNamedRegex n = let
+        -- Only the lexeme (fragments) with the given name:
+        gNR (G4S.Lex{G4S.annotation = Just G4S.Fragment, G4S.lName = lName}) = lName == n
+        gNR _ = False
+      in case filter gNR ast of
+            [] -> error $ "No fragment named '" ++ n ++ "'"
+            [(G4S.Lex{G4S.pattern = G4S.LRHS{G4S.regex = r}})] -> r
+            xs -> error $ "Too many fragments named '" ++ n ++ "', i.e.: " ++ show xs
 
     -- Make the list of tuples containing regexes, one for each terminal.
     mkRegexesQ = let
         mkLitR :: String -> ExpQ
         mkLitR s = [| ($( conE $ mkName $ lookupTName "T_" s)
-                        , $(lift $ convertRegex $ G4R.Literal s)) |]
+                        , $(lift $ convertRegex getNamedRegex $ G4R.Literal s)) |]
 
         mkLexR :: G4S.G4 -> Maybe ExpQ
-        mkLexR (G4S.Lex{G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.regex = r}}) = Just
-          [| ($(conE $ mkName $ lookupTName "T_" lName), $(lift $ convertRegex r)) |]
+        mkLexR (G4S.Lex{G4S.annotation = Nothing, G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.regex = r}}) = Just
+          [| ($(conE $ mkName $ lookupTName "T_" lName), $(lift $ convertRegex getNamedRegex r)) |]
         mkLexR _ = Nothing
       in valD (varP $ mkName $ mkLower $ gName ++ "Regexes")
           (normalB $ listE (map mkLitR terminalLiterals ++ (catMaybes $ map mkLexR ast)))
@@ -463,7 +474,7 @@ g4_decls ast = let
         
         astFncnName s = mkName $ "ast2" ++ s
         
-        a2d G4S.Lex{G4S.lName  = _A, G4S.pattern = G4S.LRHS{G4S.directive = dir}}
+        a2d G4S.Lex{G4S.annotation = Nothing, G4S.lName  = _A, G4S.pattern = G4S.LRHS{G4S.directive = dir}}
           = Just [(mkName $ "ast2" ++ _A
                    ,[ clause  [ conP (mkName "Leaf")
                                 [ conP (mkName $ "Token")

@@ -10,6 +10,7 @@ cons = (:)
 lexemeDirective r d = LRHS r (Just d)
 lexemeNoDir     r   = LRHS r Nothing
 lexDecl = Lex Nothing
+lexFragment = Lex (Just Fragment)
 
 literalRegex :: String -> Regex Char
 literalRegex = Literal
