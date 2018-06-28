@@ -220,4 +220,15 @@ tests:
     - QuickCheck
     - HUnit
     - call-stack
+  
+  sexpression:
+    main:                sexpression.hs
+    source-dirs:
+      - test/sexpression
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - antlr-haskell
 

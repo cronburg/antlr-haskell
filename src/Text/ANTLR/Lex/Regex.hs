@@ -51,7 +51,7 @@ regex2nfa' from to r = let
     r2n (MultiUnion []) = r2n Epsilon
     r2n (MultiUnion (r:rs)) = r2n $ foldl Union r rs
     r2n (Literal ss)    = list2nfa $ map (\(s,i) -> (to i, (False, singleton $ Edge s), to $ i + 1)) (zip ss [0..length ss - 1])
-    r2n (NotClass [])     = r2n Epsilon -- TODO
+    r2n (NotClass [])     = list2nfa $ [ (to 0, (True, fromList []), to 1) ] -- Not nothing = everything
     r2n (NotClass (s:ss)) = list2nfa $ [ (to 0, (True, fromList $ map Edge $ s:ss), to 1) ]
   in r2n r 
 

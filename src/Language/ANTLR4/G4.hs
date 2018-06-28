@@ -35,6 +35,8 @@ starGNonTerm = G4S.GNonTerm (G4S.Regular '*')
 plusGTerm    = G4S.GTerm    (G4S.Regular '+')
 plusGNonTerm = G4S.GNonTerm (G4S.Regular '+')
 
+regexAnyChar = G4S.Negation (G4S.CharSet [])
+
 [antlr4|
   grammar G4;
 
@@ -109,8 +111,9 @@ plusGNonTerm = G4S.GNonTerm (G4S.Regular '+')
   regex1  : '[' charSet ']'           -> G4S.CharSet
           | Literal                   -> literalRegex
           | UpperID                   -> G4S.Named
-          | '(' regex ')'
+          | '(' regexes1 ')'
           | unionR                    -> G4S.Union
+          | '.'                       -> regexAnyChar
           ;
 
   unionR  : regex '|' regex         -> list2

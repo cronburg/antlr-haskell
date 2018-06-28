@@ -527,7 +527,7 @@ g4_decls ast = let
                                         else normalB $ foldl astAppRec (varE $ mkName d) vs
                           (Nothing, [])   -> normalB $ tupE []
                           (Nothing, [(a,v0,rec)]) -> normalB $ appE rec (varE v0)
-                          (Nothing, vs)         -> normalB $ tupE $ map (\(a,vN,rN) -> appE rN $ varE vN) vs
+                          (Nothing, vs)           -> normalB $ tupE $ map (\(a,vN,rN) -> appE rN $ varE vN) vs
                         ) []
                     | G4S.PRHS{G4S.alphas = as, G4S.pDirective = dir} <- ps
                     ]
@@ -687,6 +687,10 @@ g4_decls ast = let
                 
             maybeBaseType (Left _) = Nothing
             maybeBaseType (Right x) = Just x
+                
+            isValid (Left x)   = G4S.isGNonTerm x
+            isValid (Right _)  = True
+            --isValid _          = False
 
             vars :: [Either G4S.ProdElem BaseType] -> [(Maybe BaseType, String, String)]
             vars as = let
@@ -694,19 +698,20 @@ g4_decls ast = let
                 vars' (base_type, i, Nothing)  = (base_type, "Nothing", "undefined")
                 --vars' (base_type, i, Nothing)  = (base_type, "[]", "undefined")
                       
-                isValid (Left x)   = G4S.isGNonTerm x
-                isValid (Right _)  = True
-                --isValid _          = False
 
-              in (map vars' . map (\(i,a) -> (maybeBaseType a, i, justStr' a)) . zip [0 .. length as] . filter isValid) as
+              in (map vars' . map (\(i,a) -> (maybeBaseType a, i, justStr' a)) . (\xs -> zip [0 .. length xs] xs) . filter isValid) as
 
-            astListPattern as = listP $ catMaybes
+            astListPattern as = listP
                   [ case a of
-                      Right x                     -> Nothing
-                      Left (G4S.GNonTerm annot s) -> Just $ varP  $ mkName $ "v" ++ show i ++ "_" ++ annotName annot s
-                      otherwise                   -> Just wildP
-                  | (i, a) <- zip [0 .. length as] as
+                      (G4S.GNonTerm annot s)  -> varP  $ mkName $ "v" ++ show i ++ "_" ++ annotName annot s
+                      otherwise               -> wildP
+                  | (i, a) <- catLeftsTuple $ zip [0 .. length as] as
                   ]
+
+            catLeftsTuple :: [(i, Either a b)] -> [(i,a)]
+            catLeftsTuple [] = []
+            catLeftsTuple ((i, Left x):rst) = (i, x) : catLeftsTuple rst
+            catLeftsTuple (_:rst)           = catLeftsTuple rst
 
             astAppRec b (Just Mybe, varName, _) = appE b (conE $ mkName varName)
             astAppRec b (Just List, varName, _) = appE b (listE [])
@@ -741,6 +746,8 @@ g4_decls ast = let
                                           then foldl astAppRec (conE $ mkName d) vs
                                           else foldl astAppRec (varE $ mkName d) vs
                             (Nothing, [])   -> tupE []
+                            (Nothing, [(Just Mybe, varName, _)]) -> conE $ mkName varName
+                            (Nothing, [(Just List, varName, _)]) -> listE []
                             (Nothing, [(base_type, v0@(v:_), rec)])
                               | isUpper v   -> conE $ mkName v0 -- 'Nothing' base case
                               | otherwise   -> appE (varE $ mkName rec) (varE $ mkName v0)
