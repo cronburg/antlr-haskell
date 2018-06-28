@@ -699,7 +699,7 @@ g4_decls ast = let
                 --vars' (base_type, i, Nothing)  = (base_type, "[]", "undefined")
                       
 
-              in (map vars' . map (\(i,a) -> (maybeBaseType a, i, justStr' a)) . (\xs -> zip [0 .. length xs] xs) . filter isValid) as
+              in (map vars' . map (\(i,a) -> (maybeBaseType a, i, justStr' a)) . filter (isValid . snd) . zip [0 .. length as]) as
 
             astListPattern as = listP
                   [ case a of

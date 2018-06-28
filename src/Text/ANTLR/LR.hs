@@ -1,5 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, ExplicitForAll, DeriveGeneric, DeriveAnyClass
-  , FlexibleContexts, StandaloneDeriving, OverloadedStrings, MonadComprehensions #-}
+  , FlexibleContexts, StandaloneDeriving, OverloadedStrings, MonadComprehensions
+  , InstanceSigs #-}
 module Text.ANTLR.LR
   ( Item(..), ItemLHS(..)
   , kernel, items

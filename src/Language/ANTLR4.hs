@@ -10,6 +10,7 @@ module Language.ANTLR4
   , S.Set(..)
   , T.Token(..)
   , module T
+  , LRResult(..)
   )
 where
 
