@@ -19,6 +19,7 @@ import qualified Language.Haskell.TH as TH
 import Language.ANTLR4.Boot.Quote (antlr4)
 import Language.ANTLR4.Syntax
 import qualified Language.ANTLR4.Boot.Syntax  as G4S
+import qualified Language.ANTLR4.Boot.Syntax (Regex(..), G4(..))
 import qualified Language.ANTLR4.Boot.Quote   as G4Q
 
 import Debug.Trace as D
@@ -44,8 +45,8 @@ regexAnyChar = G4S.Negation (G4S.CharSet [])
         | decl1 ';' decls           -> cons
         ;
 
-  decl1 : 'grammar' UpperID                 -> G4S.Grammar
-        | LowerID ':' prods                 -> G4S.Prod
+  decl1 : 'grammar' UpperID                 -> Grammar
+        | LowerID ':' prods                 -> Prod
         | UpperID ':' lexemeRHS             -> lexDecl
         | 'fragment' UpperID ':' lexemeRHS  -> lexFragment
         ;
@@ -95,25 +96,25 @@ regexAnyChar = G4S.Negation (G4S.CharSet [])
 
   // Regex Stuff:
 
-  regexes1 : regexes                -> G4S.Concat
+  regexes1 : regexes                -> Concat
            ;
 
   regexes : regex                   -> list
           | regex regexes           -> cons
           ;
 
-  regex   :     regex1 '?'          -> G4S.Question
-          |     regex1 '*'          -> G4S.Kleene
-          |     regex1 '+'          -> G4S.PosClos
-          | '~' regex1              -> G4S.Negation
+  regex   :     regex1 '?'          -> Question
+          |     regex1 '*'          -> Kleene
+          |     regex1 '+'          -> PosClos
+          | '~' regex1              -> Negation
           |     regex1              -> id
           ;
 
-  regex1  : '[' charSet ']'           -> G4S.CharSet
+  regex1  : '[' charSet ']'           -> CharSet
           | Literal                   -> literalRegex
-          | UpperID                   -> G4S.Named
+          | UpperID                   -> Named
           | '(' regexes1 ')'
-          | unionR                    -> G4S.Union
+          | unionR                    -> Union
           | '.'                       -> regexAnyChar
           ;
 

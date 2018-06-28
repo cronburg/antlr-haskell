@@ -82,7 +82,7 @@ isWS T_WHITESPACE = True
 isWS _ = False
 
 main = do
-  case glrParse isWS "((milk juice) (honey marmalade))" of
+  case glrParse isWS "((m1lk ju1ce) (h0ney marmalade))" of
     (ResultAccept ast) -> print $ ast2sexpr ast
     x                  -> print x
 

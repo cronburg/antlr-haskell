@@ -20,7 +20,10 @@ import qualified Language.Haskell.Meta as LHM
 
 import Control.Monad (mapM)
 import qualified Language.ANTLR4.Boot.Syntax as G4S
-import qualified Language.ANTLR4.Boot.Parser as G4P
+
+--import qualified Language.ANTLR4.Boot.Parser as G4P
+import qualified Language.ANTLR4.Boot.SplicedParser as G4P
+
 import qualified Language.ANTLR4.Regex  as G4R
 import Text.ANTLR.Grammar
 import Text.ANTLR.Parser (AST(..), StripEOF(..))
@@ -29,6 +32,7 @@ import Text.ANTLR.Lex.Tokenizer as T
 import Text.ANTLR.LR as LR
 import qualified Text.ANTLR.Allstar as ALL
 import qualified Text.ANTLR.LL1 as LL
+import qualified Text.ANTLR.Set as S
 
 import Text.ANTLR.Set (Set(..))
 import qualified Text.ANTLR.Set as Set
@@ -88,6 +92,23 @@ data LexemeType =
   | AString               -- Type was unspecified in the G4 lexeme or specified as a String
   | Named String TH.TypeQ -- Type was specified as a directive in the G4 lexeme
 
+aparse :: String -> TH.Q [TH.Dec]
+aparse input = do
+  loc <- TH.location
+  let fileName = TH.loc_filename loc
+  let (line,column) = TH.loc_start loc
+
+  case G4P.parseANTLR input of
+    r@(LR.ResultAccept ast) -> codeGen r
+    LR.ResultSet    s   ->
+      if S.size s == 1
+        then codeGen (S.findMin s)
+        else error $ pshow' s
+    err                 -> error $ pshow' err
+
+codeGen (LR.ResultAccept ast) = g4_decls $ G4P.ast2decls ast
+
+{-
 --   parser in quasiquotation monad
 aparse :: String -> TH.Q [TH.Dec]
 aparse input = do
@@ -100,6 +121,7 @@ aparse input = do
  case G4P.parseANTLR fileName line column input of
    Left err -> unsafePerformIO $ fail $ show err
    Right x  -> g4_decls x
+-}
 
 data BaseType = List | Mybe
   deriving (Eq, Ord, Show)
