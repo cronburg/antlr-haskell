@@ -314,7 +314,9 @@ g4Regexes
       Text.ANTLR.Lex.Regex.Concat
         [Text.ANTLR.Lex.Regex.Symbol '\'',
          Text.ANTLR.Lex.Regex.Concat
-           [Text.ANTLR.Lex.Regex.PosClos (Text.ANTLR.Lex.Regex.NotClass "'"),
+           [Text.ANTLR.Lex.Regex.PosClos
+              (Union (Literal "\\'")
+                     (NotClass "'")), --Text.ANTLR.Lex.Regex.NotClass "'"),
             Text.ANTLR.Lex.Regex.Symbol '\'']]),
      (T_LineComment, 
       Text.ANTLR.Lex.Regex.Concat

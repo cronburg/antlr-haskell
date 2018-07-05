@@ -19,7 +19,7 @@ import qualified Language.Haskell.TH as TH
 import Language.ANTLR4.Boot.Quote (antlr4)
 import Language.ANTLR4.Syntax
 import qualified Language.ANTLR4.Boot.Syntax  as G4S
-import qualified Language.ANTLR4.Boot.Syntax (Regex(..), G4(..))
+--import Language.ANTLR4.Boot.Syntax (Regex(..), G4(..))
 import qualified Language.ANTLR4.Boot.Quote   as G4Q
 
 import Debug.Trace as D
@@ -38,6 +38,18 @@ plusGNonTerm = G4S.GNonTerm (G4S.Regular '+')
 
 regexAnyChar = G4S.Negation (G4S.CharSet [])
 
+-- TODO: Qualified names on RHS / as g4 directive
+g4sGrammar = G4S.Grammar
+g4sProd    = G4S.Prod
+g4sCharSet = G4S.CharSet
+g4sPosClos = G4S.PosClos
+g4sQuestion  = G4S.Question
+g4sKleene    = G4S.Kleene
+g4sNegation  = G4S.Negation
+g4sConcat    = G4S.Concat
+g4sUnion     = G4S.Union
+g4sNamed     = G4S.Named
+
 [antlr4|
   grammar G4;
 
@@ -45,8 +57,8 @@ regexAnyChar = G4S.Negation (G4S.CharSet [])
         | decl1 ';' decls           -> cons
         ;
 
-  decl1 : 'grammar' UpperID                 -> Grammar
-        | LowerID ':' prods                 -> Prod
+  decl1 : 'grammar' UpperID                 -> g4sGrammar
+        | LowerID ':' prods                 -> g4sProd
         | UpperID ':' lexemeRHS             -> lexDecl
         | 'fragment' UpperID ':' lexemeRHS  -> lexFragment
         ;
@@ -69,6 +81,12 @@ regexAnyChar = G4S.Negation (G4S.CharSet [])
 
   alphas : alpha                    -> list
          | alpha alphas             -> cons
+				 | '(' alphas ')'
+
+	// TODO:
+				 | '(' alphas ')' '?'
+				 | '(' alphas ')' '*'
+				 | '(' alphas ')' '+'
          ;
 
   alpha : Literal '?'               -> maybeGTerm
@@ -85,36 +103,27 @@ regexAnyChar = G4S.Negation (G4S.CharSet [])
         | UpperID                   -> gnonTerm
         ;
 
-  UpperID : [A-Z][a-zA-Z0-9_]*      -> String;
-  LowerID : [a-z][a-zA-Z0-9_]*      -> String;
-  Literal     : '\'' (~ '\'')+ '\'' -> stripQuotesReadEscape;
-  LineComment : '//' (~ '\n')* '\n' -> String;
-  
-  EscapedChar : '\\\\' [tnrfv]      -> readEscape ;
-  SetChar     : ~ '\]'              -> char ;
-  WS          : [ \t\n\r\f\v]+      -> String;
-
   // Regex Stuff:
 
-  regexes1 : regexes                -> Concat
+  regexes1 : regexes                -> g4sConcat
            ;
 
   regexes : regex                   -> list
           | regex regexes           -> cons
           ;
 
-  regex   :     regex1 '?'          -> Question
-          |     regex1 '*'          -> Kleene
-          |     regex1 '+'          -> PosClos
-          | '~' regex1              -> Negation
+  regex   :     regex1 '?'          -> g4sQuestion
+          |     regex1 '*'          -> g4sKleene
+          |     regex1 '+'          -> g4sPosClos
+          | '~' regex1              -> g4sNegation
           |     regex1              -> id
           ;
 
-  regex1  : '[' charSet ']'           -> CharSet
+  regex1  : '[' charSet ']'           -> g4sCharSet
           | Literal                   -> literalRegex
-          | UpperID                   -> Named
+          | UpperID                   -> g4sNamed
           | '(' regexes1 ')'
-          | unionR                    -> Union
+          | unionR                    -> g4sUnion
           | '.'                       -> regexAnyChar
           ;
 
@@ -131,9 +140,17 @@ regexAnyChar = G4S.Negation (G4S.CharSet [])
            | EscapedChar            -> list
            ;
 
-  // LiteralR : '\'' (~ '\'')+ '\''    -> stripQuotes ;
+  UpperID : [A-Z][a-zA-Z0-9_]*      -> String;
+  LowerID : [a-z][a-zA-Z0-9_]*      -> String;
+  Literal     : '\'' (~ '\'')+ '\'' -> stripQuotesReadEscape;
+  LineComment : '//' (~ '\n')* '\n' -> String;
+  
+  SetChar     : ~ ']'               -> char ;
+  WS          : [ \t\n\r\f\v]+      -> String;
+  EscapedChar : '\\' [tnrfv]      	-> readEscape ;
 
 |]
+-- LiteralR : '\'' (~ '\'')+ '\''    -> stripQuotes ;
 
 isWhitespace T_LineComment = True
 isWhitespace T_WS = True
@@ -151,7 +168,7 @@ g4_codeGen input = do
     LR.ResultSet    s   ->
       if S.size s == 1
         then codeGen (S.findMin s)
-        else error $ pshow' s
+        else D.trace (pshow' s) $ codeGen (S.findMin s)
     err                 -> error $ pshow' err
 
 -- TODO: Convert a Universal AST into a [G4S.G4]
