@@ -116,7 +116,7 @@ prodP = do
       str <- manyTill anyChar (char '\n')
       whiteSpace
       traceM $ "[directiveP]" ++ show str
-      return str
+      return $ LowerD str
 
 -- TODO: not use getInput
 rEOF = do
@@ -125,6 +125,11 @@ rEOF = do
     '-':'>':_ -> True
     ';':_     -> True
     _         -> False)
+
+toDirective [] = LowerD []
+toDirective s@(h:rst)
+  | isUpper h = UpperD s
+  | otherwise = LowerD s
 
 lexerP :: PS.Parser [G4]
 lexerP = do
@@ -136,7 +141,7 @@ lexerP = do
   traceM $ "Regex: " ++ show r
   optionMaybe $ symbol "->"
   mDir <- optionMaybe $ manyTill anyToken (reservedOp ";")
-  return $ [Lex mAnnot (trim (h : t)) (LRHS r (trim <$> mDir))]
+  return $ [Lex mAnnot (trim (h : t)) (LRHS r (toDirective <$> trim <$> mDir))]
   where
     annot = fragment -- <||> ....
     fragment = do

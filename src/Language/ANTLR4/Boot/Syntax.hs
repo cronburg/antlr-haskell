@@ -3,6 +3,7 @@ module Language.ANTLR4.Boot.Syntax
   ( G4(..), PRHS(..), ProdElem(..), GAnnot(..)
   , LRHS(..), Regex(..), isGTerm, isGNonTerm
   , TermAnnot(..), isMaybeAnnot, isNoAnnot, annot
+  , Directive(..)
   ) where
 import Text.ANTLR.Grammar ()
 import Language.Haskell.TH.Lift (Lift(..))
@@ -27,8 +28,14 @@ data PRHS = PRHS
   { alphas      :: [ProdElem]
   , pred        :: Maybe Exp
   , mutator     :: Maybe Exp
-  , pDirective  :: Maybe String
+  , pDirective  :: Maybe Directive
   } deriving (Show, Eq, Lift, Generic)
+
+data Directive =
+    UpperD String
+  | LowerD String
+  | HaskellD String
+  deriving (Show, Eq, Lift, Generic, Hashable)
 
 instance Hashable PRHS where
   hashWithSalt salt prhs = salt `hashWithSalt` alphas prhs
@@ -62,7 +69,7 @@ data    GAnnot   = Fragment
   deriving (Show, Eq, Lift, Generic, Hashable)
 
 data LRHS     = LRHS { regex     :: Regex Char
-                     , directive :: Maybe String
+                     , directive :: Maybe Directive
                      }
   deriving (Show, Eq, Lift, Generic, Hashable)
 

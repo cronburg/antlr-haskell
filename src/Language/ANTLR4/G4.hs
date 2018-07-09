@@ -50,6 +50,10 @@ g4sConcat    = G4S.Concat
 g4sUnion     = G4S.Union
 g4sNamed     = G4S.Named
 
+dUpper   = G4S.UpperD
+dLower   = G4S.LowerD
+dHaskell = G4S.HaskellD
+
 [antlr4|
   grammar G4;
 
@@ -75,9 +79,12 @@ g4sNamed     = G4S.Named
           | alphas                  -> prodNoDir
           ;
 
-  directive : UpperID
-            | LowerID
+  directive : UpperID             -> dUpper
+            | LowerID             -> dLower
+            | '${' HaskellExp '}' -> dHaskell
             ;
+
+  HaskellExp : ( ~ '}' )+ -> String;
 
   alphas : alpha                    -> list
          | alpha alphas             -> cons

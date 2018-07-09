@@ -48,7 +48,7 @@ data Item
      ;
 
   item
-     : atom                   -> Atm
+     : atom                   -> ${\a -> Atm a}
      | list                   -> List
      | '(' item '.' item ')'  -> Field
      ;

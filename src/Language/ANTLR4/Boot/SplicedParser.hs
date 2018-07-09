@@ -448,9 +448,9 @@ ast2decls
   = (cons (ast2decl1 v0_decl1)) (ast2decls v2_decls)
 ast2decls ast2 = error (show ast2)
 ast2directive (AST NT_directive [T T_UpperID] [v0_UpperID])
-  = ast2UpperID v0_UpperID
+  = G4S.UpperD $ ast2UpperID v0_UpperID
 ast2directive (AST NT_directive [T T_LowerID] [v0_LowerID])
-  = ast2LowerID v0_LowerID
+  = G4S.LowerD $ ast2LowerID v0_LowerID
 ast2directive ast2 = error (show ast2)
 ast2lexemeRHS
   (AST NT_lexemeRHS

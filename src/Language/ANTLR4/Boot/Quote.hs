@@ -245,13 +245,20 @@ g4_decls ast = let
     -- e.g. [('UpperID', AString), ('SetChar', Named String)]
     lexemeTypes :: [(String, LexemeType)]
     lexemeTypes = let
+
+        nullID (G4S.UpperD xs)  = null xs
+        nullID (G4S.LowerD xs)  = null xs
+        nullID (G4S.HaskellD _) = False
+
         lN :: G4S.G4 -> [(String, LexemeType)]
         lN (G4S.Lex{G4S.annotation = Nothing, G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Nothing}}) = [(lName, AString)]
         lN (G4S.Lex{G4S.annotation = Nothing, G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Just s}})
-          | s == "String"     = [(lName, AString)]
-          | null s            = [(lName, AString)] -- quirky G4 parser
-          | isUpper (head s)  = [(lName, Named s (conT $ mkName s))]
-          | otherwise         = [(lName, Named s (info2returnType <$> reify (mkName s)))]
+          | s == (G4S.UpperD "String") = [(lName, AString)]
+          | nullID s          = [(lName, AString)] -- quirky G4 parser
+          | otherwise = case s of
+              (G4S.UpperD s) -> [(lName, Named s (conT $ mkName s))]
+              (G4S.LowerD s)     -> [(lName, Named s (info2returnType <$> reify (mkName s)))]
+              (G4S.HaskellD s)   -> [] -- TODO?
         lN _ = []
       in concatMap lN ast
       --map (\s -> normalC (mkName s) []) lN'
@@ -285,17 +292,17 @@ g4_decls ast = let
         
         gTAP :: G4S.ProdElem -> [G4S.G4]
         gTAP (G4S.GNonTerm (G4S.Regular '?') nt) = trace (show nt)
-          [ withAlphas (nt ++ "_quest") "Maybe" [G4S.GNonTerm G4S.NoAnnot nt]
-          , withAlphas (nt ++ "_quest") "Maybe" [] -- epsilon
+          [ withAlphas (nt ++ "_quest") (G4S.UpperD "Maybe") [G4S.GNonTerm G4S.NoAnnot nt]
+          , withAlphas (nt ++ "_quest") (G4S.UpperD "Maybe") [] -- epsilon
           ]
         gTAP (G4S.GNonTerm (G4S.Regular '*') nt) =
-          [ withAlphas (nt ++ "_star")  "cons"  [G4S.GNonTerm G4S.NoAnnot nt, G4S.GNonTerm G4S.NoAnnot (nt ++ "_star")]
-          , withAlphas (nt ++ "_star")  "list"  [G4S.GNonTerm G4S.NoAnnot nt]
-          , withAlphas (nt ++ "_star")  "list"  []
+          [ withAlphas (nt ++ "_star")  (G4S.LowerD "cons")  [G4S.GNonTerm G4S.NoAnnot nt, G4S.GNonTerm G4S.NoAnnot (nt ++ "_star")]
+          , withAlphas (nt ++ "_star")  (G4S.LowerD "list")  [G4S.GNonTerm G4S.NoAnnot nt]
+          , withAlphas (nt ++ "_star")  (G4S.LowerD "list")  []
           ]
         gTAP (G4S.GNonTerm (G4S.Regular '+') nt) =
-          [ withAlphas (nt ++ "_plus")  "cons"  [G4S.GNonTerm G4S.NoAnnot nt, G4S.GNonTerm G4S.NoAnnot (nt ++ "_plus")]
-          , withAlphas (nt ++ "_plus")  "list"  [G4S.GNonTerm G4S.NoAnnot nt]
+          [ withAlphas (nt ++ "_plus")  (G4S.LowerD "cons")  [G4S.GNonTerm G4S.NoAnnot nt, G4S.GNonTerm G4S.NoAnnot (nt ++ "_plus")]
+          , withAlphas (nt ++ "_plus")  (G4S.LowerD "list")  [G4S.GNonTerm G4S.NoAnnot nt]
           ]
         gTAP (G4S.GNonTerm G4S.NoAnnot nt) = []
         gTAP (G4S.GTerm _ t) = []
@@ -367,14 +374,20 @@ g4_decls ast = let
 
     -- 
     lexemeTypeConstructors = let
+        nullD (G4S.UpperD s) = null s
+        nullD (G4S.LowerD s) = null s
+        nullD (G4S.HaskellD s) = null s
+
         lTC (i, lex@(G4S.Lex{G4S.annotation = Nothing, G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.directive = Just d}}))
           | null lName       = error $ "null lexeme name: " ++ show lex
-          | null d           = Just $ normalC (mkName $ "V_" ++ lName) [bangType defBang (conT $ mkName "String")]
-          | isUpper $ head d = Just $ normalC (mkName $ "V_" ++ lName) [bangType defBang (conT $ mkName d)]
-          | otherwise        = Just $ do
-              info <- reify $ mkName d
-              normalC (mkName $ "V_" ++ lName) [bangType defBang (return $ info2returnType info)]
-            --Just $ [|| $$(haskellParseExp d) ||] --error $ "unimplemented use of function in G4 directive: " ++ show d
+          | nullD d          = Just $ normalC (mkName $ "V_" ++ lName) [bangType defBang (conT $ mkName "String")]
+          | otherwise = case d of
+              (G4S.UpperD d) -> Just $ normalC (mkName $ "V_" ++ lName) [bangType defBang (conT $ mkName d)]
+              (G4S.LowerD d) -> Just $ do
+                  info <- reify $ mkName d
+                  normalC (mkName $ "V_" ++ lName) [bangType defBang (return $ info2returnType info)]
+                --Just $ [|| $$(haskellParseExp d) ||] --error $ "unimplemented use of function in G4 directive: " ++ show d
+              (G4S.HaskellD s) -> Nothing -- TODO?
         lTC _ = Nothing
       in   ((catMaybes $ map lTC (zip [0 .. length ast - 1] ast))
         ++ (map (\s -> normalC (mkName $ lookupTName "V_" s) []) terminalLiterals))
@@ -554,10 +567,9 @@ g4_decls ast = let
                                      -- $(listP $ map (varP . fst) $ vars as)
                               ]
                         (case (dir, vars as) of
-                          (Just d, vs)    ->
-                                      if isUpper (head d)
-                                        then normalB $ foldl astAppRec (conE $ mkName d) vs
-                                        else normalB $ foldl astAppRec (varE $ mkName d) vs
+                          (Just (G4S.UpperD d), vs) -> normalB $ foldl astAppRec (conE $ mkName d) vs
+                          (Just (G4S.LowerD d), vs) -> normalB $ foldl astAppRec (varE $ mkName d) vs
+                          (Just (G4S.HaskellD d), vs) -> normalB $ foldl astAppRec (haskellParseExp d) vs
                           (Nothing, [])   -> normalB $ tupE []
                           (Nothing, [(a,v0,rec)]) -> normalB $ appE rec (varE v0)
                           (Nothing, vs)           -> normalB $ tupE $ map (\(a,vN,rN) -> appE rN $ varE vN) vs
@@ -568,15 +580,15 @@ g4_decls ast = let
           retType = let
             rT G4S.PRHS{G4S.alphas = as, G4S.pDirective = dir}
               = case (dir, vars as) of
-                  (Just d, vs) ->
-                    if isUpper (head d)
-                      then (do i <- reify $ mkName d
-                               (case i of
-                                        DataConI _ t n -> return $ type2returnType t
-                                        VarI n t _     -> return t
-                                        TyConI (DataD _ n _ _ _ _) -> conT n
-                                        other          -> error $ show other))
-                      else info2returnType <$> reify (mkName d)
+                  (Just (G4S.UpperD d), vs) ->
+                      (do  i <- reify $ mkName d
+                           (case i of
+                                    DataConI _ t n -> return $ type2returnType t
+                                    VarI n t _     -> return t
+                                    TyConI (DataD _ n _ _ _ _) -> conT n
+                                    other          -> error $ show other))
+                  (Just (G4S.LowerD d), vs) -> info2returnType <$> reify (mkName d)
+                  (Just (G4S.HaskellD d), vs) -> error "unimplemented" -- TODO if we ever add back the fncnSig below
                   (Nothing, [])         -> tupleT 0
                   (Nothing, [(a,v0,rec)]) -> tupleT 0
                   (Nothing, vs)         -> tupleT $ length vs
@@ -774,10 +786,9 @@ g4_decls ast = let
               | otherwise = conE $ mkName vN
             
             body dir as = (case (dir, vars as) of
-                            (Just d, vs)    ->
-                                        if isUpper (head d)
-                                          then foldl astAppRec (conE $ mkName d) vs
-                                          else foldl astAppRec (varE $ mkName d) vs
+                            (Just (G4S.UpperD d), vs)    -> foldl astAppRec (conE $ mkName d) vs
+                            (Just (G4S.LowerD d), vs)    -> foldl astAppRec (varE $ mkName d) vs
+                            (Just (G4S.HaskellD d), vs)  -> error "unimplemented" -- TODO
                             (Nothing, [])   -> tupE []
                             (Nothing, [(Just Mybe, varName, _)]) -> conE $ mkName varName
                             (Nothing, [(Just List, varName, _)]) -> listE []
