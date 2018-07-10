@@ -788,7 +788,7 @@ g4_decls ast = let
             body dir as = (case (dir, vars as) of
                             (Just (G4S.UpperD d), vs)    -> foldl astAppRec (conE $ mkName d) vs
                             (Just (G4S.LowerD d), vs)    -> foldl astAppRec (varE $ mkName d) vs
-                            (Just (G4S.HaskellD d), vs)  -> error "unimplemented" -- TODO
+                            (Just (G4S.HaskellD d), vs)  -> foldl astAppRec (haskellParseExp d) vs
                             (Nothing, [])   -> tupE []
                             (Nothing, [(Just Mybe, varName, _)]) -> conE $ mkName varName
                             (Nothing, [(Just List, varName, _)]) -> listE []
