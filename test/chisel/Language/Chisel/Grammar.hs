@@ -8,7 +8,7 @@ module Language.Chisel.Grammar
   , Primitive(..), chiselGrammar, TokenValue(..)
   ) where
 import Language.ANTLR4
-import Language.Chisel.Syntax
+import Language.Chisel.Syntax as S
 
 list a = [a]
 cons = (:)
@@ -20,11 +20,11 @@ append = (++)
              | '(' prodSimple ')'
              ;
 
-  prodSimple : prodID formals magnitude alignment '->' group    -> prodFMA
-             | prodID formals '->' group                        -> prodF
-             | prodID magnitude alignment '->' group            -> prodMA
-             | prodID magnitude '->' group                      -> prodM
-             | LowerID prodID magnitude alignment '->' group    -> prodNMA
+  prodSimple : prodID formals magnitude alignment '->' group    -> S.prodFMA
+             | prodID formals '->' group                        -> S.prodF
+             | prodID magnitude alignment '->' group            -> S.prodMA
+             | prodID magnitude '->' group                      -> S.prodM
+             | LowerID prodID magnitude alignment '->' group    -> S.prodNMA
              ;
 
   formals : LowerID formals             -> cons

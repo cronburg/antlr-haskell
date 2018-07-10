@@ -3,6 +3,9 @@
     , FlexibleInstances, UndecidableInstances #-}
 module Language.ANTLR4.G4 (g4) where
 
+import Control.Arrow ( (&&&) )
+import Data.Char (isUpper)
+
 import Text.ANTLR.Grammar
 import Text.ANTLR.Parser
 import qualified Text.ANTLR.LR as LR
@@ -11,7 +14,6 @@ import Text.ANTLR.Lex.Tokenizer as T
 import qualified Text.ANTLR.Set as S
 import Text.ANTLR.Set (Hashable(..), Generic(..))
 import Text.ANTLR.Pretty
-import Control.Arrow ( (&&&) )
 import Text.ANTLR.Lex.Regex (regex2dfa)
 
 import Language.Haskell.TH.Quote (QuasiQuoter(..))
@@ -54,6 +56,19 @@ dUpper   = G4S.UpperD
 dLower   = G4S.LowerD
 dHaskell = G4S.HaskellD
 
+concatWith cs [] = []
+concatWith cs [x] = x
+concatWith cs (x:xs) = x ++ cs ++ concatWith cs xs
+
+dQual [] = G4S.UpperD []
+dQual xs = case last xs of
+  [] -> G4S.UpperD $ concatWith "." xs
+  (a:as)
+    | isUpper a -> G4S.UpperD $ concatWith "." xs
+    | otherwise -> G4S.LowerD $ concatWith "." xs
+
+qDir l u = [l,u]
+
 [antlr4|
   grammar G4;
 
@@ -79,10 +94,22 @@ dHaskell = G4S.HaskellD
           | alphas                  -> prodNoDir
           ;
 
-  directive : UpperID             -> dUpper
+  directive : qDirective          -> dQual
+            | UpperID             -> dUpper
             | LowerID             -> dLower
             | '${' HaskellExp '}' -> dHaskell
             ;
+
+  qDirective  : UpperID '.' LowerID -> qDir
+              ;
+
+  //qDirective : qDot                 -> list
+  //           | qDot '.' qDirective  -> cons
+  //           ;
+
+  //qDot  : UpperID
+  //      | LowerID
+  //      ;
 
   HaskellExp : ( ~ '}' )+ -> String;
 
