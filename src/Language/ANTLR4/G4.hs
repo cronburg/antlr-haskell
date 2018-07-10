@@ -100,16 +100,16 @@ qDir l u = [l,u]
             | '${' HaskellExp '}' -> dHaskell
             ;
 
-  qDirective  : UpperID '.' LowerID -> qDir
+  qDirective  : UpperID '.' qDot -> qDir
               ;
 
   //qDirective : qDot                 -> list
   //           | qDot '.' qDirective  -> cons
   //           ;
 
-  //qDot  : UpperID
-  //      | LowerID
-  //      ;
+  qDot  : UpperID
+        | LowerID
+        ;
 
   HaskellExp : ( ~ '}' )+ -> String;
 
