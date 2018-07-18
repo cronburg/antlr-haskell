@@ -4,7 +4,8 @@
 
 OPTS=--ghc-options="-ddump-splices"
 
-stack test antlr-haskell:template $OPTS\
+stack test antlr-haskell:simple $OPTS\
+  && stack test antlr-haskell:template $OPTS\
   && stack test antlr-haskell:atn $OPTS\
   && stack test antlr-haskell:coreg4 $OPTS\
   && stack test antlr-haskell:ll $OPTS\
