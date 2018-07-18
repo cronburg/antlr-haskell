@@ -231,4 +231,21 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - antlr-haskell
+  
+  simple:
+    main:                Main.hs
+    source-dirs:
+      - test/simple
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - antlr-haskell
+    - test-framework
+    - test-framework-hunit
+    - test-framework-quickcheck2
+    - QuickCheck
+    - HUnit
+    - call-stack
 
