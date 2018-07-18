@@ -740,7 +740,8 @@ g4_decls ast = let
             vars :: [Either G4S.ProdElem BaseType] -> [(Maybe BaseType, String, String)]
             vars as = let
                 vars' (base_type, i, Just s)   = (base_type, "v" ++ show i ++ "_" ++ s, "ast2" ++ s)
-                vars' (base_type, i, Nothing)  = (base_type, "Nothing", "undefined")
+                vars' (Just Mybe, i, Nothing)  = (Just Mybe, "Nothing", "undefined")
+                vars' (Just List, i, Nothing)  = (Just List, "[]", "undefined")
                 --vars' (base_type, i, Nothing)  = (base_type, "[]", "undefined")
                       
 

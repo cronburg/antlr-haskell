@@ -22,6 +22,10 @@ data Decl = Foo | Bar
 
 	attrDecl : attr* decl ;
 
+  attrDecl2 : attr? decl ;
+
+  attrDecl3 : attr+ decl ;
+
 	attr  : 'a' ';' -> A
         | 'b' ';' -> B
         ;
