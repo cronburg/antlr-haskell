@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric, TypeFamilies, QuasiQuotes
     , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
-    , FlexibleInstances, UndecidableInstances #-}
+    , FlexibleInstances, UndecidableInstances, TemplateHaskell #-}
 module Main where
 import Language.ANTLR4
 

@@ -7,6 +7,7 @@ import qualified Text.ANTLR.Lex.DFA as DFA
 
 import Text.ANTLR.Set (singleton, notMember, union, Set(..), member, Hashable)
 import qualified Text.ANTLR.Set as Set
+import Text.ANTLR.Set (fromList, toList)
 
 import Data.List (maximumBy)
 import GHC.Generics (Generic)
@@ -46,14 +47,15 @@ nfa2dfa_slow nfa@Automata{s0 = s0, _Σ = _Σ, _F = _F0} = let
       | Set.null ts = Set.empty
       | otherwise = let
         
-          _Δ  = [ (_T, (False, singleton a), epsCl (mv _T (Edge a)))
-                | _T <- ts
+          _Δ  = fromList
+                [ (_T, (False, singleton a), epsCl (mv _T (Edge a)))
+                | _T <- toList ts
                 , _T `notMember` marked
-                , a  <- _Σ
+                , a  <- toList _Σ
                 ]
 
-          _Us = [ c | (a,b,c) <- _Δ ]
-          fromStates = [ a | (a,b,c) <- _Δ ]
+          _Us = Set.map (\(a,b,c) -> c) _Δ
+          fromStates = Set.map (\(a,b,c) -> a) _Δ
 
         in _Δ `union` dS (fromStates `union` marked) _Us
     
@@ -63,11 +65,11 @@ nfa2dfa_slow nfa@Automata{s0 = s0, _Σ = _Σ, _F = _F0} = let
     s0' = epsCl $ singleton s0
 
   in Automata
-      { _S = [ tFrom x | x <- _Δ' ] `union` [ tTo x | x <- _Δ' ]
+      { _S = fromList [ tFrom x | x <- toList _Δ' ] `union` fromList [ tTo x | x <- toList _Δ' ]
       , _Σ = _Σ
       , _Δ = _Δ'
       , s0 = s0'
-      , _F = [nfaState | (_,_,nfaState) <- _Δ', c <- nfaState, c `member` _F0]
+      , _F = fromList [nfaState | (_,_,nfaState) <- toList _Δ', c <- toList nfaState, c `member` _F0]
       }
 
 nfa2dfa :: forall s i. (Hashable s, Eq s, Hashable i, Eq i, Ord i)
@@ -96,8 +98,8 @@ nfa2dfa nfa@Automata{s0 = s0, _Σ = _Σ, _S = _S, _F = _F0} = let
                 , _T `notMember` marked
                 ]
 
-          _Us = [ c | (a,b,c) <- _Δ ]
-          fromStates = [ a | (a,b,c) <- _Δ ]
+          _Us = fromList [ c | (a,b,c) <- toList _Δ ]
+          fromStates = fromList [ a | (a,b,c) <- toList _Δ ]
 
         in _Δ `union` dS (fromStates `union` marked) _Us
     
@@ -108,15 +110,15 @@ nfa2dfa nfa@Automata{s0 = s0, _Σ = _Σ, _S = _S, _F = _F0} = let
     s0' = epsCl $ singleton s0
 
   in Automata
-      { _S = [ tFrom x | x <- _Δ' ] `union` [ tTo x | x <- _Δ' ]
+      { _S = fromList [ tFrom x | x <- toList _Δ' ] `union` fromList [ tTo x | x <- toList _Δ' ]
       , _Σ = _Σ
       , _Δ = _Δ'
       , s0 = s0'
-      , _F = [nfaState | (_,_,nfaState) <- _Δ', c <- nfaState, c `member` _F0]
+      , _F = fromList [nfaState | (_,_,nfaState) <- toList _Δ', c <- toList nfaState, c `member` _F0]
       }
 
 allStates :: forall s i. (Hashable i, Eq i) => Set (Transition (Edge s) i) -> Set (State i)
-allStates ts = [ n | (n, _, _) <- ts ] `union` [ n | (_, _, n) <- ts ]
+allStates ts = fromList [ n | (n, _, _) <- toList ts ] `union` fromList [ n | (_, _, n) <- toList ts ]
 
 {- Converts the given list of transitions into a complete NFA / Automata
  - structure, assuming two things:
@@ -141,9 +143,9 @@ shiftAllStates ::
   => (i -> Int) -> (Int -> i) -> NFA s i -> NFA s i -> NFA s i
 shiftAllStates from to
   n1 (n2@Automata{_Δ = _Δ2, _S = _S2, _F = _F2, s0 = s2_0})
-  = n2 { _Δ = [ (to $ from i0 + shift, e, to $ from i1 + shift) | (i0, e, i1) <- _Δ2 ]
-       , _S = [ to $ from i + shift | i <- _S2 ]
-       , _F = [ to $ from i + shift | i <- _F2 ]
+  = n2 { _Δ = fromList [ (to $ from i0 + shift, e, to $ from i1 + shift) | (i0, e, i1) <- toList _Δ2 ]
+       , _S = fromList [ to $ from i + shift | i <- toList _S2 ]
+       , _F = fromList [ to $ from i + shift | i <- toList _F2 ]
        , s0 = to $ from s2_0 + shift
        }
   where
@@ -163,17 +165,17 @@ nfaUnion from to
       `union` _Δ2
       `union` Set.singleton (s0', (False, singleton NFAEpsilon), s1_0)
       `union` Set.singleton (s0', (False, singleton NFAEpsilon), s2_0)
-      `union` [ (f1_0, (False, singleton NFAEpsilon), f0') | f1_0 <- _F1 ]
-      `union` [ (f2_0, (False, singleton NFAEpsilon), f0') | f2_0 <- _F2 ]
+      `union` fromList [ (f1_0, (False, singleton NFAEpsilon), f0') | f1_0 <- toList _F1 ]
+      `union` fromList [ (f2_0, (False, singleton NFAEpsilon), f0') | f2_0 <- toList _F2 ]
 
     s0' = to mx2
     f0' = to $ mx2 + 1
 
   in Automata
     { _S = allStates _Δ'
-    , _Σ =  [ e
-            | (_, es, _)  <- _Δ'
-            , Edge e      <- Set.filter isEdge $ snd es
+    , _Σ =  fromList [ e
+            | (_, es, _)  <- toList _Δ'
+            , Edge e      <- toList $ Set.filter isEdge $ snd es
             ]
     , s0 = s0'
     , _F = Set.fromList [f0']
@@ -189,13 +191,13 @@ nfaConcat from to
     
     _Δ' =     _Δ1
       `union` _Δ2
-      `union` [ (f1_0, (False, singleton NFAEpsilon), s2_0) | f1_0 <- _F1 ]
+      `union` fromList [ (f1_0, (False, singleton NFAEpsilon), s2_0) | f1_0 <- toList _F1 ]
   
   in Automata
     { _S = allStates _Δ'
-    , _Σ =  [ e
-            | (_, es, _)  <- _Δ'
-            , Edge e      <- Set.filter isEdge $ snd es
+    , _Σ =  fromList [ e
+            | (_, es, _)  <- toList _Δ'
+            , Edge e      <- toList $ Set.filter isEdge $ snd es
             ]
     , s0 = s1_0
     , _F = _F2
@@ -214,14 +216,14 @@ nfaKleene from to
     _Δ' =     _Δ1
       `union` Set.singleton (s0', (False, singleton NFAEpsilon), s1_0)
       `union` Set.singleton (s0', (False, singleton NFAEpsilon), f0')
-      `union` [ (f1_0, (False, singleton NFAEpsilon), s1_0) | f1_0 <- _F1 ]
-      `union` [ (f1_0, (False, singleton NFAEpsilon), f0')  | f1_0 <- _F1 ]
+      `union` fromList [ (f1_0, (False, singleton NFAEpsilon), s1_0) | f1_0 <- toList _F1 ]
+      `union` fromList [ (f1_0, (False, singleton NFAEpsilon), f0')  | f1_0 <- toList _F1 ]
 
   in Automata
     { _S = allStates _Δ'
-    , _Σ =  [ e
-            | (_, es, _)  <- _Δ'
-            , Edge e      <- Set.filter isEdge $ snd es
+    , _Σ =  fromList [ e
+            | (_, es, _)  <- toList _Δ'
+            , Edge e      <- toList $ Set.filter isEdge $ snd es
             ]
     , s0 = s0'
     , _F = Set.fromList [f0']

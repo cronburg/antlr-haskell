@@ -1,7 +1,7 @@
 {-# LANGUAGE  QuasiQuotes, TemplateHaskell, ScopedTypeVariables, DataKinds,
-              LambdaCase  #-}
+              LambdaCase, FlexibleContexts #-}
 module Language.ANTLR4.Boot.Quote
-( antlr4, ProdElem(..), g4_decls
+( antlr4, ProdElem(..), g4_decls, mkLRParser
 ) where
 import Prelude hiding (exp, init)
 import System.IO.Unsafe (unsafePerformIO)
@@ -128,6 +128,30 @@ data BaseType = List | Mybe
 
 baseType (G4S.Regular '?') = Mybe
 baseType (G4S.Regular '*') = List
+    
+-- Find the (first) name of the grammar
+grammarName :: [G4S.G4] -> String
+grammarName [] = error "Grammar missing a name"
+grammarName (G4S.Grammar{G4S.gName = gName}:_) = gName
+grammarName (_:xs) = grammarName xs
+    
+mkLower [] = []
+mkLower (a:as) = toLower a : as
+
+mkUpper [] = []
+mkUpper (a:as) = toUpper a : as
+
+justGrammarTy ast s = [t| Grammar $(s) $(ntConT ast) $(tConT ast) |]
+justGrammarTy' ast s = [t| Grammar $(s) $(ntConT ast) (StripEOF (Sym $(tConT ast))) |]
+
+ntConT ast = conT $ mkName $ ntDataName ast
+tConT  ast = conT $ mkName $ tDataName ast
+
+ntDataName ast = gName ast ++ "NTSymbol"
+tDataName  ast = gName ast ++ "TSymbol"
+
+gName ast = grammarName ast
+
 
 g4_decls :: [G4S.G4] -> TH.Q [TH.Dec] -- exp :: G4
 g4_decls ast = let
@@ -186,26 +210,15 @@ g4_decls ast = let
     getNTs G4S.Prod{G4S.pName = pName, G4S.patterns = ps} = pName : concatMap (justNonTerms . G4S.alphas) ps
     getNTs _ = []
 
-    -- Find the (first) name of the grammar
-    grammarName :: [G4S.G4] -> String
-    grammarName [] = error "Grammar missing a name"
-    grammarName (G4S.Grammar{G4S.gName = gName}:_) = gName
-    grammarName (_:xs) = grammarName xs
-
-    gName = grammarName ast
-
-    ntDataName = gName ++ "NTSymbol"
-    tDataName  = gName ++ "TSymbol"
-
     -- Things Symbols must derive:
     symbolDerives = derivClause Nothing $ map (conT . mkName)
-      [ "Eq", "Ord", "Show", "Hashable", "Generic", "Bounded", "Enum"]
+      [ "Eq", "Ord", "Show", "Hashable", "Generic", "Bounded", "Enum", "Data", "Lift"]
 
     -- Nonterminal symbol data type (enum) for this grammar:
     ntDataDeclQ :: DecQ
     ntDataDeclQ =
       dataD (cxt [])
-      (mkName ntDataName)
+      (mkName $ ntDataName ast)
       []
       Nothing
       (map (\s -> normalC (mkName $ "NT_" ++ s) []) $ nonterms ++ regexNonTermSymbols)
@@ -231,15 +244,12 @@ g4_decls ast = let
     tDataDeclQ :: DecQ
     tDataDeclQ =
       dataD (cxt [])
-        (mkName tDataName)  
+        (mkName $ tDataName ast)
         []
         Nothing 
         (map (\s -> normalC (mkName s) []) (map ("T_" ++) allLexicalSymbols))
         --(\s -> normalC (mkName $ lookupTName "T_" s) []) lexemes) ++ (lexemeNames "T_"))
         [symbolDerives]
-
-    ntConT = conT $ mkName ntDataName
-    tConT  = conT $ mkName tDataName
 
     -- THIS EXCLUDES LEXEME FRAGMENTS:
     -- e.g. [('UpperID', AString), ('SetChar', Named String)]
@@ -347,30 +357,22 @@ g4_decls ast = let
     s0 = conE $ mkName $ "NT_" ++ head nonterms
 
     grammar gTy = [| (defaultGrammar $(s0) :: $(return gTy))
-      { ns = Set.fromList [minBound .. maxBound :: $(ntConT)]
-      , ts = Set.fromList [minBound .. maxBound :: $(tConT)]
+      { ns = Set.fromList [minBound .. maxBound :: $(ntConT ast)]
+      , ts = Set.fromList [minBound .. maxBound :: $(tConT ast)]
       , ps = $(listE $ getProds $ ast ++ genTermAnnotProds ast)
       } |]
 
     --grammarTy s = [t| forall $(s). (Prettify $(s)) => $(justGrammarTy s) |]
-    grammarTy s = [t| (Prettify $(s)) => $(justGrammarTy s) |]
-
-    justGrammarTy s = [t| Grammar $(s) $(ntConT) $(tConT) |]
-
-    mkLower [] = []
-    mkLower (a:as) = toLower a : as
-
-    mkUpper [] = []
-    mkUpper (a:as) = toUpper a : as
+    grammarTy s = [t| (Prettify $(s)) => $(justGrammarTy ast s) |]
 
     {----------------------- Tokenizer -----------------------}
 
-    tokenNameTypeQ = tySynD (mkName "TokenName") [] (conT $ mkName tDataName)
+    tokenNameTypeQ = tySynD (mkName "TokenName") [] (conT $ mkName $ tDataName ast)
     
     defBang = bang noSourceUnpackedness noSourceStrictness
 
     lexemeValueDerives = derivClause Nothing $ map (conT . mkName)
-      ["Show", "Ord", "Eq", "Generic", "Hashable"]
+      ["Show", "Ord", "Eq", "Generic", "Hashable", "Data"]
 
     -- 
     lexemeTypeConstructors = let
@@ -476,7 +478,7 @@ g4_decls ast = let
         mkLexR (G4S.Lex{G4S.annotation = Nothing, G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.regex = r}}) = Just
           [| ($(conE $ mkName $ lookupTName "T_" lName), $(lift $ convertRegex getNamedRegex r)) |]
         mkLexR _ = Nothing
-      in valD (varP $ mkName $ mkLower $ gName ++ "Regexes")
+      in valD (varP $ mkName $ mkLower $ gName ast ++ "Regexes")
           (normalB $ listE (map mkLitR terminalLiterals ++ (catMaybes $ map mkLexR ast)))
           []
 
@@ -851,13 +853,13 @@ g4_decls ast = let
         
         let tokVal    = mkName "TokenValue"
             tokName   = mkName "TokenName"
-            ntSym     = mkName ntDataName
-            tSym      = mkName tDataName
-            nameAST   = mkName (mkUpper gName ++ "AST")
-            nameToken = mkName (mkUpper gName ++ "Token")
-            nameDFAs  = mkName (mkLower gName ++ "DFAs")
-            name      = mkName $ mkLower (gName ++ "Grammar'")
-            nameUnit  = mkName $ mkLower (gName ++ "Grammar")
+            ntSym     = mkName $ ntDataName ast
+            tSym      = mkName $ tDataName ast
+            nameAST   = mkName (mkUpper $ gName ast ++ "AST")
+            nameToken = mkName (mkUpper $ gName ast ++ "Token")
+            nameDFAs  = mkName (mkLower $ gName ast ++ "DFAs")
+            name      = mkName $ mkLower (gName ast ++ "Grammar'")
+            nameUnit  = mkName $ mkLower (gName ast ++ "Grammar")
         prettyTFncnName <- newName "prettifyT"
         prettyValueFncnName <- newName "prettifyValue"
        
@@ -866,19 +868,19 @@ g4_decls ast = let
         
         let unitTy = [t| () |]
         
-        gTyUnit <- justGrammarTy unitTy
+        gTyUnit <- justGrammarTy ast unitTy
         gUnitFunD <- funD nameUnit [clause [] (normalB $ [| LL.removeEpsilons $(varE name) |]) []]
         gTySigUnit <- sigD nameUnit (return gTyUnit)
 
         ntDataDecl <- ntDataDeclQ
         tDataDecl  <- tDataDeclQ
         gTy    <- grammarTy stateType
-        gTy'   <- justGrammarTy stateType
+        gTy'   <- justGrammarTy ast stateType
         gTySig <- sigD name (return gTy)
         g      <- grammar gTy'
         gFunD  <- funD name [clause [] (normalB (return g)) []]
-        prettyNT:_     <- [d| instance Prettify $(ntConT) where prettify = rshow |]
-        prettyT:_      <- [d| instance Prettify $(tConT) where prettify = $(varE prettyTFncnName) |]
+        prettyNT:_     <- [d| instance Prettify $(ntConT ast) where prettify = rshow |]
+        prettyT:_      <- [d| instance Prettify $(tConT ast) where prettify = $(varE prettyTFncnName) |]
         prettyValue:_  <- [d| instance Prettify $(conT tokVal) where prettify = $(varE prettyValueFncnName) |]
         lookupTokenD   <- lookupTokenFncnDecl
 
@@ -889,41 +891,42 @@ g4_decls ast = let
         lexeme2Value   <- lexeme2ValueQ lName
 
         regexes <- mkRegexesQ
-        let dfasName    = mkName $ mkLower gName ++ "DFAs"
-        let regexesE    = varE $ mkName $ mkLower gName ++ "Regexes"
+        let dfasName    = mkName $ mkLower (gName ast) ++ "DFAs"
+        let regexesE    = varE $ mkName $ mkLower (gName ast) ++ "Regexes"
         dfas <- funD dfasName [clause [] (normalB [| map (fst &&& regex2dfa . snd) $(regexesE) |]) []]
 
         astDecl <-tySynD nameAST   [] [t| AST $(conT ntSym) $(conT nameToken) |]
         tokDecl <- tySynD nameToken [] [t| Token $(conT tSym) $(conT tokVal) |]
        
-        decls <-
-          [d| instance Ref $(conT ntSym) where
-                type Sym $(conT ntSym) = $(conT ntSym)
-                getSymbol = id
-              
-              tokenize :: String -> [$(conT nameToken)] --Token $(conT tokName) $(conT tokVal)]
-              tokenize = T.tokenize $(varE nameDFAs) lexeme2value
+        decls <- [d|
+          instance Ref $(conT ntSym) where
+            type Sym $(conT ntSym) = $(conT ntSym)
+            getSymbol = id
 
-              slrParse :: [$(conT nameToken)] -> LR.LRResult () $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
-              slrParse = (LR.slrParse $(varE nameUnit) event2ast)
-              
-              --glrParse :: [$(conT nameToken)] -> LR.LRResult $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
-              glrParse :: ($(conT tokName) -> Bool) -> [Char] -> LR.LR1Result $(conT ntSym) 
-                                                                                (StripEOF (Sym $(conT nameToken)))
-                                                                                Char
-                                                                                $(conT nameAST)
-              glrParse filterF = (LR.glrParseInc $(varE nameUnit) event2ast (T.tokenizeInc filterF $(varE nameDFAs) lexeme2value))
-         
-              instance ALL.Token $(conT nameToken) where
-                type Label $(conT nameToken) = StripEOF (Sym $(conT nameToken))
-                getLabel = fromJust . stripEOF . getSymbol
+          tokenize :: String -> [$(conT nameToken)] --Token $(conT tokName) $(conT tokVal)]
+          tokenize = T.tokenize $(varE nameDFAs) lexeme2value
 
-                type Literal $(conT nameToken) = $(conT tokVal)
-                getLiteral = T.tokenValue
+          slrParse :: [$(conT nameToken)] -> LR.LRResult () $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
+          slrParse = (LR.slrParse $(varE nameUnit) event2ast)
 
-              allstarParse :: [$(conT nameToken)] -> Either String $(conT nameAST)
-              allstarParse inp = ALL.parse inp (ALL.NT $(s0)) (ALL.atnOf ($(varE nameUnit) :: $(justGrammarTy unitTy))) True
+          --glrParse :: [$(conT nameToken)] -> LR.LRResult $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
+          glrParse :: ($(conT tokName) -> Bool) -> [Char] -> LR.LR1Result $(conT ntSym) 
+                                                                            (StripEOF (Sym $(conT nameToken)))
+                                                                            Char
+                                                                            $(conT nameAST)
+          glrParse filterF = (LR.glrParseInc $(varE nameUnit) event2ast (T.tokenizeInc filterF $(varE nameDFAs) lexeme2value))
 
+          instance ALL.Token $(conT nameToken) where
+            type Label $(conT nameToken) = StripEOF (Sym $(conT nameToken))
+            getLabel = fromJust . stripEOF . getSymbol
+
+            type Literal $(conT nameToken) = $(conT tokVal)
+            getLiteral = T.tokenValue
+
+          allstarParse :: [$(conT nameToken)] -> Either String $(conT nameAST)
+          allstarParse inp = ALL.parse inp (ALL.NT $(s0)) (ALL.atnOf ($(varE nameUnit) :: $(justGrammarTy ast unitTy))) True
+
+          the_ast = $(lift ast)
           |]
         
         prettyTFncn <- prettyTFncnQ prettyTFncnName
@@ -944,4 +947,16 @@ g4_decls ast = let
           , dfas, astDecl, tokDecl
           ] ++ decls ++ ast2DTFncns
 
+mkLRParser ast value = 
+  let
+    name = mkName $ mkLower (grammarName ast ++ "Grammar")
+    unitTy = [t| () |]
+    name' = [e| $(varE name) :: $(justGrammarTy' ast unitTy) |]
+  in    [d| lr1Table    = $(lift $ LR.lr1Table value)
+            lr1Goto     = LR.lr1Goto $(name')
+            lr1Closure  = LR.lr1Closure $(name')
+            lr1S0       = $(lift $ LR.lr1S0 value)
+
+            glrParse2   = LR.glrParseInc' $(name') lr1Table lr1Goto lr1Closure lr1S0
+            |]
 

@@ -1,6 +1,6 @@
 {-# LANGUAGE QuasiQuotes, DeriveAnyClass, DeriveGeneric, TypeFamilies
 		, DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
-    , FlexibleInstances, UndecidableInstances #-}
+    , FlexibleInstances, UndecidableInstances, DeriveDataTypeable #-}
 module Language.ANTLR4.Example.Hello where
 import Language.ANTLR4
 

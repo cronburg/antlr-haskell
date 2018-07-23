@@ -371,7 +371,7 @@ leftFactor = let
 
   primeify :: Grammar s nts t -> Grammar s (Prime nts) t
   primeify g = G
-    { ns = [ Prime (nts, 0) | nts <- ns g ]
+    { ns = fromList $ [ Prime (nts, 0) | nts <- toList $ ns g ]
     , ts = ts g
     , ps = [ Production (Prime (nts, 0)) (Prod sf $ map prmPE ss)
            | Production nts (Prod sf ss) <- ps g ]

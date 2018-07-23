@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric, TypeFamilies, QuasiQuotes
     , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
-    , FlexibleInstances, UndecidableInstances #-}
+    , FlexibleInstances, UndecidableInstances, DeriveDataTypeable #-}
 module Language.ANTLR4.G4 (g4) where
 
 import Control.Arrow ( (&&&) )
@@ -15,6 +15,8 @@ import qualified Text.ANTLR.Set as S
 import Text.ANTLR.Set (Hashable(..), Generic(..))
 import Text.ANTLR.Pretty
 import Text.ANTLR.Lex.Regex (regex2dfa)
+import Data.Data (Data(..))
+import Language.Haskell.TH.Lift (Lift(..))
 
 import Language.Haskell.TH.Quote (QuasiQuoter(..))
 import qualified Language.Haskell.TH as TH

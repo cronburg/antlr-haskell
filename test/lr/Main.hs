@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveAnyClass, DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric, TypeSynonymInstances #-}
 module Main where
 import Text.ANTLR.Example.Grammar
 import Text.ANTLR.Grammar

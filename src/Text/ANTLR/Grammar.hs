@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses
   , DeriveGeneric, DeriveAnyClass, TypeFamilies, FlexibleContexts
-  , StandaloneDeriving, OverloadedStrings #-}
+  , StandaloneDeriving, OverloadedStrings, DeriveDataTypeable #-}
 module Text.ANTLR.Grammar
   ( Ref(..), sameNTs, sameTs
   , ProdElem(..), ProdElems
@@ -19,6 +19,8 @@ import Data.List (nub, sort)
 
 import System.IO.Unsafe (unsafePerformIO)
 import qualified Debug.Trace as D
+import Data.Data (Data(..), Typeable(..))
+import Language.Haskell.TH.Lift (Lift(..))
 
 import qualified Text.ANTLR.Set as S
 import Text.ANTLR.Set
@@ -87,7 +89,7 @@ data ProdElem nts ts =
     NT nts
   | T  ts
   | Eps
-  deriving (Eq, Ord, Generic, Hashable, Show)
+  deriving (Eq, Ord, Generic, Hashable, Show, Data, Lift)
 
 instance (Prettify nts, Prettify ts) => Prettify (ProdElem nts ts) where
   prettify (NT nts) = prettify nts
@@ -111,9 +113,9 @@ type ProdElems nts ts = [ProdElem nts ts]
 
 data StateFncn s =
     Pass                   -- No predicate or mutator
-  | Sem    (Predicate s)   -- Semantic predicate
-  | Action (Mutator s)     -- Mutator, ProdElems is always empty in this one
-  deriving (Eq, Ord, Generic, Hashable, Show)
+  | Sem    (Predicate ())   -- Semantic predicate
+  | Action (Mutator ())     -- Mutator, ProdElems is always empty in this one
+  deriving (Eq, Ord, Generic, Hashable, Show, Data, Lift)
 
 instance Prettify (StateFncn s) where
   prettify Pass       = return ()
@@ -121,7 +123,7 @@ instance Prettify (StateFncn s) where
   prettify (Action a) = prettify a
 
 data ProdRHS s nts ts = Prod (StateFncn s) (ProdElems nts ts)
-  deriving (Eq, Ord, Generic, Hashable, Show)
+  deriving (Eq, Ord, Generic, Hashable, Show, Data, Lift)
 
 instance (Prettify s, Prettify nts, Prettify ts) => Prettify (ProdRHS s nts ts) where
   prettify (Prod sf ps) = do
@@ -137,7 +139,7 @@ isAction _ = False
 getProds = map (\(Prod _ ss) -> ss)
 
 data Production s nts ts = Production nts (ProdRHS s nts ts)
-  deriving (Eq, Ord, Generic, Hashable)
+  deriving (Eq, Ord, Generic, Hashable, Data, Lift)
 
 instance (Prettify s, Prettify nts, Prettify ts) => Prettify (Production s nts ts) where
   prettify (Production nts (Prod sf ps)) = do
@@ -173,7 +175,14 @@ prodsFor g nts = let
 -- e.g. location / allocation site information, i.e. two
 -- predicates or mutators are equivalent iff they were
 -- constructed from the same production rule.
-data Predicate s = Predicate String (s -> Bool)
+data Predicate p = Predicate String p
+  deriving (Data)
+
+class Pred s where
+  runPred :: s -> Bool
+
+instance (Data s, Typeable s) => Lift (Predicate s)
+instance (Data s, Typeable s) => Lift (Mutator s)
 
 instance Eq (Predicate s) where
   Predicate p1 _ == Predicate p2 _ = p1 == p2
@@ -193,7 +202,8 @@ instance Prettify (Predicate s) where
 instance Prettify (Mutator s) where
   prettify (Mutator n _) = pStr' n
 
-data Mutator   s = Mutator String (s -> s)
+data Mutator   s = Mutator String ()
+  deriving (Data)
 
 instance Eq (Mutator s) where
   Mutator m1 _ == Mutator m2 _ = m1 == m2

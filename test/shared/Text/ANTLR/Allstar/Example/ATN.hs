@@ -64,15 +64,15 @@ exp_paperATN = ATN
     ]
   }
 
-always _ = True
-never  _ = False
+--always _ = True
+--never  _ = False
 
 addPredicates = paperATNGrammar
   { ps =
     ps paperATNGrammar ++
-    [ Production "A" $ Prod (Sem (Predicate "always" always))    [T "a"]
-    , Production "A" $ Prod (Sem (Predicate "never"  never))     []
-    , Production "A" $ Prod (Sem (Predicate "always2" always))   [NT "A", T "a"]
+    [ Production "A" $ Prod (Sem (Predicate "always"  ()))    [T "a"]
+    , Production "A" $ Prod (Sem (Predicate "never"   ()))     []
+    , Production "A" $ Prod (Sem (Predicate "always2" ()))   [NT "A", T "a"]
     ]
   }
 
@@ -95,16 +95,16 @@ pZ5 = Accept "A"
 exp_addPredicates = ATN
   { _Δ = union (_Δ exp_paperATN) $ fromList
     [ (pX,  Epsilon, pX1)
-    , (pX1, PE $ Predicate "always" always, pX2)
+    , (pX1, PE $ Predicate "always" (), pX2)
     , (pX2, TE "a", pX3)
     , (pX3, Epsilon, pX4)
 
     , (pY, Epsilon, pY1)
-    , (pY1, PE $ Predicate "never" never, pY2)
+    , (pY1, PE $ Predicate "never" (), pY2)
     , (pY2, Epsilon, pY3)
 
     , (pZ, Epsilon, pZ1)
-    , (pZ1, PE $ Predicate "always2" always, pZ2)
+    , (pZ1, PE $ Predicate "always2" (), pZ2)
     , (pZ2, NTE "A", pZ3)
     , (pZ3, TE "a", pZ4)
     , (pZ4, Epsilon, pZ5)
@@ -117,17 +117,17 @@ fireZeMissiles state = seq
 
 addMutators = addPredicates
   { ps = ps addPredicates ++
-    [ Production "A" $ Prod (Action (Mutator "fireZeMissiles" fireZeMissiles)) []
-    , Production "S" $ Prod (Action (Mutator "identity"       id)) []
+    [ Production "A" $ Prod (Action (Mutator "fireZeMissiles" ())) []
+    , Production "S" $ Prod (Action (Mutator "identity"       ())) []
     ]
   }
 
 exp_addMutators = ATN
   { _Δ = union (_Δ exp_addPredicates) $ fromList
     [ (Start "A", Epsilon, Middle "A" 7 0)
-    , (Middle "A" 7 0, ME $ Mutator "fireZeMissiles" fireZeMissiles, Accept "A")
+    , (Middle "A" 7 0, ME $ Mutator "fireZeMissiles" (), Accept "A")
     , (Start "S", Epsilon, Middle "S" 8 0)
-    , (Middle "S" 8 0, ME $ Mutator "identity" id, Accept "S")
+    , (Middle "S" 8 0, ME $ Mutator "identity" (), Accept "S")
     ]
   }
 

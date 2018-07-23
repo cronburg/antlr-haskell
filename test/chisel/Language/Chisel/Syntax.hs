@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric #-}
 module Language.Chisel.Syntax where
+import Language.ANTLR4 (Data(..))
 import Text.ANTLR.Pretty
 import Text.ANTLR.Set (Hashable(..), Generic(..))
 
@@ -87,7 +88,7 @@ data SizeArith =
 singleArith = SizeArith (SizeInt 1)
 
 data Primitive = Page | Word | Byte | Bit
-  deriving (Show, Eq, Ord, Generic, Hashable)
+  deriving (Show, Eq, Ord, Generic, Hashable, Data)
 
 lexeme2prim "page"  = Just Page
 lexeme2prim "pages" = Just Page

@@ -69,6 +69,12 @@ library:
 
       #other-modules:
 
+  default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
+
   # LANGUAGE extensions used by modules in this package.
   other-extensions:
     - QuasiQuotes
@@ -94,6 +100,11 @@ tests:
     - QuickCheck
     - HUnit
     - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
 
   atn:
     main:                Main.hs
@@ -112,6 +123,11 @@ tests:
     - QuickCheck
     - HUnit
     - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
       
   coreg4:
     main:                Main.hs
@@ -130,6 +146,11 @@ tests:
     - QuickCheck
     - HUnit
     - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
   
   g4:
     main:                Main.hs
@@ -148,6 +169,11 @@ tests:
     - QuickCheck
     - HUnit
     - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
   
   ll:
     main:                Main.hs
@@ -166,6 +192,11 @@ tests:
     - QuickCheck
     - HUnit
     - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
   
   lr:
     main:                Main.hs
@@ -184,6 +215,11 @@ tests:
     - QuickCheck
     - HUnit
     - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
   
   lexer:
     main:                Main.hs
@@ -202,6 +238,11 @@ tests:
     - QuickCheck
     - HUnit
     - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
   
   chisel:
     main:                Main.hs
@@ -220,6 +261,11 @@ tests:
     - QuickCheck
     - HUnit
     - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
   
   sexpression:
     main:                sexpression.hs
@@ -231,6 +277,11 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - antlr-haskell
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
   
   simple:
     main:                Main.hs
@@ -248,4 +299,10 @@ tests:
     - QuickCheck
     - HUnit
     - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
+
 

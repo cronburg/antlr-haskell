@@ -2,7 +2,7 @@
     , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
     , FlexibleInstances, UndecidableInstances, FlexibleContexts, TemplateHaskell
     , DeriveDataTypeable #-}
-module Main where
+module Grammar where
 import Language.ANTLR4
 
 import System.IO.Unsafe (unsafePerformIO)
@@ -15,17 +15,27 @@ import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
 import Language.Haskell.TH.Syntax (lift)
-import qualified Text.ANTLR.LR as LR
 
-import Grammar
+data Attr = A | B
 
-foo = [ $(lift $ LR.lr1Table simpleGrammar) ]
+data Decl = Foo | Bar
 
---test_star = foo @?= []
-test_star = [] @?= []
+[g4|
+	grammar Simple;
 
-main :: IO ()
-main = defaultMainWithOpts
-  [ testCase "test_star" test_star
-  ] mempty
+	attrDecl : attr* decl ;
+
+  attrDecl2 : attr? decl ;
+
+  attrDecl3 : attr+ decl ;
+
+	attr  : 'a' ';' -> A
+        | 'b' ';' -> B
+        ;
+
+  decl  : 'foo' -> Foo
+        | 'bar' -> Bar
+        ;
+
+|]
 

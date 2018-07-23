@@ -1,4 +1,5 @@
-{-# LANGUAGE GADTs, DeriveAnyClass, DeriveGeneric, OverloadedStrings #-}
+{-# LANGUAGE GADTs, DeriveAnyClass, DeriveGeneric, OverloadedStrings, DeriveLift
+    , QuasiQuotes, TemplateHaskell, DeriveDataTypeable #-}
 module Text.ANTLR.Set
   ( Set, null, size, member, notMember
   , empty, singleton, insert, delete, union, unions
@@ -8,19 +9,70 @@ module Text.ANTLR.Set
   ) where
 --import Data.Set.Monad
 
+import Text.ANTLR.Pretty
+
+import GHC.Generics (Generic, Rep)
+import Data.Hashable (Hashable(..))
+import Language.Haskell.TH.Syntax (Lift(..))
+
+import qualified Data.Functor         as F
+import qualified Control.Applicative  as A
+import qualified Data.Foldable        as Foldable
+
+import Data.Map ( Map(..) )
+import qualified Data.Map as M
+
 import qualified Data.HashSet as S
---import qualified Data.HashSet as S
-  {-( HashSet(..), member, toList, union
-  , null, empty, map
+import Data.HashSet as S
+  ( HashSet(..), member, toList, union
+  , null, empty, map, size, singleton, insert
+  , delete, unions, difference, intersection, foldl'
+  , fromList
   )
 
-import Prelude as P hiding (null, map)
+import Prelude hiding (null, filter, map, foldr, foldl)
 
-type Set = HashSet
+type Set = S.HashSet
 
 notMember e s = not $ member e s
 
--}
+fold = S.foldr
+foldr = S.foldr
+
+findMin :: (Ord a, Hashable a) => Set a -> a
+findMin = minimum . toList
+
+--maybeMin :: (Ord a, Hashable a) => Set a -> Maybe a
+maybeMin as
+  | S.size as == 0  = Nothing
+  | otherwise       = Just $ findMin as
+
+infixl 9 \\
+
+(\\) :: (Hashable a, Eq a) => Set a -> Set a -> Set a
+m1 \\ m2 = difference m1 m2
+
+instance (Hashable a, Eq a, Lift a) => Lift (S.HashSet a) where
+  lift set = [| fromList $(lift $ toList set) |]
+
+instance (Hashable k, Hashable v) => Hashable (Map k v) where
+  hashWithSalt salt mp = salt `hashWithSalt` M.toList mp
+
+instance (Prettify a, Hashable a, Eq a) => Prettify (S.HashSet a) where
+  prettify s = do
+    pStr "Set: "; incrIndent 5
+    pListLines $ toList s
+    incrIndent (-5)
+
+--filter :: (Hashable a, Eq a) => (a -> Bool) -> Set a -> Set a
+filter f s = S.filter f s
+
+--instance (Hashable a, Eq a) => Hashable (S.HashSet a) where
+--  hashWithSalt salt set = salt `hashWithSalt` S.toList (run set)
+
+
+{-
+
 --import Data.Set.Monad (Set(..), member, toList, union, notMember)
 --import qualified Data.Set.Monad as Set
 
@@ -40,6 +92,8 @@ import Control.DeepSeq
 import Data.Hashable (Hashable(..))
 import GHC.Generics (Generic, Rep)
 import Control.DeepSeq (NFData(..))
+import Language.Haskell.TH.Syntax (Lift(..))
+import Data.Data (Data(..))
 
 import Data.Map ( Map(..) )
 import qualified Data.Map as M
@@ -61,6 +115,11 @@ data Set a where
   Bind   :: Set a -> (a -> Set b) -> Set b
   Zero   :: Set a
   Plus   :: Set a -> Set a -> Set a
+
+instance (Data a) => Data (Set a)
+
+instance (Hashable a, Eq a, Lift a) => Lift (Set a) where
+  lift set = [| fromList $(lift $ toList set) |]
 
 run :: (Hashable a, Eq a) => Set a -> S.HashSet a
 run (Prim s)                        = s
@@ -204,4 +263,6 @@ maybeMin :: (Ord a, Hashable a) => Set a -> Maybe a
 maybeMin as
   | size as == 0 = Nothing
   | otherwise    = Just $ findMin as
+
+-}
 

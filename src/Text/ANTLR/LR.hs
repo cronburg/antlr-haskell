@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, ExplicitForAll, DeriveGeneric, DeriveAnyClass
   , FlexibleContexts, StandaloneDeriving, OverloadedStrings, MonadComprehensions
-  , InstanceSigs #-}
+  , InstanceSigs, DeriveDataTypeable, DeriveLift #-}
 module Text.ANTLR.LR
   ( Item(..), ItemLHS(..)
   , kernel, items
@@ -9,6 +9,7 @@ module Text.ANTLR.LR
   , LR1LookAhead
   , LRState, LRTable, LRAction(..)
   , lrParse, LRResult(..), LR1Result(..), glrParse, glrParseInc, isAccept, isError
+  , lr1S0, glrParseInc'
   ) where
 import Text.ANTLR.Grammar
 import qualified Text.ANTLR.LL1 as LL
@@ -22,6 +23,8 @@ import qualified Text.ANTLR.MultiMap as M
 
 --import Data.Map ( Map(..) )
 import qualified Data.Map as M1
+import Data.Data (Data(..))
+import Language.Haskell.TH.Lift (Lift(..))
 
 import Text.ANTLR.Pretty
 import qualified Debug.Trace as D
@@ -34,7 +37,7 @@ trace x y = y
 data ItemLHS nts =
     Init   nts -- S' if S is the grammar start symbol
   | ItemNT nts -- wrapper around a NonTerminal
-  deriving (Eq, Ord, Generic, Hashable)
+  deriving (Eq, Ord, Generic, Hashable, Data, Lift)
 
 instance (Prettify nts) => Prettify (ItemLHS nts) where
   prettify (Init nts)   = prettify nts >> pStr "_0"
@@ -48,7 +51,7 @@ instance (Show nts) => Show (ItemLHS nts) where
 -- into the production we have parsed:
 --                         A        ->  α                          .     β
 data Item a nts sts = Item (ItemLHS nts) (ProdElems nts sts) {- . -} (ProdElems nts sts) a
-  deriving (Generic, Eq, Ord, Hashable, Show)
+  deriving (Generic, Eq, Ord, Hashable, Show, Data, Lift)
 
 instance (Prettify a, Prettify nts, Prettify sts) => Prettify (Item a nts sts) where
   prettify (Item _A α β a) = do
@@ -198,7 +201,7 @@ data LRAction a nts sts =
   | Reduce (Production () nts sts)
   | Accept
   | Error
-  deriving (Generic, Eq, Ord, Hashable, Show)
+  deriving (Generic, Eq, Ord, Hashable, Show, Data, Lift)
 
 instance
   ( Prettify a, Prettify nts, Prettify sts
@@ -345,7 +348,7 @@ isError (ResultAccept _) = False
 isError _                = True
 
 --getResults :: (Eq ast, Eq nts, Eq ts, Eq t, Eq a) => Set (LRResult a nts ts t ast) -> [ast]
-getAccepts xs = [x | x <- xs, isAccept x]
+getAccepts xs = fromList [x | x <- toList xs, isAccept x]
 
 lrParse ::
   forall ast a nts t.

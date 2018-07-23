@@ -58,8 +58,8 @@ f = undefined
 
 data Edge s nt t = NTE nt
                  | TE  t
-                 | PE  (Predicate s)
-                 | ME  (Mutator   s)
+                 | PE  (Predicate ())
+                 | ME  (Mutator   ())
                  | Epsilon
   deriving (Eq, Generic, Hashable, Ord, Show)
 
