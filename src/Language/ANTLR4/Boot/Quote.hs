@@ -906,12 +906,12 @@ g4_decls ast = let
           tokenize :: String -> [$(conT nameToken)] --Token $(conT tokName) $(conT tokVal)]
           tokenize = T.tokenize $(varE nameDFAs) lexeme2value
 
-          slrParse :: [$(conT nameToken)] -> LR.LRResult () $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
+          slrParse :: [$(conT nameToken)] -> LR.LRResult (LR.CoreSLRState $(conT ntSym) (StripEOF (Sym $(conT nameToken)))) $(conT nameToken) $(conT nameAST)
           slrParse = (LR.slrParse $(varE nameUnit) event2ast)
 
           --glrParse :: [$(conT nameToken)] -> LR.LRResult $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
-          glrParse :: ($(conT tokName) -> Bool) -> [Char] -> LR.LR1Result $(conT ntSym) 
-                                                                            (StripEOF (Sym $(conT nameToken)))
+          glrParse :: ($(conT tokName) -> Bool) -> [Char] -> LR.LR1Result (LR.CoreLR1State $(conT ntSym) 
+                                                                            (StripEOF (Sym $(conT nameToken))))
                                                                             Char
                                                                             $(conT nameAST)
           glrParse filterF = (LR.glrParseInc $(varE nameUnit) event2ast (T.tokenizeInc filterF $(varE nameDFAs) lexeme2value))

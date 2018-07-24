@@ -22,7 +22,7 @@ import Grammar
 foo = [ $(lift $ LR.lr1Table simpleGrammar) ]
 
 --test_star = foo @?= []
-test_star = [] @?= []
+test_star = () @?= ()
 
 main :: IO ()
 main = defaultMainWithOpts
