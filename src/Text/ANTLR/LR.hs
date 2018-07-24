@@ -46,14 +46,15 @@ data Item a nts sts = Item (ItemLHS nts) (ProdElems nts sts) {- . -} (ProdElems 
   deriving (Generic, Eq, Ord, Hashable, Show, Data, Lift)
 
 type Closure lrstate          = lrstate -> lrstate
-type Goto nts sts lrstate     = lrstate -> ProdElem nts sts -> lrstate
+type Goto nts sts lrstate     = M1.Map (lrstate, ProdElem nts sts) lrstate
+type Goto' nts sts lrstate    = lrstate -> ProdElem nts sts -> lrstate
 type LRTable nts sts lrstate  = M.Map (lrstate, Icon sts) (LRAction nts sts lrstate)
 
 -- | CoreLRState is the one computed from the grammar (no information loss)
 type CoreLRState a nts sts = Set (Item a nts sts)
 
 type LR1Action nts sts lrstate  = LRAction nts sts lrstate
-type LR1Goto nts sts lrstate    = Goto nts sts lrstate
+--type LR1Goto nts sts lrstate    = Goto nts sts lrstate
 type LR1Closure lrstate         = Closure lrstate
 type LR1Result lrstate t ast    = LRResult lrstate t ast
 type LR1Item  nts sts           = Item    (LR1LookAhead sts) nts sts
@@ -80,6 +81,7 @@ data LRResult lrstate t ast =
   | ErrorAccept   (Config lrstate t) [ast]
   | ResultSet     (Set (LRResult lrstate t ast))
   | ResultAccept  ast
+  | ErrorTable    (Config lrstate t) [ast]
   deriving (Eq, Ord, Show, Generic, Hashable)
 
 type Tokenizer t c = Set (StripEOF (Sym t)) -> [c] -> (t, [c])
@@ -118,6 +120,20 @@ instance  ( Prettify t, Prettify ast, Prettify lrstate
   
   prettify (ErrorNoAction (s:states, ws) asts) = do
     pStr "ErrorNoAction: Current input = '"
+    if null ws then return () else prettify (head ws)
+    pLine "'"
+    incrIndent 7
+    
+    pStr "Current state = <"
+    prettify s
+    pLine ">"
+
+    pStr "Rest of input = '"
+    prettify ws
+    pLine "'"
+  
+  prettify (ErrorTable (s:states, ws) asts) = do
+    pStr "ErrorTable: Current input = '"
     if null ws then return () else prettify (head ws)
     pLine "'"
     incrIndent 7
@@ -199,10 +215,31 @@ lr1Closure g is' = let
 
   in closure' is'
 
+-- | Convert a function-based goto to a map-based one once we know the set of
+-- all lrstates (sets of items for LR1) and all the production elements
+convGoto :: (Hashable lrstate, Ord lrstate, Ord sts, Ord nts)
+  => Grammar () nts sts -> Goto' nts sts lrstate -> Set lrstate -> Goto nts sts lrstate
+convGoto g goto states = M1.fromList
+  [ ((st0, e), goto st0 e)
+  | st0 <- toList states
+  , e   <- allProdElems g
+  ]
+
+allProdElems :: Grammar () nts ts -> [ProdElem nts ts]
+allProdElems g =
+      map NT (S.toList $ ns g)
+  ++  map T  (S.toList $ ts g)
+
+allProdElems' :: forall nts ts. (Bounded nts, Bounded ts, Enum nts, Enum ts)
+  => [ProdElem nts ts]
+allProdElems' =
+      map NT ([minBound .. maxBound] :: [nts])
+  ++  map T  ([minBound .. maxBound] :: [ts])
+
 goto ::
   ( Ord a, Ord nts, Ord sts
   , Hashable sts, Hashable nts, Hashable a)
-  => Grammar () nts sts -> Closure (CoreLRState a nts sts) -> Goto nts sts (CoreLRState a nts sts)
+  => Grammar () nts sts -> Closure (CoreLRState a nts sts) -> Goto' nts sts (CoreLRState a nts sts)
 goto g closure is _X = closure $ fromList
   [ Item _A (_X : α) β  a
   | Item _A α (_X' : β) a <- toList is
@@ -214,7 +251,7 @@ slrGoto ::
   ( Eq nts, Eq sts
   , Ord nts, Ord sts
   , Hashable sts, Hashable nts)
-  => Grammar () nts sts -> Goto nts sts (CoreLRState () nts sts)
+  => Grammar () nts sts -> Goto' nts sts (CoreSLRState nts sts)
 slrGoto g = goto g (slrClosure g)
 
 items ::
@@ -222,8 +259,8 @@ items ::
   ( Ord a, Ord nts, Ord sts
   , Eq nts, Eq sts
   , Hashable a, Hashable sts, Hashable nts)
-  => Grammar () nts sts -> Goto nts sts (CoreLRState a nts sts) -> Closure (CoreLRState a nts sts) -> CoreLRState a nts sts -> Set (CoreLRState a nts sts)
-items g goto closure s0 = let
+  => Grammar () nts sts -> Goto' nts sts (CoreLRState a nts sts) -> CoreLRState a nts sts -> Set (CoreLRState a nts sts)
+items g goto s0 = let
     items' :: Set (CoreLRState a nts sts) -> Set (CoreLRState a nts sts)
     items' _C = let
       add = fromList
@@ -235,7 +272,7 @@ items g goto closure s0 = let
       in case size $ add \\ _C of
         0 -> _C `union` add
         _ -> items' $ _C `union` add
-  in items' $ singleton $ closure s0
+  in items' $ singleton s0
 --  singleton (Item (Init $ s0 g) [] [NT $ s0 g])
 
 kernel ::
@@ -285,7 +322,7 @@ slrItems ::
   , Ord nts, Ord sts
   , Hashable sts, Hashable nts)
   => Grammar () nts sts -> Set (Set (SLRItem nts sts))
-slrItems g = items g (slrGoto g) (slrClosure g) (slrS0 g)
+slrItems g = items g (slrGoto g) (slrClosure g $ slrS0 g)
 
 slrTable ::
   forall nts sts.
@@ -357,9 +394,9 @@ lrParse ::
   , Hashable (Sym t), Hashable t, Hashable lrstate, Hashable nts, Hashable (StripEOF (Sym t))
   , Prettify lrstate, Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
   => Grammar () nts (StripEOF (Sym t)) -> LRTable nts (StripEOF (Sym t)) lrstate -> Goto nts (StripEOF (Sym t)) lrstate
-  -> Closure lrstate -> lrstate -> Action ast nts t
+  -> lrstate -> Action ast nts t
   -> [t] -> LRResult lrstate t ast
-lrParse g tbl goto closure s_0 act w = let
+lrParse g tbl goto s_0 act w = let
   
     lr :: Config lrstate t -> [ast] -> LRResult lrstate t ast
     lr (s:states, a:ws) asts = let
@@ -372,9 +409,11 @@ lrParse g tbl goto closure s_0 act w = let
         lr' (Shift t) = trace ("Shift: " ++ pshow' t) $ lr (t:s:states, ws) $ act (TermE a) : asts
         lr' (Reduce p@(Production _A (Prod _ β))) = let
               ss'@(t:_) = drop (length β) (s:states)
-            in trace ("Reduce: " ++ pshow' p)
-               lr (goto t (NT _A) : ss', a:ws)
-                  (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
+              result =
+                case (t, NT _A) `M1.lookup` goto of
+                  Nothing -> ErrorTable (s:states, a:ws) asts
+                  Just s  -> lr (s : ss', a:ws) (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
+            in trace ("Reduce: " ++ pshow' p) result
 
       -- TODO: handle empty file test case
         lookVal = case stripEOF $ getSymbol a of
@@ -385,7 +424,7 @@ lrParse g tbl goto closure s_0 act w = let
           then ErrorNoAction (s:states, a:ws) asts
           else lr' $ (head . S.toList) lookVal
 
-  in lr ([closure s_0], w) []
+  in lr ([s_0], w) []
 
 slrParse ::
   ( Eq (Sym nts), Eq (Sym t), Eq (StripEOF (Sym t))
@@ -395,7 +434,7 @@ slrParse ::
   , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
   => Grammar () nts (StripEOF (Sym t)) -> Action ast nts t -> [t]
   -> LRResult (CoreSLRState nts (StripEOF (Sym t))) t ast
-slrParse g = lrParse g (slrTable g) (slrGoto g) (slrClosure g) (slrS0 g)
+slrParse g = lrParse g (slrTable g) (convGoto g (slrGoto g) (slrItems g)) (slrClosure g $ slrS0 g)
 
 slrRecognize ::
   ( Eq (Sym nts), Eq (Sym t), Eq (StripEOF (Sym t))
@@ -425,7 +464,7 @@ lr1Goto ::
   ( Eq nts, Eq sts
   , Ord nts, Ord sts
   , Hashable sts, Hashable nts)
-  => Grammar () nts sts -> Goto nts sts (CoreLR1State nts sts)
+  => Grammar () nts sts -> Goto' nts sts (CoreLR1State nts sts)
 lr1Goto g = goto g (lr1Closure g)
 
 lr1S0 ::
@@ -440,7 +479,7 @@ lr1Items ::
   , Ord nts, Ord sts
   , Hashable sts, Hashable nts)
   => Grammar () nts sts -> Set (CoreLRState (LR1LookAhead sts) nts sts)
-lr1Items g = items g (lr1Goto g) (lr1Closure g) (lr1S0 g)
+lr1Items g = items g (lr1Goto g) (lr1Closure g $ lr1S0 g)
 
 lr1Parse ::
   ( Eq (Sym nts), Eq (Sym t), Eq (StripEOF (Sym t))
@@ -450,7 +489,7 @@ lr1Parse ::
   , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
   => Grammar () nts (StripEOF (Sym t)) -> Action ast nts t -> [t]
   -> LRResult (CoreLR1State nts (StripEOF (Sym t))) t ast
-lr1Parse g = lrParse g (lr1Table g) (lr1Goto g) (lr1Closure g) (lr1S0 g)
+lr1Parse g = lrParse g (lr1Table g) (convGoto g (lr1Goto g) (lr1Items g)) (lr1Closure g $ lr1S0 g)
 
 glrParse' ::
   forall ast nts t lrstate.
@@ -460,9 +499,9 @@ glrParse' ::
   , Hashable (Sym t), Hashable t, Hashable lrstate, Hashable nts, Hashable (StripEOF (Sym t)), Hashable ast
   , Prettify lrstate, Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
   => Grammar () nts (StripEOF (Sym t)) -> LRTable nts (StripEOF (Sym t)) lrstate -> Goto nts (StripEOF (Sym t)) lrstate
-  -> Closure lrstate -> lrstate -> Action ast nts t
+  -> lrstate -> Action ast nts t
   -> [t] -> LRResult lrstate t ast
-glrParse' g tbl goto closure s_0 act w = let
+glrParse' g tbl goto s_0 act w = let
   
     lr :: Config lrstate t -> [ast] -> LRResult lrstate t ast
     lr (s:states, a:ws) asts = let
@@ -475,9 +514,11 @@ glrParse' g tbl goto closure s_0 act w = let
         lr' (Shift t) = trace ("Shift: " ++ pshow' t) $ lr (t:s:states, ws) $ act (TermE a) : asts
         lr' (Reduce p@(Production _A (Prod _ β))) = let
               ss'@(t:_) = drop (length β) (s:states)
-            in trace ("Reduce: " ++ pshow' p)
-               lr (goto t (NT _A) : ss', a:ws)
-                  (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
+              result =
+                case (t, NT _A) `M1.lookup` goto of
+                  Nothing -> ErrorTable (s:states, a:ws) asts
+                  Just s  -> lr (s : ss', a:ws) (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
+            in trace ("Reduce: " ++ pshow' p) result
 
         lookVal = case stripEOF $ getSymbol a of
                     Just sym -> look (s, Icon sym) tbl
@@ -495,9 +536,9 @@ glrParse' g tbl goto closure s_0 act w = let
                           _ -> ResultSet parseResults)
                   else ResultSet justAccepts)
 
-  in lr ([closure s_0], w) []
+  in lr ([s_0], w) []
 
-glrParse g = glrParse' g (lr1Table g) (lr1Goto g) (lr1Closure g) (lr1S0 g)
+glrParse g = glrParse' g (lr1Table g) (convGoto g (lr1Goto g) (lr1Items g)) (lr1Closure g $ lr1S0 g)
 
 glrParseInc' ::
   forall ast nts t c lrstate.
@@ -507,10 +548,10 @@ glrParseInc' ::
   , Hashable (Sym t), Hashable t, Hashable nts, Hashable (StripEOF (Sym t)), Hashable ast, Hashable lrstate
   , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)), Prettify lrstate
   , Eq c, Ord c, Hashable c)
-  => Grammar () nts (StripEOF (Sym t)) -> LR1Table nts (StripEOF (Sym t)) lrstate -> LR1Goto nts (StripEOF (Sym t)) lrstate
-  -> LR1Closure lrstate -> lrstate -> M1.Map lrstate (Set (StripEOF (Sym t))) -> Action ast nts t
+  => Grammar () nts (StripEOF (Sym t)) -> LR1Table nts (StripEOF (Sym t)) lrstate -> Goto nts (StripEOF (Sym t)) lrstate
+  -> lrstate -> M1.Map lrstate (Set (StripEOF (Sym t))) -> Action ast nts t
   -> Tokenizer t c -> [c] -> LR1Result lrstate c ast
-glrParseInc' g tbl goto closure s_0 tokenizerFirstSets act tokenizer w = let
+glrParseInc' g tbl goto s_0 tokenizerFirstSets act tokenizer w = let
     
     lr :: Config lrstate c -> [ast] -> LR1Result lrstate c ast
     lr (s:states, cs) asts = let
@@ -532,9 +573,11 @@ glrParseInc' g tbl goto closure s_0 tokenizerFirstSets act tokenizer w = let
         lr' (Shift t) = trace ("Shift: " ++ pshow' t) $ lr (t:s:states, ws) $ act (TermE a) : asts
         lr' (Reduce p@(Production _A (Prod _ β))) = let
               ss'@(t:_) = drop (length β) (s:states)
-            in trace ("Reduce: " ++ pshow' p)
-               lr (goto t (NT _A) : ss', cs)
-                  (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
+              result =
+                case (t, NT _A) `M1.lookup` goto of
+                  Nothing -> ErrorTable (s:states, cs) asts
+                  Just s  -> lr (s : ss', cs) (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
+            in trace ("Reduce: " ++ pshow' p) result
 
         lookVal = case stripEOF $ getSymbol a of
                     Just sym -> look (s, Icon sym) tbl
@@ -557,7 +600,7 @@ glrParseInc' g tbl goto closure s_0 tokenizerFirstSets act tokenizer w = let
                           1 -> S.findMin justAccepts
                           _ -> ResultSet justAccepts))
 
-  in lr ([closure s_0], w) []
+  in lr ([s_0], w) []
 
 glrParseInc g = let
    
@@ -577,5 +620,5 @@ glrParseInc g = let
     --tokenizerFirstSets :: M1.Map lrstate (Set (StripEOF (Sym t)))
     tokenizerFirstSets = M1.fromList [ (s, first $ S.toList s) | ((s, _), _) <- M.toList tbl ]
 
-  in glrParseInc' g (lr1Table g) (lr1Goto g) (lr1Closure g) (lr1S0 g) tokenizerFirstSets
+  in glrParseInc' g (lr1Table g) (convGoto g (lr1Goto g) (lr1Items g)) (lr1Closure g $ lr1S0 g) tokenizerFirstSets
 
