@@ -4,7 +4,7 @@ module Main where
 --import Language.Chisel.Tokenizer
 import Text.ANTLR.Lex.Tokenizer (Token(..))
 import Text.ANTLR.Parser (AST(..))
-import Language.Chisel.Grammar
+import Language.Chisel.Parser
 import Language.Chisel.Syntax
 import Text.ANTLR.Grammar (Grammar(..), ProdElem(..))
 import Language.ANTLR4.FileOpener (open)
@@ -135,6 +135,11 @@ testPrettify =
   unsafePerformIO (putStr $ T.unpack $ pshow (chiselGrammar :: Grammar () ChiselNTSymbol ChiselTSymbol))
   @?= ()
 
+testFast =
+  glrParseFast isWhitespace "Foo x -> x Bar"
+  @?=
+  glrParse isWhitespace "Foo x -> x Bar"
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "Tokenize GHC" tokenizeGHC
@@ -143,5 +148,6 @@ main = defaultMainWithOpts
   , testCase "Parse Test (Small)" parseTestSmall
   , testCase "Parse GHC"  parseGHCTestBig
   , testCase "Prettify speed" testPrettify
+  , testCase "Run glrParseFast build" testFast
   ] mempty
 

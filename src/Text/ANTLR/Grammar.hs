@@ -224,7 +224,7 @@ data Grammar s nts ts = G
   , s0  :: nts
   , _πs :: Set (Predicate s)
   , _μs :: Set (Mutator   s)
-  } deriving (Show)
+  } deriving (Show, Lift)
 
 instance (Eq s, Eq nts, Eq ts, Hashable nts, Hashable ts, Prettify s, Prettify nts, Prettify ts)
   => Eq (Grammar s nts ts) where

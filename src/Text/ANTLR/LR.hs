@@ -9,12 +9,13 @@ module Text.ANTLR.LR
   , LR1LookAhead
   , CoreLRState, CoreLR1State, CoreSLRState, LRTable, LRAction(..)
   , lrParse, LRResult(..), LR1Result(..), glrParse, glrParseInc, isAccept, isError
-  , lr1S0, glrParseInc'
+  , lr1S0, glrParseInc', glrParseInc2
+  , convGoto, convStateInt, convGotoStatesInt, convTableInt, tokenizerFirstSets
   ) where
 import Text.ANTLR.Grammar
 import qualified Text.ANTLR.LL1 as LL
 import Text.ANTLR.Parser
-import Data.Maybe (catMaybes, mapMaybe, fromMaybe)
+import Data.Maybe (catMaybes, mapMaybe, fromMaybe, fromJust)
 import Text.ANTLR.Set ( Set(..), fromList, empty, member, toList, size
   , union, (\\), insert, toList, singleton
   )
@@ -25,6 +26,7 @@ import qualified Text.ANTLR.MultiMap as M
 import qualified Data.Map as M1
 import Data.Data (Data(..))
 import Language.Haskell.TH.Lift (Lift(..))
+import Data.List (sort)
 
 import Text.ANTLR.Pretty
 import qualified Debug.Trace as D
@@ -215,13 +217,62 @@ lr1Closure g is' = let
 
   in closure' is'
 
+convAction :: (lrstate -> lrstate') -> LRAction nts sts lrstate -> LRAction nts sts lrstate'
+convAction fncn (Shift state) = Shift $ fncn state
+convAction _ (Reduce p) = Reduce p
+convAction _ Accept = Accept
+convAction _ Error = Error
+
+convTable ::
+  ( Ord lrstate, Ord lrstate', Ord sts
+  , Hashable nts, Hashable sts, Hashable lrstate, Hashable lrstate'
+  , Eq nts)
+  => (lrstate -> lrstate') -> LRTable nts sts lrstate -> LRTable nts sts lrstate'
+convTable fncn tbl = M.fromList'
+  [ ((fncn state, icon), S.map (convAction fncn) action)
+  | ((state, icon), action) <- M.toList tbl
+  ]
+
+convTableInt :: forall lrstate nts sts.
+  ( Ord lrstate, Ord sts
+  , Hashable nts, Hashable sts, Hashable lrstate
+  , Eq nts, Show lrstate)
+  => LRTable nts sts lrstate -> [lrstate] -> LRTable nts sts Int
+convTableInt tbl ss = convTable (convStateInt $ ss) tbl
+
+convGotoStates ::
+  ( Ord lrstate, Ord lrstate', Ord sts, Ord nts
+  , Hashable nts, Hashable sts, Hashable lrstate
+  , Eq nts)
+  => (lrstate -> lrstate') -> Goto nts sts lrstate -> Goto nts sts lrstate'
+convGotoStates fncn goto = M1.fromList [ ((fncn st0, e), fncn st1) | ((st0, e), st1) <- M1.toList goto ]
+
+convGotoStatesInt :: forall lrstate nts sts.
+  ( Ord lrstate, Ord sts, Ord nts
+  , Hashable nts, Hashable sts, Hashable lrstate
+  , Eq nts, Show lrstate)
+  => Goto nts sts lrstate -> [lrstate] -> Goto nts sts Int
+convGotoStatesInt goto ss = convGotoStates (convStateInt ss) goto
+
+convStateInt :: forall lrstate.
+  (Ord lrstate, Show lrstate)
+  => [lrstate] -> (lrstate -> Int)
+convStateInt ss = let
+    statemap :: M1.Map lrstate Int
+    statemap = M1.fromList $ zip ss [0 .. ]
+
+    fromJust' st Nothing = error $ "woops: " ++ show st
+    fromJust' _ (Just x) = x
+
+  in (\st -> fromJust' st (st `M1.lookup` statemap))
+
 -- | Convert a function-based goto to a map-based one once we know the set of
 -- all lrstates (sets of items for LR1) and all the production elements
 convGoto :: (Hashable lrstate, Ord lrstate, Ord sts, Ord nts)
-  => Grammar () nts sts -> Goto' nts sts lrstate -> Set lrstate -> Goto nts sts lrstate
+  => Grammar () nts sts -> Goto' nts sts lrstate -> [lrstate] -> Goto nts sts lrstate
 convGoto g goto states = M1.fromList
   [ ((st0, e), goto st0 e)
-  | st0 <- toList states
+  | st0 <- states
   , e   <- allProdElems g
   ]
 
@@ -434,7 +485,7 @@ slrParse ::
   , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
   => Grammar () nts (StripEOF (Sym t)) -> Action ast nts t -> [t]
   -> LRResult (CoreSLRState nts (StripEOF (Sym t))) t ast
-slrParse g = lrParse g (slrTable g) (convGoto g (slrGoto g) (slrItems g)) (slrClosure g $ slrS0 g)
+slrParse g = lrParse g (slrTable g) (convGoto g (slrGoto g) (sort $ S.toList $ slrItems g)) (slrClosure g $ slrS0 g)
 
 slrRecognize ::
   ( Eq (Sym nts), Eq (Sym t), Eq (StripEOF (Sym t))
@@ -489,7 +540,7 @@ lr1Parse ::
   , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
   => Grammar () nts (StripEOF (Sym t)) -> Action ast nts t -> [t]
   -> LRResult (CoreLR1State nts (StripEOF (Sym t))) t ast
-lr1Parse g = lrParse g (lr1Table g) (convGoto g (lr1Goto g) (lr1Items g)) (lr1Closure g $ lr1S0 g)
+lr1Parse g = lrParse g (lr1Table g) (convGoto g (lr1Goto g) (sort $ S.toList $ lr1Items g)) (lr1Closure g $ lr1S0 g)
 
 glrParse' ::
   forall ast nts t lrstate.
@@ -538,7 +589,7 @@ glrParse' g tbl goto s_0 act w = let
 
   in lr ([s_0], w) []
 
-glrParse g = glrParse' g (lr1Table g) (convGoto g (lr1Goto g) (lr1Items g)) (lr1Closure g $ lr1S0 g)
+glrParse g = glrParse' g (lr1Table g) (convGoto g (lr1Goto g) (sort $ S.toList $ lr1Items g)) (lr1Closure g $ lr1S0 g)
 
 glrParseInc' ::
   forall ast nts t c lrstate.
@@ -602,8 +653,8 @@ glrParseInc' g tbl goto s_0 tokenizerFirstSets act tokenizer w = let
 
   in lr ([s_0], w) []
 
-glrParseInc g = let
-   
+--tokenizerFirstSets :: M1.Map lrstate (Set (StripEOF (Sym t)))
+tokenizerFirstSets convState g = let
     tbl = lr1Table g
 
     first s = let
@@ -617,8 +668,22 @@ glrParseInc g = let
 
       in S.fromList $ mapMaybe removeIcons $ concatMap itemHeads s
 
-    --tokenizerFirstSets :: M1.Map lrstate (Set (StripEOF (Sym t)))
-    tokenizerFirstSets = M1.fromList [ (s, first $ S.toList s) | ((s, _), _) <- M.toList tbl ]
+  in M1.fromList [ (convState s, first $ S.toList s) | ((s, _), _) <- M.toList tbl ]
 
-  in glrParseInc' g (lr1Table g) (convGoto g (lr1Goto g) (lr1Items g)) (lr1Closure g $ lr1S0 g) tokenizerFirstSets
+glrParseInc g = glrParseInc' g
+  (lr1Table g)
+  (convGoto g (lr1Goto g) (sort $ S.toList $ lr1Items g))
+  (lr1Closure g $ lr1S0 g)
+  (tokenizerFirstSets id g)
+
+glrParseInc2 g = let
+    is = sort $ S.toList $ lr1Items g
+    convState = convStateInt is
+  in glrParseInc' g
+      (convTableInt (lr1Table g) is)
+      (convGotoStatesInt (convGoto g (lr1Goto g) is) is)
+      (convState $ lr1Closure g $ lr1S0 g)
+      (tokenizerFirstSets convState g)
+
+--convGotoStatesInt convTableInt
 
