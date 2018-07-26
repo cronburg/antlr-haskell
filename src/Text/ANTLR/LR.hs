@@ -704,9 +704,9 @@ disambiguate tbl = let
 
     mkSingle st icon s
       | S.size s == 1 = S.findMin s
-      | S.size s == 0 = error $ "Table entry " ++ pshow' (st,icon) ++ " has no Shift/Reduce entry."
-      | otherwise = error $ "Table entry " ++ pshow' (st,icon) ++ " has " ++ mkConflict s ++ " conflict: \n"
-                        ++  (pshow' $ S.toList s)
+      | S.size s == 0 = D.trace ("Table entry " ++ pshow' (st,icon) ++ " has no Shift/Reduce entry.") undefined
+      | otherwise     = D.trace ("Table entry " ++ pshow' (st,icon) ++ " has " ++ mkConflict s ++ " conflict: \n"
+                        ++  (pshow' $ S.toList s)) S.findMin s
   in M1.fromList
     [ ((st, icon), mkSingle st icon action)
     | ((st, icon), action) <- M.toList tbl
