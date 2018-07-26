@@ -7,10 +7,11 @@ module Text.ANTLR.LR
   , slrClosure, slrGoto, slrItems, allSLRItems, slrTable, slrParse, slrRecognize
   , lr1Closure, lr1Goto, lr1Items, lr1Table, lr1Parse, lr1Recognize
   , LR1LookAhead
-  , CoreLRState, CoreLR1State, CoreSLRState, LRTable, LRAction(..)
+  , CoreLRState, CoreLR1State, CoreSLRState, LRTable, LRTable', LRAction(..)
   , lrParse, LRResult(..), LR1Result(..), glrParse, glrParseInc, isAccept, isError
   , lr1S0, glrParseInc', glrParseInc2
   , convGoto, convStateInt, convGotoStatesInt, convTableInt, tokenizerFirstSets
+  , disambiguate
   ) where
 import Text.ANTLR.Grammar
 import qualified Text.ANTLR.LL1 as LL
@@ -21,6 +22,7 @@ import Text.ANTLR.Set ( Set(..), fromList, empty, member, toList, size
   )
 import qualified Text.ANTLR.Set as S
 import qualified Text.ANTLR.MultiMap as M
+import Text.ANTLR.Common
 
 --import Data.Map ( Map(..) )
 import qualified Data.Map as M1
@@ -50,7 +52,9 @@ data Item a nts sts = Item (ItemLHS nts) (ProdElems nts sts) {- . -} (ProdElems 
 type Closure lrstate          = lrstate -> lrstate
 type Goto nts sts lrstate     = M1.Map (lrstate, ProdElem nts sts) lrstate
 type Goto' nts sts lrstate    = lrstate -> ProdElem nts sts -> lrstate
-type LRTable nts sts lrstate  = M.Map (lrstate, Icon sts) (LRAction nts sts lrstate)
+
+type LRTable nts sts lrstate   = M.Map (lrstate, Icon sts) (LRAction nts sts lrstate)
+type LRTable' nts sts lrstate  = M1.Map (lrstate, Icon sts) (LRAction nts sts lrstate)
 
 -- | CoreLRState is the one computed from the grammar (no information loss)
 type CoreLRState a nts sts = Set (Item a nts sts)
@@ -405,11 +409,11 @@ lr1Table :: forall nts sts.
   ( Eq nts, Eq sts
   , Ord nts, Ord sts
   , Hashable sts, Hashable nts)
-  => Grammar () nts sts -> LR1Table nts sts (CoreLR1State nts sts)
+  => Grammar () nts sts -> LRTable nts sts (CoreLR1State nts sts)
 lr1Table g = let
-    --lr1' :: LR1State nts sts -> LR1Table nts sts
+    --lr1' :: LR1State nts sts -> LRTable nts sts
     lr1' _Ii = let
-        --lr1'' :: LR1Item nts sts -> LR1Table nts sts
+        --lr1'' :: LR1Item nts sts -> LRTable nts sts
         lr1'' (Item (ItemNT nts) α (T a:β) _) = --uPIO (prints ("TABLE:", a, slrGoto g _Ii $ T a, _Ii)) `seq`
                   Just ((_Ii, Icon a), Shift $ lr1Goto g _Ii $ T a)
         lr1'' (Item (Init   nts) α (T a:β) _) = Just ((_Ii, Icon a), Shift $ lr1Goto g _Ii $ T a)
@@ -599,7 +603,7 @@ glrParseInc' ::
   , Hashable (Sym t), Hashable t, Hashable nts, Hashable (StripEOF (Sym t)), Hashable ast, Hashable lrstate
   , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)), Prettify lrstate
   , Eq c, Ord c, Hashable c)
-  => Grammar () nts (StripEOF (Sym t)) -> LR1Table nts (StripEOF (Sym t)) lrstate -> Goto nts (StripEOF (Sym t)) lrstate
+  => Grammar () nts (StripEOF (Sym t)) -> LRTable nts (StripEOF (Sym t)) lrstate -> Goto nts (StripEOF (Sym t)) lrstate
   -> lrstate -> M1.Map lrstate (Set (StripEOF (Sym t))) -> Action ast nts t
   -> Tokenizer t c -> [c] -> LR1Result lrstate c ast
 glrParseInc' g tbl goto s_0 tokenizerFirstSets act tokenizer w = let
@@ -686,4 +690,25 @@ glrParseInc2 g = let
       (tokenizerFirstSets convState g)
 
 --convGotoStatesInt convTableInt
+
+disambiguate ::
+  ( Prettify lrstate, Prettify nts, Prettify sts
+  , Ord lrstate, Ord nts, Ord sts
+  , Hashable lrstate, Hashable nts, Hashable sts
+  , Data lrstate, Data nts, Data sts
+  , Show lrstate, Show nts, Show sts)
+  => LRTable nts sts lrstate -> LRTable' nts sts lrstate
+disambiguate tbl = let
+
+    mkConflict s = concatWith "/" $ map (show . toConstr) $ S.toList s
+
+    mkSingle st icon s
+      | S.size s == 1 = S.findMin s
+      | S.size s == 0 = error $ "Table entry " ++ pshow' (st,icon) ++ " has no Shift/Reduce entry."
+      | otherwise = error $ "Table entry " ++ pshow' (st,icon) ++ " has " ++ mkConflict s ++ " conflict: \n"
+                        ++  (pshow' $ S.toList s)
+  in M1.fromList
+    [ ((st, icon), mkSingle st icon action)
+    | ((st, icon), action) <- M.toList tbl
+    ]
 

@@ -956,7 +956,8 @@ mkLRParser ast g =
     nameAST   = mkName (mkUpper $ grammarName ast ++ "AST")
     name = mkName $ mkLower (grammarName ast ++ "Grammar")
     is = sort $ S.toList $ LR.lr1Items g
-    lr1Table' = LR.convTableInt (LR.lr1Table g) is
+    tbl       = LR.lr1Table g
+    lr1Table' = LR.convTableInt tbl is
     lr1S0'    = LR.convStateInt is $ LR.lr1Closure g $ LR.lr1S0 g
 
     unitTy = [t| () |]
@@ -968,7 +969,7 @@ mkLRParser ast g =
         D.traceM $ "lr1Table' = " ++ (pshow' lr1Table') -}
           --
           --glrParse filterF = (LR.glrParseInc2 $(varE nameUnit) event2ast (T.tokenizeInc filterF $(varE nameDFAs) lexeme2value))
-        
+        D.traceM $ "disambiguate tbl = " ++ (pshow' $ disambiguate tbl)
         [d| lr1ItemsList = sort $ S.toList $ LR.lr1Items $(name')
             lr1Table    = $(lift lr1Table')
             lr1Goto     = LR.convGotoStatesInt (LR.convGoto $(name') (LR.lr1Goto $(name')) lr1ItemsList) lr1ItemsList

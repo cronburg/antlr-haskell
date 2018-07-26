@@ -34,6 +34,7 @@ dependencies:
 - th-lift
 - AllStar
 - haskell-src-meta
+- ghc-prim
 
 library:
   source-dirs: src
@@ -248,7 +249,7 @@ tests:
     main:                Main.hs
     source-dirs:
       - test/chisel
-      - test/shared
+      - test/shared-hunit
     ghc-options:
     - -threaded
     - -rtsopts
@@ -304,5 +305,4 @@ tests:
     - DeriveDataTypeable
     - DeriveGeneric
     - DeriveAnyClass
-
 
