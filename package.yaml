@@ -24,13 +24,13 @@ dependencies:
 - containers
 - mtl
 - parsec
-- template-haskell
+- template-haskell >= 2.12
 - text
 - set-monad
 - transformers
 - deepseq
 - hashable
-- unordered-containers
+- unordered-containers >= 0.2.9
 - th-lift
 - AllStar
 - haskell-src-meta
