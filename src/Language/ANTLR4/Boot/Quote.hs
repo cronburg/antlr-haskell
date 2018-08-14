@@ -34,6 +34,7 @@ import qualified Text.ANTLR.Allstar as ALL
 import qualified Text.ANTLR.LL1 as LL
 import qualified Text.ANTLR.Set as S
 
+import qualified Text.ANTLR.MultiMap as M
 import Text.ANTLR.Set (Set(..))
 import qualified Text.ANTLR.Set as Set
 import qualified Text.ANTLR.Lex.Regex as R
@@ -957,7 +958,7 @@ mkLRParser ast g =
     name = mkName $ mkLower (grammarName ast ++ "Grammar")
     is = sort $ S.toList $ LR.lr1Items g
     tbl       = LR.lr1Table g
-    lr1Table' = LR.convTableInt tbl is
+    lr1Table' = M.toList $ LR.convTableInt tbl is
     lr1S0'    = LR.convStateInt is $ LR.lr1Closure g $ LR.lr1S0 g
 
     unitTy = [t| () |]
@@ -986,7 +987,7 @@ mkLRParser ast g =
             glrParseFast filterF =
               LR.glrParseInc'
                 $(name')
-                lr1Table
+                (M.fromList lr1Table)
                 lr1Goto
                 lr1S0
                 (LR.tokenizerFirstSets convState $(name'))
