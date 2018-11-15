@@ -7,24 +7,28 @@ module Text.ANTLR.LR
   , slrClosure, slrGoto, slrItems, allSLRItems, slrTable, slrParse, slrRecognize
   , lr1Closure, lr1Goto, lr1Items, lr1Table, lr1Parse, lr1Recognize
   , LR1LookAhead
-  , LRState, LRTable, LRAction(..)
+  , CoreLRState, CoreLR1State, CoreSLRState, LRTable, LRTable', LRAction(..)
   , lrParse, LRResult(..), LR1Result(..), glrParse, glrParseInc, isAccept, isError
-  , lr1S0, glrParseInc'
+  , lr1S0, glrParseInc', glrParseInc2
+  , convGoto, convStateInt, convGotoStatesInt, convTableInt, tokenizerFirstSets
+  , disambiguate
   ) where
 import Text.ANTLR.Grammar
 import qualified Text.ANTLR.LL1 as LL
 import Text.ANTLR.Parser
-import Data.Maybe (catMaybes, mapMaybe, fromMaybe)
+import Data.Maybe (catMaybes, mapMaybe, fromMaybe, fromJust)
 import Text.ANTLR.Set ( Set(..), fromList, empty, member, toList, size
   , union, (\\), insert, toList, singleton
   )
 import qualified Text.ANTLR.Set as S
 import qualified Text.ANTLR.MultiMap as M
+import Text.ANTLR.Common
 
 --import Data.Map ( Map(..) )
 import qualified Data.Map as M1
 import Data.Data (Data(..))
 import Language.Haskell.TH.Lift (Lift(..))
+import Data.List (sort)
 
 import Text.ANTLR.Pretty
 import qualified Debug.Trace as D
@@ -39,6 +43,55 @@ data ItemLHS nts =
   | ItemNT nts -- wrapper around a NonTerminal
   deriving (Eq, Ord, Generic, Hashable, Data, Lift)
 
+-- An Item is a production with a dot in it indicating how far
+-- into the production we have parsed:
+--                         A        ->  α                          .     β
+data Item a nts sts = Item (ItemLHS nts) (ProdElems nts sts) {- . -} (ProdElems nts sts) a
+  deriving (Generic, Eq, Ord, Hashable, Show, Data, Lift)
+
+type Closure lrstate          = lrstate -> lrstate
+type Goto nts sts lrstate     = M1.Map (lrstate, ProdElem nts sts) lrstate
+type Goto' nts sts lrstate    = lrstate -> ProdElem nts sts -> lrstate
+
+type LRTable nts sts lrstate   = M.Map (lrstate, Icon sts) (LRAction nts sts lrstate)
+type LRTable' nts sts lrstate  = M1.Map (lrstate, Icon sts) (LRAction nts sts lrstate)
+
+-- | CoreLRState is the one computed from the grammar (no information loss)
+type CoreLRState a nts sts = Set (Item a nts sts)
+
+type LR1Action nts sts lrstate  = LRAction nts sts lrstate
+--type LR1Goto nts sts lrstate    = Goto nts sts lrstate
+type LR1Closure lrstate         = Closure lrstate
+type LR1Result lrstate t ast    = LRResult lrstate t ast
+type LR1Item  nts sts           = Item    (LR1LookAhead sts) nts sts
+type LR1Table nts sts lrstate   = LRTable nts sts lrstate
+type LR1LookAhead sts           = Icon sts -- Single Icon of lookahead for LR1
+type CoreLR1State nts sts       = Set (LR1Item nts sts)
+
+type SLRClosure lrstate = Closure lrstate
+type SLRItem  nts sts = Item    () nts sts
+type SLRTable nts sts lrstate = LRTable nts sts lrstate
+type CoreSLRState nts sts = Set (Item () nts sts)
+
+data LRAction nts sts lrstate =
+    Shift  lrstate
+  | Reduce (Production () nts sts)
+  | Accept
+  | Error
+  deriving (Generic, Eq, Ord, Hashable, Show, Data, Lift)
+
+type Config lrstate t = ([lrstate], [t])
+
+data LRResult lrstate t ast =
+    ErrorNoAction (Config lrstate t) [ast]
+  | ErrorAccept   (Config lrstate t) [ast]
+  | ResultSet     (Set (LRResult lrstate t ast))
+  | ResultAccept  ast
+  | ErrorTable    (Config lrstate t) [ast]
+  deriving (Eq, Ord, Show, Generic, Hashable)
+
+type Tokenizer t c = Set (StripEOF (Sym t)) -> [c] -> (t, [c])
+
 instance (Prettify nts) => Prettify (ItemLHS nts) where
   prettify (Init nts)   = prettify nts >> pStr "_0"
   prettify (ItemNT nts) = prettify nts
@@ -46,12 +99,6 @@ instance (Prettify nts) => Prettify (ItemLHS nts) where
 instance (Show nts) => Show (ItemLHS nts) where
   show (Init nts)   = show nts ++ "'"
   show (ItemNT nts) = show nts
-
--- An Item is a production with a dot in it indicating how far
--- into the production we have parsed:
---                         A        ->  α                          .     β
-data Item a nts sts = Item (ItemLHS nts) (ProdElems nts sts) {- . -} (ProdElems nts sts) a
-  deriving (Generic, Eq, Ord, Hashable, Show, Data, Lift)
 
 instance (Prettify a, Prettify nts, Prettify sts) => Prettify (Item a nts sts) where
   prettify (Item _A α β a) = do
@@ -62,20 +109,76 @@ instance (Prettify a, Prettify nts, Prettify sts) => Prettify (Item a nts sts) w
     prettify β
     pParens (prettify a)
 
-type Closure a nts sts = Set (Item a nts sts) -> Set (Item a nts sts)
+instance
+  ( Prettify lrstate, Prettify nts, Prettify sts
+  , Hashable lrstate, Hashable sts, Hashable nts
+  , Eq lrstate, Eq sts, Eq nts)
+  => Prettify (LRAction nts sts lrstate) where
+  prettify (Shift ss) = pStr "Shift  {" >> prettify ss >> pLine "}"
+  prettify (Reduce p) = pStr "Reduce  " >> prettify p  >> pLine ""
+  prettify Accept     = pStr "Accept"
+  prettify Error      = pStr "Error"
 
-type SLRClosure nts sts = Closure () nts sts
-type LR1Closure nts sts = Closure (LR1LookAhead sts) nts sts
+instance  ( Prettify t, Prettify ast, Prettify lrstate
+          , Eq t, Eq ast, Eq lrstate
+          , Hashable ast, Hashable t, Hashable lrstate)
+  => Prettify (LRResult lrstate t ast) where
+  
+  prettify (ErrorNoAction (s:states, ws) asts) = do
+    pStr "ErrorNoAction: Current input = '"
+    if null ws then return () else prettify (head ws)
+    pLine "'"
+    incrIndent 7
+    
+    pStr "Current state = <"
+    prettify s
+    pLine ">"
+
+    pStr "Rest of input = '"
+    prettify ws
+    pLine "'"
+  
+  prettify (ErrorTable (s:states, ws) asts) = do
+    pStr "ErrorTable: Current input = '"
+    if null ws then return () else prettify (head ws)
+    pLine "'"
+    incrIndent 7
+    
+    pStr "Current state = <"
+    prettify s
+    pLine ">"
+
+    pStr "Rest of input = '"
+    prettify ws
+    pLine "'"
+    
+  prettify (ErrorAccept   (s:states, ws) asts) = do
+    pStr "ErrorAccept: Current input = "
+    (if null ws then return () else prettify (head ws))
+    pLine ""
+    incrIndent 7
+    
+    pStr "Current state = "
+    prettify s
+    pLine ""
+    
+    pStr "Rest of input = "
+    prettify ws
+    pLine ""
+ 
+  prettify (ResultSet s) = pStr "ResultSet: " >> prettify s
+
+  prettify (ResultAccept ast)             = pStr "ResultAccept: " >> prettify ast
 
 slrClosure ::
   forall nts sts.
   ( Eq sts
   , Ord nts, Ord sts
   , Hashable sts, Hashable nts)
-  => Grammar () nts sts -> SLRClosure nts sts
+  => Grammar () nts sts -> SLRClosure (CoreSLRState nts sts)
 slrClosure g is' = let
 
-    closure' :: SLRClosure nts sts
+    closure' :: SLRClosure (CoreSLRState nts sts)
     closure' _J = let
       add = fromList
             [ Item (ItemNT _B) [] γ ()
@@ -95,13 +198,13 @@ lr1Closure ::
   ( Eq nts, Eq sts
   , Ord nts, Ord sts, Ord sts
   , Hashable sts, Hashable sts, Hashable nts)
-  => Grammar () nts sts -> LR1Closure nts sts
+  => Grammar () nts sts -> Closure (CoreLR1State nts sts)
 lr1Closure g is' = let
 
     tokenToProdElem (Icon a) = [T a]
     tokenToProdElem _ = []
 
-    closure' :: LR1Closure nts sts
+    closure' :: Closure (CoreLR1State nts sts)
     closure' _J = let
       add = fromList
             -- TODO: Handle IconEOF in LL.first set calculation properly?:
@@ -118,14 +221,80 @@ lr1Closure g is' = let
 
   in closure' is'
 
-type Goto a nts sts = LRState a nts sts -> ProdElem nts sts -> LRState a nts sts
+convAction :: (lrstate -> lrstate') -> LRAction nts sts lrstate -> LRAction nts sts lrstate'
+convAction fncn (Shift state) = Shift $ fncn state
+convAction _ (Reduce p) = Reduce p
+convAction _ Accept = Accept
+convAction _ Error = Error
 
-type LR1Goto nts sts = Goto (LR1LookAhead sts) nts sts
+convTable ::
+  ( Ord lrstate, Ord lrstate', Ord sts
+  , Hashable nts, Hashable sts, Hashable lrstate, Hashable lrstate'
+  , Eq nts)
+  => (lrstate -> lrstate') -> LRTable nts sts lrstate -> LRTable nts sts lrstate'
+convTable fncn tbl = M.fromList'
+  [ ((fncn state, icon), S.map (convAction fncn) action)
+  | ((state, icon), action) <- M.toList tbl
+  ]
+
+convTableInt :: forall lrstate nts sts.
+  ( Ord lrstate, Ord sts
+  , Hashable nts, Hashable sts, Hashable lrstate
+  , Eq nts, Show lrstate)
+  => LRTable nts sts lrstate -> [lrstate] -> LRTable nts sts Int
+convTableInt tbl ss = convTable (convStateInt $ ss) tbl
+
+convGotoStates ::
+  ( Ord lrstate, Ord lrstate', Ord sts, Ord nts
+  , Hashable nts, Hashable sts, Hashable lrstate
+  , Eq nts)
+  => (lrstate -> lrstate') -> Goto nts sts lrstate -> Goto nts sts lrstate'
+convGotoStates fncn goto = M1.fromList [ ((fncn st0, e), fncn st1) | ((st0, e), st1) <- M1.toList goto ]
+
+convGotoStatesInt :: forall lrstate nts sts.
+  ( Ord lrstate, Ord sts, Ord nts
+  , Hashable nts, Hashable sts, Hashable lrstate
+  , Eq nts, Show lrstate)
+  => Goto nts sts lrstate -> [lrstate] -> Goto nts sts Int
+convGotoStatesInt goto ss = convGotoStates (convStateInt ss) goto
+
+convStateInt :: forall lrstate.
+  (Ord lrstate, Show lrstate)
+  => [lrstate] -> (lrstate -> Int)
+convStateInt ss = let
+    statemap :: M1.Map lrstate Int
+    statemap = M1.fromList $ zip ss [0 .. ]
+
+    fromJust' st Nothing = error $ "woops: " ++ show st
+    fromJust' _ (Just x) = x
+
+  in (\st -> fromJust' st (st `M1.lookup` statemap))
+
+-- | Convert a function-based goto to a map-based one once we know the set of
+-- all lrstates (sets of items for LR1) and all the production elements
+convGoto :: (Hashable lrstate, Ord lrstate, Ord sts, Ord nts)
+  => Grammar () nts sts -> Goto' nts sts lrstate -> [lrstate] -> Goto nts sts lrstate
+convGoto g goto states = M1.fromList
+  [ ((st0, e), goto st0 e)
+  | st0 <- states
+  , e   <- allProdElems g
+  ]
+
+allProdElems :: Grammar () nts ts -> [ProdElem nts ts]
+allProdElems g =
+      map NT (S.toList $ ns g)
+  ++  map T  (S.toList $ ts g)
+
+allProdElems' :: forall nts ts. (Bounded nts, Bounded ts, Enum nts, Enum ts)
+  => [ProdElem nts ts]
+allProdElems' =
+      map NT ([minBound .. maxBound] :: [nts])
+  ++  map T  ([minBound .. maxBound] :: [ts])
 
 goto ::
   ( Ord a, Ord nts, Ord sts
   , Hashable sts, Hashable nts, Hashable a)
-  => Grammar () nts sts -> Closure a nts sts -> Goto a nts sts
+  => Grammar () nts sts -> Closure (CoreLRState a nts sts) -> Goto' nts sts (CoreLRState a nts sts)
 goto g closure is _X = closure $ fromList
   [ Item _A (_X : α) β  a
   | Item _A α (_X' : β) a <- toList is
@@ -137,7 +306,7 @@ slrGoto ::
   ( Eq nts, Eq sts
   , Ord nts, Ord sts
   , Hashable sts, Hashable nts)
-  => Grammar () nts sts -> Goto () nts sts
+  => Grammar () nts sts -> Goto' nts sts (CoreSLRState nts sts)
 slrGoto g = goto g (slrClosure g)
 
 items ::
@@ -145,9 +314,9 @@ items ::
   ( Ord a, Ord nts, Ord sts
   , Eq nts, Eq sts
   , Hashable a, Hashable sts, Hashable nts)
-  => Grammar () nts sts -> Goto a nts sts -> Closure a nts sts -> LRState a nts sts -> Set (LRState a nts sts)
-items g goto closure s0 = let
-    items' :: Set (LRState a nts sts) -> Set (LRState a nts sts)
+  => Grammar () nts sts -> Goto' nts sts (CoreLRState a nts sts) -> CoreLRState a nts sts -> Set (CoreLRState a nts sts)
+items g goto s0 = let
+    items' :: Set (CoreLRState a nts sts) -> Set (CoreLRState a nts sts)
     items' _C = let
       add = fromList
             [ goto is _X
@@ -158,7 +327,7 @@ items g goto closure s0 = let
       in case size $ add \\ _C of
         0 -> _C `union` add
         _ -> items' $ _C `union` add
-  in items' $ singleton $ closure s0
+  in items' $ singleton s0
 --  singleton (Item (Init $ s0 g) [] [NT $ s0 g])
 
 kernel ::
@@ -190,43 +359,16 @@ allSLRItems g = fromList
     , n <- [0..length γ]
     ]
 
-type LRState a nts sts = Set (Item a nts sts)
--- TODO: String should be an arbitrary Eq and Ord "Symbol" type
-type LRTable a nts sts = M.Map (LRState a nts sts, Icon sts) (LRAction a nts sts)
-
-type LR1Action nts sts = LRAction (LR1LookAhead sts) nts sts
-
-data LRAction a nts sts =
-    Shift  (LRState a nts sts)
-  | Reduce (Production () nts sts)
-  | Accept
-  | Error
-  deriving (Generic, Eq, Ord, Hashable, Show, Data, Lift)
-
-instance
-  ( Prettify a, Prettify nts, Prettify sts
-  , Hashable a, Hashable sts, Hashable nts
-  , Eq a, Eq sts, Eq nts)
-  => Prettify (LRAction a nts sts) where
-  prettify (Shift ss) = pStr "Shift  {" >> prettify ss >> pLine "}"
-  prettify (Reduce p) = pStr "Reduce  " >> prettify p  >> pLine ""
-  prettify Accept     = pStr "Accept"
-  prettify Error      = pStr "Error"
-
-type SLRItem  nts sts = Item    () nts sts
-type SLRState nts sts = LRState () nts sts
-type SLRTable nts sts = LRTable () nts sts
-
 lrS0 ::
   ( Ord a, Ord sts, Ord nts
   , Hashable a, Hashable sts, Hashable nts)
-  => a -> Grammar () nts sts -> LRState a nts sts
+  => a -> Grammar () nts sts -> CoreLRState a nts sts
 lrS0 a g = singleton $ Item (Init $ s0 g) [] [NT $ s0 g] a
 
 slrS0 ::
   ( Ord sts, Ord nts
   , Hashable sts, Hashable nts)
-  => Grammar () nts sts -> SLRState nts sts
+  => Grammar () nts sts -> CoreLRState () nts sts
 slrS0 = lrS0 ()
 
 slrItems ::
@@ -235,14 +377,14 @@ slrItems ::
   , Ord nts, Ord sts
   , Hashable sts, Hashable nts)
   => Grammar () nts sts -> Set (Set (SLRItem nts sts))
-slrItems g = items g (slrGoto g) (slrClosure g) (slrS0 g)
+slrItems g = items g (slrGoto g) (slrClosure g $ slrS0 g)
 
 slrTable ::
   forall nts sts.
   ( Eq nts, Eq sts
   , Ord nts, Ord sts
   , Hashable nts, Hashable sts)
-  => Grammar () nts sts -> SLRTable nts sts
+  => Grammar () nts sts -> SLRTable nts sts (CoreSLRState nts sts)
 slrTable g = let
 
     --slr' :: a -> b -> b
@@ -263,18 +405,15 @@ slrTable g = let
 
   in M.fromList $ concat $ S.map slr' $ slrItems g
 
-type LR1Item  nts sts = Item    (LR1LookAhead sts) nts sts
-type LR1Table nts sts = LRTable (LR1LookAhead sts) nts sts
-
 lr1Table :: forall nts sts.
   ( Eq nts, Eq sts
   , Ord nts, Ord sts
   , Hashable sts, Hashable nts)
-  => Grammar () nts sts -> LR1Table nts sts
+  => Grammar () nts sts -> LRTable nts sts (CoreLR1State nts sts)
 lr1Table g = let
-    --lr1' :: LR1State nts sts -> LR1Table nts sts
+    --lr1' :: LR1State nts sts -> LRTable nts sts
     lr1' _Ii = let
-        --lr1'' :: LR1Item nts sts -> LR1Table nts sts
+        --lr1'' :: LR1Item nts sts -> LRTable nts sts
         lr1'' (Item (ItemNT nts) α (T a:β) _) = --uPIO (prints ("TABLE:", a, slrGoto g _Ii $ T a, _Ii)) `seq`
                   Just ((_Ii, Icon a), Shift $ lr1Goto g _Ii $ T a)
         lr1'' (Item (Init   nts) α (T a:β) _) = Just ((_Ii, Icon a), Shift $ lr1Goto g _Ii $ T a)
@@ -285,61 +424,13 @@ lr1Table g = let
 
   in M.fromList $ concat (S.map lr1' $ lr1Items g)
 
-type Config a nts ts t = ([LRState a nts ts], [t])
-
 look ::
-  ( Ord a, Ord nts, Ord sts
+  ( Ord lrstate, Ord nts, Ord sts
   , Eq sts
-  , Hashable a, Hashable sts, Hashable nts)
-  => (LRState a nts sts, Icon sts) -> LRTable a nts sts -> Set (LRAction a nts sts)
+  , Hashable lrstate, Hashable sts, Hashable nts)
+  => (lrstate, Icon sts) -> LRTable nts sts lrstate -> Set (LRAction nts sts lrstate)
 look (s,a) tbl = --uPIO (prints ("lookup:", s, a, M.lookup (s, a) act)) `seq`
     M.lookup (s, a) tbl
-
-type LR1Result nts sts t ast = LRResult (LR1LookAhead sts) nts sts t ast
-
-data LRResult a nts ts t ast =
-    ErrorNoAction (Config a nts ts t) [ast]
-  | ErrorAccept   (Config a nts ts t) [ast]
-  | ResultSet     (Set (LRResult a nts ts t ast))
-  | ResultAccept  ast
-  deriving (Eq, Ord, Show, Generic, Hashable)
-
-instance  ( Prettify t, Prettify ast, Prettify a, Prettify nts, Prettify ts
-          , Hashable a, Hashable ts, Hashable nts, Eq a, Eq ts, Eq nts, Eq t, Eq ast
-          , Hashable ast, Hashable t)
-  => Prettify (LRResult a nts ts t ast) where
-  
-  prettify (ErrorNoAction (s:states, ws) asts) = do
-    pStr "ErrorNoAction: Current input = '"
-    if null ws then return () else prettify (head ws)
-    pLine "'"
-    incrIndent 7
-    
-    pStr "Current state = <"
-    prettify s
-    pLine ">"
-
-    pStr "Rest of input = '"
-    prettify ws
-    pLine "'"
-    
-  prettify (ErrorAccept   (s:states, ws) asts) = do
-    pStr "ErrorAccept: Current input = "
-    (if null ws then return () else prettify (head ws))
-    pLine ""
-    incrIndent 7
-    
-    pStr "Current state = "
-    prettify s
-    pLine ""
-    
-    pStr "Rest of input = "
-    prettify ws
-    pLine ""
- 
-  prettify (ResultSet s) = pStr "ResultSet: " >> prettify s
-
-  prettify (ResultAccept ast)             = pStr "ResultAccept: " >> prettify ast
 
 isAccept (ResultAccept _) = True
 isAccept _                = False
@@ -351,21 +442,21 @@ isError _                = True
 getAccepts xs = fromList [x | x <- toList xs, isAccept x]
 
 lrParse ::
-  forall ast a nts t.
-  ( Ord a, Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t))
+  forall ast a nts t lrstate.
+  ( Ord lrstate, Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t))
   , Eq nts, Eq (Sym t), Eq (StripEOF (Sym t))
   , Ref t, HasEOF (Sym t)
-  , Hashable (Sym t), Hashable t, Hashable a, Hashable nts, Hashable (StripEOF (Sym t))
-  , Prettify a, Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
-  => Grammar () nts (StripEOF (Sym t)) -> LRTable a nts (StripEOF (Sym t)) -> Goto a nts (StripEOF (Sym t))
-  -> Closure a nts (StripEOF (Sym t))  -> LRState a nts (StripEOF (Sym t)) -> Action ast nts t
-  -> [t] -> LRResult a nts (StripEOF (Sym t)) t ast
-lrParse g tbl goto closure s_0 act w = let
+  , Hashable (Sym t), Hashable t, Hashable lrstate, Hashable nts, Hashable (StripEOF (Sym t))
+  , Prettify lrstate, Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
+  => Grammar () nts (StripEOF (Sym t)) -> LRTable nts (StripEOF (Sym t)) lrstate -> Goto nts (StripEOF (Sym t)) lrstate
+  -> lrstate -> Action ast nts t
+  -> [t] -> LRResult lrstate t ast
+lrParse g tbl goto s_0 act w = let
   
-    lr :: Config a nts (StripEOF (Sym t)) t -> [ast] -> LRResult a nts (StripEOF (Sym t)) t ast
+    lr :: Config lrstate t -> [ast] -> LRResult lrstate t ast
     lr (s:states, a:ws) asts = let
         
-        lr' :: LRAction a nts (StripEOF (Sym t)) -> LRResult a nts (StripEOF (Sym t)) t ast
+        lr' :: LRAction nts (StripEOF (Sym t)) lrstate -> LRResult lrstate t ast
         lr' Accept = case length asts of
               1 -> ResultAccept $ head asts
               _ -> ErrorAccept (s:states, a:ws) asts
@@ -373,9 +464,11 @@ lrParse g tbl goto closure s_0 act w = let
         lr' (Shift t) = trace ("Shift: " ++ pshow' t) $ lr (t:s:states, ws) $ act (TermE a) : asts
         lr' (Reduce p@(Production _A (Prod _ β))) = let
               ss'@(t:_) = drop (length β) (s:states)
-            in trace ("Reduce: " ++ pshow' p)
-               lr (goto t (NT _A) : ss', a:ws)
-                  (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
+              result =
+                case (t, NT _A) `M1.lookup` goto of
+                  Nothing -> ErrorTable (s:states, a:ws) asts
+                  Just s  -> lr (s : ss', a:ws) (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
+            in trace ("Reduce: " ++ pshow' p) result
 
       -- TODO: handle empty file test case
         lookVal = case stripEOF $ getSymbol a of
@@ -386,7 +479,7 @@ lrParse g tbl goto closure s_0 act w = let
           then ErrorNoAction (s:states, a:ws) asts
           else lr' $ (head . S.toList) lookVal
 
-  in lr ([closure s_0], w) []
+  in lr ([s_0], w) []
 
 slrParse ::
   ( Eq (Sym nts), Eq (Sym t), Eq (StripEOF (Sym t))
@@ -395,8 +488,8 @@ slrParse ::
   , Hashable nts, Hashable (Sym t), Hashable t, Hashable (StripEOF (Sym t))
   , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
   => Grammar () nts (StripEOF (Sym t)) -> Action ast nts t -> [t]
-  -> LRResult () nts (StripEOF (Sym t)) t ast
-slrParse g = lrParse g (slrTable g) (slrGoto g) (slrClosure g) (slrS0 g)
+  -> LRResult (CoreSLRState nts (StripEOF (Sym t))) t ast
+slrParse g = lrParse g (slrTable g) (convGoto g (slrGoto g) (sort $ S.toList $ slrItems g)) (slrClosure g $ slrS0 g)
 
 slrRecognize ::
   ( Eq (Sym nts), Eq (Sym t), Eq (StripEOF (Sym t))
@@ -416,8 +509,6 @@ lr1Recognize ::
   => Grammar () nts (StripEOF (Sym t)) -> [t] -> Bool
 lr1Recognize g w = isAccept $ lr1Parse g (const 0) w
 
-type LR1LookAhead sts = Icon sts -- Single Icon of lookahead for LR1
-
 getLookAheads :: (Hashable sts, Hashable nts, Eq sts, Eq nts) => Set (LR1Item nts sts) -> Set sts
 getLookAheads = let
     gLA (Item _ _ _ IconEOF)    = Nothing
@@ -428,24 +519,22 @@ lr1Goto ::
   ( Eq nts, Eq sts
   , Ord nts, Ord sts
   , Hashable sts, Hashable nts)
-  => Grammar () nts sts -> Goto (LR1LookAhead sts) nts sts
+  => Grammar () nts sts -> Goto' nts sts (CoreLR1State nts sts)
 lr1Goto g = goto g (lr1Closure g)
-
-type LR1State nts sts = LRState (LR1LookAhead sts) nts sts
 
 lr1S0 ::
   ( Eq sts
   , Ord sts, Ord nts
   , Hashable sts, Hashable nts)
-  => Grammar () nts sts -> LRState (LR1LookAhead sts) nts sts
+  => Grammar () nts sts -> CoreLRState (LR1LookAhead sts) nts sts
 lr1S0 = lrS0 IconEOF
 
 lr1Items ::
   ( Eq sts, Eq sts
   , Ord nts, Ord sts
   , Hashable sts, Hashable nts)
-  => Grammar () nts sts -> Set (LRState (LR1LookAhead sts) nts sts)
-lr1Items g = items g (lr1Goto g) (lr1Closure g) (lr1S0 g)
+  => Grammar () nts sts -> Set (CoreLRState (LR1LookAhead sts) nts sts)
+lr1Items g = items g (lr1Goto g) (lr1Closure g $ lr1S0 g)
 
 lr1Parse ::
   ( Eq (Sym nts), Eq (Sym t), Eq (StripEOF (Sym t))
@@ -454,25 +543,25 @@ lr1Parse ::
   , Hashable nts, Hashable (Sym t), Hashable t, Hashable (StripEOF (Sym t))
   , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
   => Grammar () nts (StripEOF (Sym t)) -> Action ast nts t -> [t]
-  -> LRResult (LR1LookAhead (StripEOF (Sym t))) nts (StripEOF (Sym t)) t ast
-lr1Parse g = lrParse g (lr1Table g) (lr1Goto g) (lr1Closure g) (lr1S0 g)
+  -> LRResult (CoreLR1State nts (StripEOF (Sym t))) t ast
+lr1Parse g = lrParse g (lr1Table g) (convGoto g (lr1Goto g) (sort $ S.toList $ lr1Items g)) (lr1Closure g $ lr1S0 g)
 
 glrParse' ::
-  forall ast a nts t.
-  ( Ord a, Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t)), Ord ast
+  forall ast nts t lrstate.
+  ( Ord lrstate, Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t)), Ord ast
   , Eq nts, Eq (Sym t), Eq (StripEOF (Sym t)), Eq ast
   , Ref t, HasEOF (Sym t)
-  , Hashable (Sym t), Hashable t, Hashable a, Hashable nts, Hashable (StripEOF (Sym t)), Hashable ast
-  , Prettify a, Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
-  => Grammar () nts (StripEOF (Sym t)) -> LRTable a nts (StripEOF (Sym t)) -> Goto a nts (StripEOF (Sym t))
-  -> Closure a nts (StripEOF (Sym t))  -> LRState a nts (StripEOF (Sym t)) -> Action ast nts t
-  -> [t] -> LRResult a nts (StripEOF (Sym t)) t ast
-glrParse' g tbl goto closure s_0 act w = let
+  , Hashable (Sym t), Hashable t, Hashable lrstate, Hashable nts, Hashable (StripEOF (Sym t)), Hashable ast
+  , Prettify lrstate, Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
+  => Grammar () nts (StripEOF (Sym t)) -> LRTable nts (StripEOF (Sym t)) lrstate -> Goto nts (StripEOF (Sym t)) lrstate
+  -> lrstate -> Action ast nts t
+  -> [t] -> LRResult lrstate t ast
+glrParse' g tbl goto s_0 act w = let
   
-    lr :: Config a nts (StripEOF (Sym t)) t -> [ast] -> LRResult a nts (StripEOF (Sym t)) t ast
+    lr :: Config lrstate t -> [ast] -> LRResult lrstate t ast
     lr (s:states, a:ws) asts = let
         
-        lr' :: LRAction a nts (StripEOF (Sym t)) -> LRResult a nts (StripEOF (Sym t)) t ast
+        lr' :: LRAction nts (StripEOF (Sym t)) lrstate -> LRResult lrstate t ast
         lr' Accept    = case length asts of
               1 -> ResultAccept $ head asts
               _ -> ErrorAccept (s:states, a:ws) asts
@@ -480,9 +569,11 @@ glrParse' g tbl goto closure s_0 act w = let
         lr' (Shift t) = trace ("Shift: " ++ pshow' t) $ lr (t:s:states, ws) $ act (TermE a) : asts
         lr' (Reduce p@(Production _A (Prod _ β))) = let
               ss'@(t:_) = drop (length β) (s:states)
-            in trace ("Reduce: " ++ pshow' p)
-               lr (goto t (NT _A) : ss', a:ws)
-                  (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
+              result =
+                case (t, NT _A) `M1.lookup` goto of
+                  Nothing -> ErrorTable (s:states, a:ws) asts
+                  Just s  -> lr (s : ss', a:ws) (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
+            in trace ("Reduce: " ++ pshow' p) result
 
         lookVal = case stripEOF $ getSymbol a of
                     Just sym -> look (s, Icon sym) tbl
@@ -500,40 +591,24 @@ glrParse' g tbl goto closure s_0 act w = let
                           _ -> ResultSet parseResults)
                   else ResultSet justAccepts)
 
-  in lr ([closure s_0], w) []
+  in lr ([s_0], w) []
 
-glrParse g = glrParse' g (lr1Table g) (lr1Goto g) (lr1Closure g) (lr1S0 g)
-
-type Tokenizer t c = Set (StripEOF (Sym t)) -> [c] -> (t, [c])
+glrParse g = glrParse' g (lr1Table g) (convGoto g (lr1Goto g) (sort $ S.toList $ lr1Items g)) (lr1Closure g $ lr1S0 g)
 
 glrParseInc' ::
-  forall ast nts t c.
-  ( Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t)), Ord ast
+  forall ast nts t c lrstate.
+  ( Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t)), Ord ast, Ord lrstate
   , Eq nts, Eq (Sym t), Eq (StripEOF (Sym t)), Eq ast
   , Ref t, HasEOF (Sym t)
-  , Hashable (Sym t), Hashable t, Hashable nts, Hashable (StripEOF (Sym t)), Hashable ast
-  , Prettify t, Prettify nts, Prettify (StripEOF (Sym t))
+  , Hashable (Sym t), Hashable t, Hashable nts, Hashable (StripEOF (Sym t)), Hashable ast, Hashable lrstate
+  , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)), Prettify lrstate
   , Eq c, Ord c, Hashable c)
-  => Grammar () nts (StripEOF (Sym t)) -> LR1Table nts (StripEOF (Sym t)) -> LR1Goto nts (StripEOF (Sym t))
-  -> LR1Closure nts (StripEOF (Sym t)) -> LR1State nts (StripEOF (Sym t)) -> Action ast nts t
-  -> Tokenizer t c -> [c] -> LR1Result nts (StripEOF (Sym t)) c ast
-glrParseInc' g tbl goto closure s_0 act tokenizer w = let
+  => Grammar () nts (StripEOF (Sym t)) -> LRTable nts (StripEOF (Sym t)) lrstate -> Goto nts (StripEOF (Sym t)) lrstate
+  -> lrstate -> M1.Map lrstate (Set (StripEOF (Sym t))) -> Action ast nts t
+  -> Tokenizer t c -> [c] -> LR1Result lrstate c ast
+glrParseInc' g tbl goto s_0 tokenizerFirstSets act tokenizer w = let
     
-    first s = let
-        removeIcons (Icon t) = Just t
-        removeIcons IconEps  = Nothing
-        removeIcons IconEOF  = Nothing
-
-        itemHeads (Item (Init   nt) _ [] _) = []
-        itemHeads (Item (ItemNT nt) _ [] _) = S.toList $ LL.follow g nt -- TODO: Use stack context
-        itemHeads (Item _ _ (b:bs)  _)      = S.toList $ LL.first  g [b]
-
-      in S.fromList $ mapMaybe removeIcons $ concatMap itemHeads s
-
-    tokenizerFirstSets :: M1.Map (LR1State nts (StripEOF (Sym t))) (Set (StripEOF (Sym t)))
-    tokenizerFirstSets = M1.fromList [ (s, first $ S.toList s) | ((s, _), _) <- M.toList tbl ]
-
-    lr :: Config (LR1LookAhead (StripEOF (Sym t))) nts (StripEOF (Sym t)) c -> [ast] -> LR1Result nts (StripEOF (Sym t)) c ast
+    lr :: Config lrstate c -> [ast] -> LR1Result lrstate c ast
     lr (s:states, cs) asts = let
 
         -- The set of token symbols that are feasible to be seen next given the
@@ -545,7 +620,7 @@ glrParseInc' g tbl goto closure s_0 act tokenizer w = let
         dfaNames = fromMaybe (error "Impossible") $ s `M1.lookup` tokenizerFirstSets
         (a, ws) = tokenizer dfaNames cs
         
-        lr' :: LR1Action nts (StripEOF (Sym t)) -> LR1Result nts (StripEOF (Sym t)) c ast
+        lr' :: LR1Action nts (StripEOF (Sym t)) lrstate -> LR1Result lrstate c ast
         lr' Accept    = case length asts of
               1 -> ResultAccept $ head asts
               _ -> ErrorAccept (s:states, cs) asts
@@ -553,9 +628,11 @@ glrParseInc' g tbl goto closure s_0 act tokenizer w = let
         lr' (Shift t) = trace ("Shift: " ++ pshow' t) $ lr (t:s:states, ws) $ act (TermE a) : asts
         lr' (Reduce p@(Production _A (Prod _ β))) = let
               ss'@(t:_) = drop (length β) (s:states)
-            in trace ("Reduce: " ++ pshow' p)
-               lr (goto t (NT _A) : ss', cs)
-                  (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
+              result =
+                case (t, NT _A) `M1.lookup` goto of
+                  Nothing -> ErrorTable (s:states, cs) asts
+                  Just s  -> lr (s : ss', cs) (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
+            in trace ("Reduce: " ++ pshow' p) result
 
         lookVal = case stripEOF $ getSymbol a of
                     Just sym -> look (s, Icon sym) tbl
@@ -578,7 +655,64 @@ glrParseInc' g tbl goto closure s_0 act tokenizer w = let
                           1 -> S.findMin justAccepts
                           _ -> ResultSet justAccepts))
 
-  in lr ([closure s_0], w) []
+  in lr ([s_0], w) []
 
-glrParseInc g = glrParseInc' g (lr1Table g) (lr1Goto g) (lr1Closure g) (lr1S0 g)
+--tokenizerFirstSets :: M1.Map lrstate (Set (StripEOF (Sym t)))
+tokenizerFirstSets convState g = let
+    tbl = lr1Table g
 
+    first s = let
+        removeIcons (Icon t) = Just t
+        removeIcons IconEps  = Nothing
+        removeIcons IconEOF  = Nothing
+
+        itemHeads (Item (Init   nt) _ [] _) = []
+        itemHeads (Item (ItemNT nt) _ [] _) = S.toList $ LL.follow g nt -- TODO: Use stack context
+        itemHeads (Item _ _ (b:bs)  _)      = S.toList $ LL.first  g [b]
+
+      in S.fromList $ mapMaybe removeIcons $ concatMap itemHeads s
+
+  in M1.fromList [ (convState s, first $ S.toList s) | ((s, _), _) <- M.toList tbl ]
+
+glrParseInc g = glrParseInc' g
+  (lr1Table g)
+  (convGoto g (lr1Goto g) (sort $ S.toList $ lr1Items g))
+  (lr1Closure g $ lr1S0 g)
+  (tokenizerFirstSets id g)
+
+glrParseInc2 g = let
+    is = sort $ S.toList $ lr1Items g
+    convState = convStateInt is
+  in glrParseInc' g
+      (convTableInt (lr1Table g) is)
+      (convGotoStatesInt (convGoto g (lr1Goto g) is) is)
+      (convState $ lr1Closure g $ lr1S0 g)
+      (tokenizerFirstSets convState g)
+
+--convGotoStatesInt convTableInt
+
+-- Returns the disambiguated LRTable, as well as the number of conflicts
+-- (Shift/Reduce, Reduce/Reduce, etc...) reported.
+disambiguate ::
+  ( Prettify lrstate, Prettify nts, Prettify sts
+  , Ord lrstate, Ord nts, Ord sts
+  , Hashable lrstate, Hashable nts, Hashable sts
+  , Data lrstate, Data nts, Data sts
+  , Show lrstate, Show nts, Show sts)
+  => LRTable nts sts lrstate -> (LRTable' nts sts lrstate, Int)
+disambiguate tbl = let
+
+    mkConflict s = concatWith "/" $ map (show . toConstr) $ S.toList s
+
+    mkSingle st icon s
+      | S.size s == 1 = (S.findMin s, 0)
+      | S.size s == 0 = D.trace ("Table entry " ++ pshow' (st,icon) ++ " has no Shift/Reduce entry.") undefined
+      | otherwise     = D.trace ("Table entry " ++ pshow' (st,icon) ++ " has " ++ mkConflict s ++ " conflict: \n"
+                        ++  (pshow' $ S.toList s)) (S.findMin s, 1)
+  in (M1.fromList
+    [ ((st, icon), fst (mkSingle st icon action))
+    | ((st, icon), action) <- M.toList tbl
+    ], sum
+    [ snd (mkSingle st icon action)
+    | ((st, icon), action) <- M.toList tbl
+    ])

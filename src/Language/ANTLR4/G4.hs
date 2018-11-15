@@ -6,6 +6,7 @@ module Language.ANTLR4.G4 (g4) where
 import Control.Arrow ( (&&&) )
 import Data.Char (isUpper)
 
+import Text.ANTLR.Common
 import Text.ANTLR.Grammar
 import Text.ANTLR.Parser
 import qualified Text.ANTLR.LR as LR
@@ -57,10 +58,6 @@ g4sNamed     = G4S.Named
 dUpper   = G4S.UpperD
 dLower   = G4S.LowerD
 dHaskell = G4S.HaskellD
-
-concatWith cs [] = []
-concatWith cs [x] = x
-concatWith cs (x:xs) = x ++ cs ++ concatWith cs xs
 
 dQual [] = G4S.UpperD []
 dQual xs = case last xs of

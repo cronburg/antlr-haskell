@@ -58,7 +58,8 @@ stripQuotesReadEscape s = let
     sQRE ('\\':xs) = eC xs
     sQRE (x:xs) = x : sQRE xs
 
-  in trace s $ (sQRE . init . tail) s
+  --in trace s $ (sQRE . init . tail) s
+  in (sQRE . init . tail) s
   --read $ "\"" ++ (init . tail) s ++ "\"" :: String
 
 char :: String -> Char

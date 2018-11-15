@@ -5,7 +5,7 @@ module Language.ANTLR4.Boot.Quote
 ) where
 import Prelude hiding (exp, init)
 import System.IO.Unsafe (unsafePerformIO)
-import Data.List (nub, elemIndex, groupBy, sortBy)
+import Data.List (nub, elemIndex, groupBy, sortBy, sort)
 import Data.Ord (comparing)
 import Data.Char (toLower, toUpper, isLower, isUpper)
 import Data.Maybe (fromJust, catMaybes)
@@ -34,6 +34,8 @@ import qualified Text.ANTLR.Allstar as ALL
 import qualified Text.ANTLR.LL1 as LL
 import qualified Text.ANTLR.Set as S
 
+import qualified Text.ANTLR.MultiMap as M
+import qualified Data.Map as M1
 import Text.ANTLR.Set (Set(..))
 import qualified Text.ANTLR.Set as Set
 import qualified Text.ANTLR.Lex.Regex as R
@@ -906,15 +908,17 @@ g4_decls ast = let
           tokenize :: String -> [$(conT nameToken)] --Token $(conT tokName) $(conT tokVal)]
           tokenize = T.tokenize $(varE nameDFAs) lexeme2value
 
-          slrParse :: [$(conT nameToken)] -> LR.LRResult () $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
+          slrParse :: [$(conT nameToken)] -> LR.LRResult (LR.CoreSLRState $(conT ntSym) (StripEOF (Sym $(conT nameToken)))) $(conT nameToken) $(conT nameAST)
           slrParse = (LR.slrParse $(varE nameUnit) event2ast)
 
           --glrParse :: [$(conT nameToken)] -> LR.LRResult $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
-          glrParse :: ($(conT tokName) -> Bool) -> [Char] -> LR.LR1Result $(conT ntSym) 
-                                                                            (StripEOF (Sym $(conT nameToken)))
-                                                                            Char
-                                                                            $(conT nameAST)
-          glrParse filterF = (LR.glrParseInc $(varE nameUnit) event2ast (T.tokenizeInc filterF $(varE nameDFAs) lexeme2value))
+          glrParse :: ($(conT tokName) -> Bool) -> [Char]
+                      -> LR.LR1Result
+                          --(LR.CoreLR1State $(conT ntSym) (StripEOF (Sym $(conT nameToken))))
+                          Int
+                          Char
+                          $(conT nameAST)
+          glrParse filterF = (LR.glrParseInc2 $(varE nameUnit) event2ast (T.tokenizeInc filterF $(varE nameDFAs) lexeme2value))
 
           instance ALL.Token $(conT nameToken) where
             type Label $(conT nameToken) = StripEOF (Sym $(conT nameToken))
@@ -947,16 +951,52 @@ g4_decls ast = let
           , dfas, astDecl, tokDecl
           ] ++ decls ++ ast2DTFncns
 
-mkLRParser ast value = 
+mkLRParser ast g = 
   let
+    nameDFAs  = mkName (mkLower $ gName ast ++ "DFAs")
+    tokName   = mkName "TokenName"
+    nameAST   = mkName (mkUpper $ grammarName ast ++ "AST")
     name = mkName $ mkLower (grammarName ast ++ "Grammar")
-    unitTy = [t| () |]
-    name' = [e| $(varE name) :: $(justGrammarTy' ast unitTy) |]
-  in    [d| lr1Table    = $(lift $ LR.lr1Table value)
-            lr1Goto     = LR.lr1Goto $(name')
-            lr1Closure  = LR.lr1Closure $(name')
-            lr1S0       = $(lift $ LR.lr1S0 value)
+    is = sort $ S.toList $ LR.lr1Items g
+    tbl       = LR.lr1Table g
+   
+    tblInt = LR.convTableInt tbl is
+    (_lr1Table', errs) = LR.disambiguate tblInt
+    lr1Table' = M.toList tblInt -- _lr1Table'
+    lr1S0'    = LR.convStateInt is $ LR.lr1Closure g $ LR.lr1S0 g
 
-            glrParse2   = LR.glrParseInc' $(name') lr1Table lr1Goto lr1Closure lr1S0
+    unitTy = [t| () |]
+    name' = [e| $(varE name) |] -- :: $(justGrammarTy' ast unitTy) |]
+  in do --D.traceM $ pshow' is
+        D.traceM $ "lr1S0 = " ++ (pshow' $ LR.lr1S0 g)
+        --D.traceM $ "lr1Table = " ++ (pshow' $ LR.lr1Table g)
+        D.traceM $ "lr1S0' = " ++ (pshow' lr1S0')
+        D.traceM $ "lr1Table' = " ++ (pshow' lr1Table')
+        D.traceM $ "Total LR1 conflicts: " ++ (pshow' errs)
+          --
+          --glrParse filterF = (LR.glrParseInc2 $(varE nameUnit) event2ast (T.tokenizeInc filterF $(varE nameDFAs) lexeme2value))
+        --D.traceM $ "disambiguate tbl = " ++ (pshow' $ disambiguate tbl)
+        [d| lr1ItemsList = sort $ S.toList $ LR.lr1Items $(name')
+            lr1Table    = $(lift lr1Table')
+            lr1Goto     = LR.convGotoStatesInt (LR.convGoto $(name') (LR.lr1Goto $(name')) lr1ItemsList) lr1ItemsList
+            lr1Closure  = convState $ LR.lr1Closure $(name') (LR.lr1S0 $(name'))
+            lr1S0       = $(lift lr1S0')
+            convState   = LR.convStateInt lr1ItemsList
+
+            glrParseFast :: ($(conT tokName) -> Bool) -> [Char]
+                        -> LR.LR1Result
+                            --(LR.CoreLR1State $(conT ntSym) (StripEOF (Sym $(conT nameToken))))
+                            Int
+                            Char
+                            $(conT nameAST)
+            glrParseFast filterF =
+              LR.glrParseInc'
+                $(name')
+                (M.fromList' lr1Table)
+                lr1Goto
+                lr1S0
+                (LR.tokenizerFirstSets convState $(name'))
+                event2ast
+                (T.tokenizeInc filterF $(varE nameDFAs) lexeme2value)
             |]
 

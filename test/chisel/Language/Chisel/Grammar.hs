@@ -6,6 +6,7 @@ module Language.Chisel.Grammar
   , lowerID, upperID, prim, int, arrow, lparen, rparen, pound
   , vertbar, colon, comma, atsymbol, carrot, dot, linecomm, ws
   , Primitive(..), chiselGrammar, TokenValue(..)
+  , the_ast, TokenName(..), chiselDFAs, lexeme2value, isWhitespace, glrParse
   ) where
 import Language.ANTLR4
 import Language.Chisel.Syntax as S
