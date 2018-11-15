@@ -3,7 +3,7 @@
 module AllStarTests where
 
 import Test.HUnit
-import ParserGenerator.AllStar
+import Text.ANTLR.Allstar.ParserGenerator
 import qualified Data.Set as DS
 
 --------------------------------TESTING-----------------------------------------

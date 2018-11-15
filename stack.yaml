@@ -2,10 +2,10 @@ resolver: lts-11.14
 
 packages:
 - .
-- location:
-    git: https://github.com/cronburg/AllStar.git
-    commit: d7abbd5
-  extra-dep: true
+#- location:
+#    git: https://github.com/cronburg/AllStar.git
+#    commit: d7abbd5
+#  extra-dep: true
 
 extra-deps: []
 flags: {}

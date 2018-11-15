@@ -3,7 +3,6 @@ module Text.ANTLR.Allstar.ParserGenerator where
 
 import Data.List
 import qualified Data.Set as DS
-import Test.HUnit
 import Debug.Trace
 
 --------------------------------TYPE DEFINITIONS--------------------------------

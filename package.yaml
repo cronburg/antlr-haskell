@@ -32,7 +32,6 @@ dependencies:
 - hashable
 - unordered-containers >= 0.2.9
 - th-lift
-- AllStar
 - haskell-src-meta
 - ghc-prim
 
@@ -43,6 +42,7 @@ library:
     - Text.ANTLR.Grammar
     - Text.ANTLR.Allstar.Stacks
     - Text.ANTLR.Allstar.ATN
+    - Text.ANTLR.Allstar.ParserGenerator
     - Text.ANTLR.Lex
     - Text.ANTLR.Lex.NFA
     - Text.ANTLR.Lex.DFA
@@ -291,6 +291,29 @@ tests:
     main:                Main.hs
     source-dirs:
       - test/simple
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - antlr-haskell
+    - test-framework
+    - test-framework-hunit
+    - test-framework-quickcheck2
+    - QuickCheck
+    - HUnit
+    - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
+  
+  allstar:
+    main:                Main.hs
+    source-dirs:
+      - test/allstar
+      - test/shared
     ghc-options:
     - -threaded
     - -rtsopts

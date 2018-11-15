@@ -6,7 +6,7 @@ module Text.ANTLR.Allstar
   , ALL.ATNEnv, atnOf
   ) where
 
-import qualified ParserGenerator.AllStar as ALL
+import qualified Text.ANTLR.Allstar.ParserGenerator as ALL
 
 import qualified Text.ANTLR.Parser as P
 import qualified Text.ANTLR.Grammar as G
@@ -44,8 +44,8 @@ parse inp s0 atns cache = fromAllstarAST <$> ALL.parse inp s0 atns cache
 
 convSymbol s = ALL.NT s
 
-toAllstarSymbol :: G.ProdElem nts ts -> GrammarSymbol nt t
-toAllstarSymbol (NT nts) = G.NT nts
-toAllstarSymbol (T  ts)  = G.T  ts
-toAllstarSymbol EPS      = G.Eps
+toAllstarSymbol :: G.ProdElem nts ts -> ALL.GrammarSymbol nts ts
+toAllstarSymbol (G.NT nts) = ALL.NT nts
+toAllstarSymbol (G.T  ts)  = ALL.T  ts
+toAllstarSymbol (G.Eps)    = ALL.EPS
 
