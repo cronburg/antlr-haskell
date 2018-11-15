@@ -1,0 +1,311 @@
+name:                antlr-haskell
+version:             0.1.0.0
+github:              "cronburg/antlr-haskell"
+license:             BSD3
+author:              "Karl Cronburg & Matthew Ahrens"
+maintainer:          "karl@cs.tufts.edu"
+copyright:           "MIT"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+synopsis:            A Haskell implementation of the ANTLR top-down parser generator
+category:            Library
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on Github at <https://github.com/cronburg/antlr-haskell#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- containers
+- mtl
+- parsec
+- template-haskell >= 2.12
+- text
+- set-monad
+- transformers
+- deepseq
+- hashable
+- unordered-containers >= 0.2.9
+- th-lift
+- AllStar
+- haskell-src-meta
+- ghc-prim
+
+library:
+  source-dirs: src
+  exposed-modules:
+    - Text.ANTLR.Allstar
+    - Text.ANTLR.Grammar
+    - Text.ANTLR.Allstar.Stacks
+    - Text.ANTLR.Allstar.ATN
+    - Text.ANTLR.Lex
+    - Text.ANTLR.Lex.NFA
+    - Text.ANTLR.Lex.DFA
+    - Text.ANTLR.Lex.Automata
+    - Text.ANTLR.Lex.Regex
+    - Text.ANTLR.Lex.Tokenizer
+    - Text.ANTLR.LL1
+    - Text.ANTLR.LR
+    - Text.ANTLR.Parser
+    - Text.ANTLR.Set
+    - Text.ANTLR.MultiMap
+    - Text.ANTLR.Pretty
+
+      # ANTLR4 (G4) core quasiquoter:
+    - Language.ANTLR4
+    - Language.ANTLR4.Boot.Parser
+    - Language.ANTLR4.Boot.Quote
+    - Language.ANTLR4.Boot.Syntax
+    - Language.ANTLR4.G4
+    - Language.ANTLR4.Regex
+    - Language.ANTLR4.Syntax
+
+      # Standalone quasiquoters:
+    - Language.ANTLR4.FileOpener
+
+      #other-modules:
+
+  default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
+
+  # LANGUAGE extensions used by modules in this package.
+  other-extensions:
+    - QuasiQuotes
+    - TemplateHaskell
+    - ScopedTypeVariables
+    - DeriveLift
+
+tests:
+  template:
+    main:                Main.hs
+    source-dirs:
+      - test/template
+      - test/shared
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - antlr-haskell
+    - test-framework
+    - test-framework-hunit
+    - test-framework-quickcheck2
+    - QuickCheck
+    - HUnit
+    - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
+
+  atn:
+    main:                Main.hs
+    source-dirs:
+      - test/atn
+      - test/shared
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - antlr-haskell
+    - test-framework
+    - test-framework-hunit
+    - test-framework-quickcheck2
+    - QuickCheck
+    - HUnit
+    - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
+      
+  coreg4:
+    main:                Main.hs
+    source-dirs:
+      - test/coreg4
+      - test/shared
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - antlr-haskell
+    - test-framework
+    - test-framework-hunit
+    - test-framework-quickcheck2
+    - QuickCheck
+    - HUnit
+    - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
+  
+  g4:
+    main:                Main.hs
+    source-dirs:
+      - test/g4
+      - test/shared
+      - test/shared-hunit
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - antlr-haskell
+    - test-framework
+    - test-framework-hunit
+    - test-framework-quickcheck2
+    - QuickCheck
+    - HUnit
+    - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
+  
+  ll:
+    main:                Main.hs
+    source-dirs:
+      - test/ll
+      - test/shared
+      - test/shared-hunit
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - antlr-haskell
+    - test-framework
+    - test-framework-hunit
+    - test-framework-quickcheck2
+    - QuickCheck
+    - HUnit
+    - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
+  
+  lr:
+    main:                Main.hs
+    source-dirs:
+      - test/lr
+      - test/shared
+      - test/shared-hunit
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - antlr-haskell
+    - test-framework
+    - test-framework-hunit
+    - test-framework-quickcheck2
+    - QuickCheck
+    - HUnit
+    - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
+  
+  lexer:
+    main:                Main.hs
+    source-dirs:
+      - test/lexer
+      - test/shared
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - antlr-haskell
+    - test-framework
+    - test-framework-hunit
+    - test-framework-quickcheck2
+    - QuickCheck
+    - HUnit
+    - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
+  
+  chisel:
+    main:                Main.hs
+    source-dirs:
+      - test/chisel
+      - test/shared-hunit
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - antlr-haskell
+    - test-framework
+    - test-framework-hunit
+    - test-framework-quickcheck2
+    - QuickCheck
+    - HUnit
+    - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
+  
+  sexpression:
+    main:                sexpression.hs
+    source-dirs:
+      - test/sexpression
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - antlr-haskell
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
+  
+  simple:
+    main:                Main.hs
+    source-dirs:
+      - test/simple
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - antlr-haskell
+    - test-framework
+    - test-framework-hunit
+    - test-framework-quickcheck2
+    - QuickCheck
+    - HUnit
+    - call-stack
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
+

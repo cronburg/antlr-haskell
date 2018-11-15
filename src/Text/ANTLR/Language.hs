@@ -1,6 +1,7 @@
-module Language.ANTLR4.Language
+module Text.ANTLR.Language
   ( Alphabet(..), ascii, isASCII
   ) where
+import Prelude hiding (Word)
 import Data.Set.Monad (Set(..))
 import qualified Data.Set.Monad as Set
 
@@ -18,9 +19,10 @@ type Word a = [a]
 
 type Language a = Set (Word a) 
 
+union :: (Ord a) => Set a -> Set a -> Set a
 union  = Set.union
 
-concat :: Language a -> Language a -> Language a
+concat :: (Ord a) => Language a -> Language a -> Language a
 concat a b = Set.fromList
   [ s ++ t
   | s <- Set.toList a

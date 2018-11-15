@@ -4,13 +4,15 @@
 
 OPTS=--ghc-options="-ddump-splices"
 
-stack test antlr-haskell:Template $OPTS\
-  && stack test antlr-haskell:ATN $OPTS\
-  && stack test antlr-haskell:CoreG4 $OPTS\
-  && stack test antlr-haskell:LL1 $OPTS\
-  && stack test antlr-haskell:LR $OPTS\
+stack test antlr-haskell:simple $OPTS\
+  && stack test antlr-haskell:template $OPTS\
+  && stack test antlr-haskell:atn $OPTS\
+  && stack test antlr-haskell:coreg4 $OPTS\
+  && stack test antlr-haskell:ll $OPTS\
+  && stack test antlr-haskell:lr $OPTS\
   && stack test antlr-haskell:lexer $OPTS\
-  && stack test antlr-haskell:Allstar $OPTS\
-  && stack test antlr-haskell:G4 $OPTS\
-  && stack test antlr-haskell:Chisel $OPTS\
+  && stack test antlr-haskell:g4 $OPTS\
+  && stack test antlr-haskell:sexpression $OPTS\
+  && stack test antlr-haskell:simple $OPTS\
+  && stack test antlr-haskell:chisel $OPTS\
 

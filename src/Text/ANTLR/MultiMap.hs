@@ -1,4 +1,5 @@
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass, MonadComprehensions #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass, MonadComprehensions, DeriveLift,
+      DeriveDataTypeable #-}
 module Text.ANTLR.MultiMap where
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromMaybe)
@@ -7,8 +8,13 @@ import qualified Text.ANTLR.Set as S
 import Prelude hiding (lookup)
 import Text.ANTLR.Pretty
 
+import Data.Data (Data(..))
+import Language.Haskell.TH.Syntax (Lift(..))
+
+instance (Lift k, Lift v, Data k, Data v, Ord k, Ord v) => Lift (M.Map k v)
+
 newtype Map k v = Map (M.Map k (Set v))
-  deriving (Generic, Hashable, Eq)
+  deriving (Generic, Hashable, Eq, Show, Lift)
 
 instance (Prettify k, Prettify v, Hashable v, Eq v) => Prettify (Map k v) where
   prettify (Map m) = prettify m

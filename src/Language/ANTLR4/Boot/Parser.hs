@@ -50,9 +50,9 @@ parseANTLR fileName line column input =
       unexpected $ '"' : rest ++ "\""
 
 gExps :: PS.Parser [G4]
-gExps = many1 gExp
+gExps = concat <$> many1 gExp
 
-gExp :: PS.Parser G4
+gExp :: PS.Parser [G4]
 gExp = do
   traceM "gExp"
   whiteSpace
@@ -60,15 +60,15 @@ gExp = do
   traceM $ show xs
   return xs
 
-grammarP :: PS.Parser G4
+grammarP :: PS.Parser [G4]
 grammarP = do
   reserved "grammar"
   h <- upper
   t <- manyTill anyToken (reservedOp ";")
   traceM $ show $ Grammar (h : t)
-  return $ Grammar (h : t)
+  return [Grammar (h : t)]
 
-prodP :: PS.Parser G4
+prodP :: PS.Parser [G4]
 prodP = do
   h <- lower
   t <- manyTill anyChar (reservedOp ":")
@@ -77,7 +77,7 @@ prodP = do
   traceM $ "[prodP.rhsList] " ++ show rhsList
   reservedOp ";"
   traceM "prodP returning..."
-  return $ Prod (trim (h : t)) rhsList
+  return [Prod (trim (h : t)) (concat rhsList)]
   where
     rhsP = do
       mPred <- optionMaybe predP
@@ -87,7 +87,7 @@ prodP = do
       mMute <- optionMaybe muteP
       pDir  <- optionMaybe directiveP
       whiteSpace
-      return $ PRHS alphaList mPred mMute pDir
+      return [PRHS alphaList mPred mMute pDir]
     alphaP = termP <||> nonTermP
     termP = do
       whiteSpace
@@ -96,11 +96,11 @@ prodP = do
       s <- manyTill anyChar $ char '\''
       whiteSpace
       traceM $ "[prodP.termP.s] " ++ show s
-      return $ GTerm s
+      return $ GTerm NoAnnot s
     nonTermP = do
       s <- identifier
       traceM $ "[nonTermP] " ++ s
-      return $ GNonTerm s
+      return $ GNonTerm NoAnnot s
     predP = do
       traceM "[predP]"
       reservedOp "{"
@@ -116,7 +116,7 @@ prodP = do
       str <- manyTill anyChar (char '\n')
       whiteSpace
       traceM $ "[directiveP]" ++ show str
-      return str
+      return $ LowerD str
 
 -- TODO: not use getInput
 rEOF = do
@@ -126,7 +126,12 @@ rEOF = do
     ';':_     -> True
     _         -> False)
 
-lexerP :: PS.Parser G4
+toDirective [] = LowerD []
+toDirective s@(h:rst)
+  | isUpper h = UpperD s
+  | otherwise = LowerD s
+
+lexerP :: PS.Parser [G4]
 lexerP = do
   mAnnot <- optionMaybe annot
   h <- upper
@@ -136,7 +141,7 @@ lexerP = do
   traceM $ "Regex: " ++ show r
   optionMaybe $ symbol "->"
   mDir <- optionMaybe $ manyTill anyToken (reservedOp ";")
-  return $ Lex mAnnot (trim (h : t)) (LRHS r (trim <$> mDir))
+  return $ [Lex mAnnot (trim (h : t)) (LRHS r (toDirective <$> trim <$> mDir))]
   where
     annot = fragment -- <||> ....
     fragment = do

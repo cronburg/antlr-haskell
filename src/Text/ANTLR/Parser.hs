@@ -1,12 +1,14 @@
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass, FlexibleContexts, InstanceSigs
            , UndecidableInstances, StandaloneDeriving, TypeFamilies
            , ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses
-           , OverloadedStrings #-}
+           , OverloadedStrings, DeriveDataTypeable #-}
 module Text.ANTLR.Parser where
 import Text.ANTLR.Grammar
 import Text.ANTLR.Pretty
 import Text.ANTLR.Set (Generic(..))
 import Text.ANTLR.Lex.Tokenizer (Token(..))
+import Data.Data (Data(..))
+import Language.Haskell.TH.Lift (Lift(..))
 
 -- Action function is given the nonterminal we just matched on, and the
 -- corresponding list of production elements (grammar symbols) in the RHS of the matched production
@@ -40,7 +42,7 @@ data Icon ts =
     Icon ts
   | IconEps
   | IconEOF -- End of input really, but EOF is ubiquitous.
-  deriving (Generic, Hashable, Show, Eq, Ord)
+  deriving (Generic, Hashable, Show, Eq, Ord, Data, Lift)
 
 -- *This* is the function defining the (n == Sym t == ts) relationship between
 -- the *name* type of a token, the *symbol* type of a terminal token (as

@@ -6,7 +6,7 @@ module Text.ANTLR.LL1
   , foldWhileEpsilon
   , isLL1, parseTable
   , predictiveParse
-  , removeEpsilons
+  , removeEpsilons, removeEpsilons'
   , leftFactor, Prime(..)
   ) where
 import Text.ANTLR.Grammar
@@ -299,10 +299,10 @@ predictiveParse g act w0 = let
 
 {- Remove all epsilon productions, i.e. productions of the form "A -> eps",
  - without affecting the language accepted -}
-removeEpsilons ::
+removeEpsilons' ::
   forall s nts t. (Eq t, Eq nts, Prettify t, Prettify nts, Prettify s, Ord t, Ord nts, Hashable t, Hashable nts)
-  => Grammar s nts t -> Grammar s nts t
-removeEpsilons g = let
+  => [Production s nts t] -> [Production s nts t]
+removeEpsilons' ps_init = let
 
     epsNT :: Production s nts t -> [nts] -> [nts]
     epsNT (Production nts (Prod _ []))    = (:) nts
@@ -311,7 +311,7 @@ removeEpsilons g = let
   
     -- All NTs with an epsilon production
     epsNTs :: [nts]
-    epsNTs = foldr epsNT [] (ps g)
+    epsNTs = foldr epsNT [] ps_init
 
     {-
     isEpsProd :: Production s nts t -> Bool
@@ -340,17 +340,21 @@ removeEpsilons g = let
 
     ps' :: [Production s nts t]
     ps' = case epsNTs of
-      []       -> ps g
-      (nts:ntss) -> ps $ removeEpsilons -- $ D.tracePrettifyId
-                    (g { ps = foldl orderNub []
+      []         -> ps_init
+      (nts:ntss) -> removeEpsilons' $
+                    foldl orderNub []
                           [ p' 
-                          | p  <- ps g
+                          | p  <- ps_init
                           , p' <- replicateProd nts p
                           , p' /= Production nts (Prod Pass [])
                           , p' /= Production nts (Prod Pass [Eps])]
-                    })
 
-  in g { ps = ps' }
+  in ps'
+
+removeEpsilons ::
+  forall s nts t. (Eq t, Eq nts, Prettify t, Prettify nts, Prettify s, Ord t, Ord nts, Hashable t, Hashable nts)
+  => Grammar s nts t -> Grammar s nts t
+removeEpsilons g = g { ps = removeEpsilons' $ ps g }
 
 newtype Prime nts = Prime (nts, Int)
   deriving (Eq, Ord, Generic, Hashable, Show)
@@ -367,7 +371,7 @@ leftFactor = let
 
   primeify :: Grammar s nts t -> Grammar s (Prime nts) t
   primeify g = G
-    { ns = [ Prime (nts, 0) | nts <- ns g ]
+    { ns = fromList $ [ Prime (nts, 0) | nts <- toList $ ns g ]
     , ts = ts g
     , ps = [ Production (Prime (nts, 0)) (Prod sf $ map prmPE ss)
            | Production nts (Prod sf ss) <- ps g ]

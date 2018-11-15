@@ -1,10 +1,10 @@
-resolver: lts-9.0
+resolver: lts-11.14
 
 packages:
 - .
 - location:
     git: https://github.com/cronburg/AllStar.git
-    commit: 5e51d681fe9a8c8265c271fd5a38cea7d2ed7f02
+    commit: d7abbd5
   extra-dep: true
 
 extra-deps: []

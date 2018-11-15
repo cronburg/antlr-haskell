@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, MonadComprehensions #-}
 module Text.ANTLR.Lex.Automata where
-import Text.ANTLR.Set (Set(..), member, toList, union, notMember, Hashable(..))
+import Text.ANTLR.Set (Set(..), member, toList, union, notMember, Hashable(..), fromList)
 import qualified Text.ANTLR.Set as Set
 
 -- e = edge type, s = symbols, i = state indices
@@ -36,23 +36,23 @@ tEdge (a,(comp, b),c) = b
 
 transitionAlphabet __Δ =
   [ e
-  | (_, (c, es), _) <- __Δ
+  | (_, (c, es), _) <- toList __Δ
   , e               <- es
   ]
 
 -- Compress a set of transitions such that every pair of (start,end) states
 -- appears at most once in the set.
 compress ::
-  (Eq i)
+  (Eq i, Eq e, Hashable i, Hashable e)
   => Set (Transition e i) -> Set (Transition e i)
-compress __Δ =
-  [ ( a, (c, [ e
-             | (a', (c', es'), b') <- __Δ
+compress __Δ = fromList
+  [ ( a, (c, fromList [ e
+             | (a', (c', es'), b') <- toList __Δ
              , a' == a && b' == b && c' == c
-             , e <- es'
+             , e <- toList es'
              ])
     , b)
-  | (a, (c, es), b) <- __Δ
+  | (a, (c, es), b) <- toList __Δ
   ]
 
 xor a b = (not a && b) || (not b && a)
@@ -63,7 +63,7 @@ transitionMember ::
 transitionMember (a, e, b) _Δ =
   or
       [ xor complement (e `member` es)
-      | (a', (complement, es), b') <- _Δ
+      | (a', (complement, es), b') <- toList _Δ
       , a' == a
       , b' == b
       ]
@@ -104,8 +104,9 @@ closureWith fncn Automata{_S = _S, _Δ = _Δ'} states = let
     cl busy ss
       | Set.null ss = Set.empty
       | otherwise = let
-          ret = [ s'  | s  <- ss
-                      , s' <- _S
+          ret = fromList
+                [ s'  | s  <- toList ss
+                      , s' <- toList _S
                       , s' `notMember` busy
                       , (s, True, s') `transitionMember` _Δ ]
         in ret `union` cl (ret `union` busy) ret
@@ -115,9 +116,9 @@ closureWith fncn Automata{_S = _S, _Δ = _Δ'} states = let
 move
   :: forall e s i. (Hashable e, Hashable i, Eq i, Eq e)
   => Automata e s i -> Config i -> e -> Config i
-move Automata{_S = _S, _Δ = _Δ} _T a =
-  [ s'  | s  <- _T
-        , s' <- _S
+move Automata{_S = _S, _Δ = _Δ} _T a = fromList
+  [ s'  | s  <- toList _T
+        , s' <- toList _S
         , (s, a, s') `transitionMember` _Δ ]
 
 -- Whether or not (a, (True, _), b) is a transition
@@ -131,8 +132,8 @@ complementMember (a, b) =
 moveComplement
   :: forall e s i. (Hashable e, Hashable i, Eq i, Eq e)
   => Automata e s i -> Config i -> Config i
-moveComplement Automata{_S = _S, _Δ = _Δ} _T =
-  [ s'  | s  <- _T
-        , s' <- _S
+moveComplement Automata{_S = _S, _Δ = _Δ} _T = fromList
+  [ s'  | s  <- toList _T
+        , s' <- toList _S
         , (s, s') `complementMember` _Δ ]
 
