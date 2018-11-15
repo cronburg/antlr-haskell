@@ -22,6 +22,7 @@ import qualified Text.ANTLR.Lex.Tokenizer as T
 import qualified Language.ANTLR4.G4 as P -- Parser
 
 import Data.Map.Internal (fromList)
+import qualified Text.ANTLR.MultiMap as M
 import Text.ANTLR.MultiMap (Map(..))
 import qualified Text.ANTLR.Set as S
 import qualified Data.HashSet as H

@@ -35,6 +35,7 @@ import qualified Text.ANTLR.LL1 as LL
 import qualified Text.ANTLR.Set as S
 
 import qualified Text.ANTLR.MultiMap as M
+import qualified Data.Map as M1
 import Text.ANTLR.Set (Set(..))
 import qualified Text.ANTLR.Set as Set
 import qualified Text.ANTLR.Lex.Regex as R
@@ -958,19 +959,23 @@ mkLRParser ast g =
     name = mkName $ mkLower (grammarName ast ++ "Grammar")
     is = sort $ S.toList $ LR.lr1Items g
     tbl       = LR.lr1Table g
-    lr1Table' = M.toList $ LR.convTableInt tbl is
+   
+    tblInt = LR.convTableInt tbl is
+    (_lr1Table', errs) = LR.disambiguate tblInt
+    lr1Table' = M.toList tblInt -- _lr1Table'
     lr1S0'    = LR.convStateInt is $ LR.lr1Closure g $ LR.lr1S0 g
 
     unitTy = [t| () |]
     name' = [e| $(varE name) |] -- :: $(justGrammarTy' ast unitTy) |]
-  in do {-D.traceM $ pshow' is
+  in do --D.traceM $ pshow' is
         D.traceM $ "lr1S0 = " ++ (pshow' $ LR.lr1S0 g)
-        D.traceM $ "lr1Table = " ++ (pshow' $ LR.lr1Table g)
+        --D.traceM $ "lr1Table = " ++ (pshow' $ LR.lr1Table g)
         D.traceM $ "lr1S0' = " ++ (pshow' lr1S0')
-        D.traceM $ "lr1Table' = " ++ (pshow' lr1Table') -}
+        D.traceM $ "lr1Table' = " ++ (pshow' lr1Table')
+        D.traceM $ "Total LR1 conflicts: " ++ (pshow' errs)
           --
           --glrParse filterF = (LR.glrParseInc2 $(varE nameUnit) event2ast (T.tokenizeInc filterF $(varE nameDFAs) lexeme2value))
-        D.traceM $ "disambiguate tbl = " ++ (pshow' $ disambiguate tbl)
+        --D.traceM $ "disambiguate tbl = " ++ (pshow' $ disambiguate tbl)
         [d| lr1ItemsList = sort $ S.toList $ LR.lr1Items $(name')
             lr1Table    = $(lift lr1Table')
             lr1Goto     = LR.convGotoStatesInt (LR.convGoto $(name') (LR.lr1Goto $(name')) lr1ItemsList) lr1ItemsList
@@ -987,7 +992,7 @@ mkLRParser ast g =
             glrParseFast filterF =
               LR.glrParseInc'
                 $(name')
-                (M.fromList lr1Table)
+                (M.fromList' lr1Table)
                 lr1Goto
                 lr1S0
                 (LR.tokenizerFirstSets convState $(name'))

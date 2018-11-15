@@ -158,6 +158,7 @@ tests:
     source-dirs:
       - test/g4
       - test/shared
+      - test/shared-hunit
     ghc-options:
     - -threaded
     - -rtsopts
@@ -181,6 +182,7 @@ tests:
     source-dirs:
       - test/ll
       - test/shared
+      - test/shared-hunit
     ghc-options:
     - -threaded
     - -rtsopts
@@ -204,6 +206,7 @@ tests:
     source-dirs:
       - test/lr
       - test/shared
+      - test/shared-hunit
     ghc-options:
     - -threaded
     - -rtsopts

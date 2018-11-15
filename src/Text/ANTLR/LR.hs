@@ -66,7 +66,7 @@ type LR1Result lrstate t ast    = LRResult lrstate t ast
 type LR1Item  nts sts           = Item    (LR1LookAhead sts) nts sts
 type LR1Table nts sts lrstate   = LRTable nts sts lrstate
 type LR1LookAhead sts           = Icon sts -- Single Icon of lookahead for LR1
-type CoreLR1State nts sts       = Set (Item (LR1LookAhead sts) nts sts)
+type CoreLR1State nts sts       = Set (LR1Item nts sts)
 
 type SLRClosure lrstate = Closure lrstate
 type SLRItem  nts sts = Item    () nts sts
@@ -691,24 +691,28 @@ glrParseInc2 g = let
 
 --convGotoStatesInt convTableInt
 
+-- Returns the disambiguated LRTable, as well as the number of conflicts
+-- (Shift/Reduce, Reduce/Reduce, etc...) reported.
 disambiguate ::
   ( Prettify lrstate, Prettify nts, Prettify sts
   , Ord lrstate, Ord nts, Ord sts
   , Hashable lrstate, Hashable nts, Hashable sts
   , Data lrstate, Data nts, Data sts
   , Show lrstate, Show nts, Show sts)
-  => LRTable nts sts lrstate -> LRTable' nts sts lrstate
+  => LRTable nts sts lrstate -> (LRTable' nts sts lrstate, Int)
 disambiguate tbl = let
 
     mkConflict s = concatWith "/" $ map (show . toConstr) $ S.toList s
 
     mkSingle st icon s
-      | S.size s == 1 = S.findMin s
+      | S.size s == 1 = (S.findMin s, 0)
       | S.size s == 0 = D.trace ("Table entry " ++ pshow' (st,icon) ++ " has no Shift/Reduce entry.") undefined
       | otherwise     = D.trace ("Table entry " ++ pshow' (st,icon) ++ " has " ++ mkConflict s ++ " conflict: \n"
-                        ++  (pshow' $ S.toList s)) S.findMin s
-  in M1.fromList
-    [ ((st, icon), mkSingle st icon action)
+                        ++  (pshow' $ S.toList s)) (S.findMin s, 1)
+  in (M1.fromList
+    [ ((st, icon), fst (mkSingle st icon action))
     | ((st, icon), action) <- M.toList tbl
-    ]
-
+    ], sum
+    [ snd (mkSingle st icon action)
+    | ((st, icon), action) <- M.toList tbl
+    ])

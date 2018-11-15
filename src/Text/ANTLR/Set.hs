@@ -63,6 +63,7 @@ instance (Prettify a, Hashable a, Eq a) => Prettify (S.HashSet a) where
     pStr "Set: "; incrIndent 5
     pListLines $ toList s
     incrIndent (-5)
+    pLine ""
 
 --filter :: (Hashable a, Eq a) => (a -> Bool) -> Set a -> Set a
 filter f s = S.filter f s
@@ -187,6 +188,7 @@ instance (Prettify a, Hashable a, Eq a) => Prettify (Set a) where
     pStr "Set: "; incrIndent 5
     pListLines $ toList s
     incrIndent (-5)
+    pLine ""
 
 instance (Read a, Hashable a, Eq a) => Read (Set a) where
   readsPrec i s = L.map (first Prim) (readsPrec i s)
