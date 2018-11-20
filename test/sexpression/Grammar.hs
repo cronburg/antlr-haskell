@@ -30,7 +30,7 @@ import Language.ANTLR4
 data Atom
   = Str String
   | Symb String
-  | Number String
+  | Number Double
   | Dot
   deriving (Eq, Ord, Show)
 
@@ -67,7 +67,7 @@ data Item
 
   WHITESPACE : [ \n\t\r]+ -> String;
 
-  NUMBER : ('+' | '-')? DIGIT+ ('.' DIGIT+)? -> String;
+  NUMBER : ('+' | '-')? DIGIT+ ('.' DIGIT+)? -> Double;
 
   SYMBOL : SYMBOL_START (SYMBOL_START | DIGIT)* -> String;
 

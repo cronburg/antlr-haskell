@@ -232,6 +232,8 @@ instance Prettify () where prettify = rshow
 instance Prettify Bool where prettify = rshow
 instance Prettify Int where prettify = rshow
 
+instance Prettify Double where prettify = rshow
+
 --class BoundedEnum a where
 --  showConstr :: a -> T.Text
   --default showConstr :: (Data a) => a -> T.Text
