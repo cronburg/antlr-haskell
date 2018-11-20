@@ -61,10 +61,9 @@ data Item
      : STRING -> Str
      | SYMBOL -> Symb
      | NUMBER -> Number
-     | '.'    -> Dot
      ;
 
-  STRING : '\"' ( ('\\' .) | ~ [\"\\] )* '\"' -> String;
+  STRING : '"' ( ('\\' .) | ~ ["\\] )* '"' -> String;
 
   WHITESPACE : [ \n\t\r]+ -> String;
 
@@ -72,7 +71,7 @@ data Item
 
   SYMBOL : SYMBOL_START (SYMBOL_START | DIGIT)* -> String;
 
-  fragment SYMBOL_START : [a-zA-Z+\-*/.] ;
+  fragment SYMBOL_START : [a-zA-Z+\-*/] ;
 
   fragment DIGIT : [0-9] ;
 

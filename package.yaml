@@ -26,7 +26,6 @@ dependencies:
 - parsec
 - template-haskell >= 2.12
 - text
-- set-monad
 - transformers
 - deepseq
 - hashable

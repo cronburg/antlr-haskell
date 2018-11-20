@@ -1,12 +1,5 @@
-resolver: lts-11.14
+resolver: lts-12.19
 
 packages:
 - .
-#- location:
-#    git: https://github.com/cronburg/AllStar.git
-#    commit: d7abbd5
-#  extra-dep: true
 
-extra-deps: []
-flags: {}
-extra-package-dbs: []
