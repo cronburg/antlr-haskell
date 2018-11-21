@@ -31,7 +31,6 @@ data Atom
   = Str String
   | Symb String
   | Number Double
-  | Dot
   deriving (Eq, Ord, Show)
 
 data Item
