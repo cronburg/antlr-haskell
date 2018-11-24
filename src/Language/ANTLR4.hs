@@ -1,18 +1,39 @@
-module Language.ANTLR4
-  ( module Text.ANTLR.Grammar
+{-|
+  Module      : Language.ANTLR4
+  Description : Primary entrypoint for top-level antlr-haskell users
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+-}
+module Language.ANTLR4 (
+  -- * Module exports
+  -- | Most importantly for the Grammar type so that the quasiquoter can generate
+  -- new grammar itself:
+    module Text.ANTLR.Grammar
+  -- | Supporting data types and instances so that the spliced AST translator
+  -- functions can talk about parse events, tokens, and EOF:
   , module Text.ANTLR.Parser
+  -- | Regular expressions used during tokenization, as opposed to
+  -- 'Language.ANTLR4.Regex' which are regexes used for G4 parsing:
   , module Text.ANTLR.Lex.Regex
-  , module Language.ANTLR4
+  -- | The G4 quasiquoter and accompanying grammar:
   , module Language.ANTLR4.G4
+  -- | For defining pretty-printable instances of quasiquoter-generated data types:
   , module Text.ANTLR.Pretty
-  , Hashable(..), Generic(..)
-  , (&&&)
-  , S.Set(..)
-  , T.Token(..)
+  -- | Tokenizer:
   , module T
-  , LRResult(..)
+  -- * Type exports
+  -- | Typeclass instances for quasiquoter-generated data types:
+  , Hashable(..), Generic(..), Data(..), Lift(..)
+  -- | Parser interface data types:
+  , S.Set(..), T.Token(..), LRResult(..)
+  -- * Functions
+  -- | Compile-time support for expanding LR-specific data types:
   , mkLRParser
-  , Data(..), Lift(..)
+  -- | Other basic functions used in generated code:
+  , (&&&)
   )
 where
 
@@ -30,8 +51,6 @@ import Text.ANTLR.Lex.Regex
 
 import Language.ANTLR4.G4
 import Language.ANTLR4.Boot.Quote (mkLRParser)
-
-import Debug.Trace as D
 
 import Data.Data (Data(..))
 import Language.Haskell.TH.Lift (Lift(..))

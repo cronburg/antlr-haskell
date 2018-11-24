@@ -1,6 +1,16 @@
 {-# LANGUAGE ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses
   , DeriveGeneric, DeriveAnyClass, TypeFamilies, FlexibleContexts
   , StandaloneDeriving, OverloadedStrings, DeriveDataTypeable #-}
+{-|
+  Module      : Text.ANTLR.Grammar
+  Description : Grammar data types and API for parsing algorithms
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+
+-}
 module Text.ANTLR.Grammar
   ( Ref(..), sameNTs, sameTs
   , ProdElem(..), ProdElems

@@ -1,5 +1,15 @@
 {-# LANGUAGE GADTs, DeriveAnyClass, DeriveGeneric, OverloadedStrings, DeriveLift
     , QuasiQuotes, TemplateHaskell, DeriveDataTypeable #-}
+{-|
+  Module      : Text.ANTLR.Set
+  Description : Entrypoint for swapping out different underlying set representations
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+
+-}
 module Text.ANTLR.Set
   ( Set, null, size, member, notMember
   , empty, singleton, insert, delete, union, unions

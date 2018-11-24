@@ -1,4 +1,13 @@
 {-# LANGUAGE DeriveLift, DeriveGeneric, DeriveAnyClass #-}
+{-|
+  Module      : Language.ANTLR4.Regex
+  Description : G4 syntax for regular expressions
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+-}
 module Language.ANTLR4.Regex (Regex(..), parseRegex, regexP) where
 import Language.Haskell.TH.Lift (Lift(..))
 import Text.ParserCombinators.Parsec
@@ -16,6 +25,7 @@ import Text.ANTLR.Set ( Hashable(..), Generic(..) )
 --traceM s = D.traceM ("[Regex] " ++ s)
 traceM = return
 
+-- | G4 representation of a regex (G4 regex syntax, not regexs used by tokenizer)
 data Regex s =
     Epsilon
   | Literal    [s]
@@ -37,6 +47,9 @@ rEOF' = do
   <||>
   (return False)
 
+-- | Entrypoint for parsing a G4 regex. This does not get called
+--   by the spliced parser, and is here for posterity (and debugging /
+--   backwards compatibility).
 parseRegex :: String -> Either ParseError (Regex Char)
 parseRegex input = PP.parse (regexP rEOF') "" input
 
@@ -47,7 +60,9 @@ list2regex []  = Epsilon
 list2regex [x] = x
 list2regex xs  = Concat xs
 
-{- rEOF is a parser to indicate when it's okay to stop parsing the regex -}
+-- | G4 regex parser, as used exclusively by the boot parser.
+--
+--   rEOF is a parser to indicate when it's okay to stop parsing the regex -}
 regexP :: PS.Parser Bool -> PS.Parser RegexC
 regexP rEOF = let
 
@@ -89,7 +104,7 @@ extendedRegex foo = do
     Just '*' -> Kleene   r
     Just '?' -> Question r
     Just _   -> undefined)
-  
+
 
 regexElement :: PS.Parser RegexC
 regexElement = do

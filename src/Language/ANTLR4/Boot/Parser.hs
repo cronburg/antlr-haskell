@@ -1,4 +1,13 @@
 {-#LANGUAGE QuasiQuotes, TemplateHaskell#-}
+{-|
+  Module      : Language.ANTLR4.Boot.Parser
+  Description : ANTLR4 boot parser written with parsec
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+-}
 module Language.ANTLR4.Boot.Parser where
 -- syntax (Exp)
 import Language.Haskell.TH
@@ -36,7 +45,7 @@ parseANTLR :: SourceName -> Line -> Column -> String -> Either ParseError [G4]
 parseANTLR fileName line column input =
   PP.parse result fileName input
   where
-    
+
     result = do
       setPosition (newPos fileName line column)
       whiteSpace
@@ -44,7 +53,7 @@ parseANTLR fileName line column input =
       traceM $ show x
       eof <|> errorParse
       return x
-    
+
     errorParse = do
       rest <- manyTill anyToken eof
       unexpected $ '"' : rest ++ "\""
@@ -68,6 +77,10 @@ grammarP = do
   traceM $ show $ Grammar (h : t)
   return [Grammar (h : t)]
 
+-- | Assumptions:
+--
+-- * Directives must be on a single line.
+-- *
 prodP :: PS.Parser [G4]
 prodP = do
   h <- lower
@@ -116,7 +129,7 @@ prodP = do
       str <- manyTill anyChar (char '\n')
       whiteSpace
       traceM $ "[directiveP]" ++ show str
-      return $ LowerD str
+      return (toDirective $ trim $ str)
 
 -- TODO: not use getInput
 rEOF = do

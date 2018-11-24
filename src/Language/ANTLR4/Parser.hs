@@ -1,6 +1,18 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric, TypeFamilies, QuasiQuotes
     , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
     , FlexibleInstances, UndecidableInstances #-}
+{-|
+  Module      : Language.ANTLR4.G4
+  Description : Version of G4 from public ANTLR repo of parsers
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+
+  The rest of this module is taken from https://github.com/antlr/grammars-v4/tree/master/antlr4
+
+-}
 module Language.ANTLR4.Parser where
 import Language.ANTLR4
 

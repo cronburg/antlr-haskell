@@ -1,4 +1,14 @@
 {-# LANGUAGE ScopedTypeVariables, MonadComprehensions #-}
+{-|
+  Module      : Text.ANTLR.Automata
+  Description : Automatons and algorithms as used during tokenization
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+
+-}
 module Text.ANTLR.Lex.Automata where
 import Text.ANTLR.Set (Set(..), member, toList, union, notMember, Hashable(..), fromList)
 import qualified Text.ANTLR.Set as Set

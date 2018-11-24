@@ -1,4 +1,17 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric, FlexibleContexts #-}
+{-|
+  Module      : Text.ANTLR.Allstar
+  Description : Entrypoint for using the ALL(*) parsing algorithm
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+
+  This module contains the glue code for hooking Sam's
+  'Text.ANTLR.Allstar.ParserGenerator' implementation into the rest of
+  this package.
+-}
 module Text.ANTLR.Allstar
   ( parse
   , ALL.Token(..)

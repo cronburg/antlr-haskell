@@ -1,5 +1,15 @@
 {-# LANGUAGE ScopedTypeVariables, MonadComprehensions, DeriveAnyClass,
              DeriveGeneric #-}
+{-|
+  Module      : Text.ANTLR.Lex.NFA
+  Description : Nondeterministic finite automatons and algorithms to compute DFAs
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+
+-}
 module Text.ANTLR.Lex.NFA where
 import Text.ANTLR.Lex.Automata
 import Text.ANTLR.Lex.DFA (DFA(..))

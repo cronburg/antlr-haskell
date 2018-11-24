@@ -1,6 +1,16 @@
 {-# LANGUAGE ScopedTypeVariables, ExplicitForAll, DeriveGeneric, DeriveAnyClass
   , FlexibleContexts, StandaloneDeriving, OverloadedStrings, MonadComprehensions
   , InstanceSigs, DeriveDataTypeable, DeriveLift #-}
+{-|
+  Module      : Text.ANTLR.LR
+  Description : Entrypoint for all parsing algorithms based on LR
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+
+-}
 module Text.ANTLR.LR
   ( Item(..), ItemLHS(..)
   , kernel, items

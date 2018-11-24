@@ -1,6 +1,15 @@
-{-# LANGUAGE DeriveAnyClass, DeriveGeneric, TypeFamilies, QuasiQuotes        
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric, TypeFamilies, QuasiQuotes
     , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
     , FlexibleInstances, UndecidableInstances #-}
+{-|
+  Module      : Language.ANTLR4.Boot.SplicedParser
+  Description : Module as compiled by the core G4 quasiquoter
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+-}
 module Language.ANTLR4.Boot.SplicedParser where
 import Text.ANTLR.Grammar
 import Text.ANTLR.Parser
@@ -108,6 +117,7 @@ g4Grammar'
            (Production NT_prodRHS) ((Prod Pass) [NT NT_alphas]),
            (Production NT_directive) ((Prod Pass) [T T_UpperID]),
            (Production NT_directive) ((Prod Pass) [T T_LowerID]),
+           (Production NT_directive) ((Prod Pass) [T T_UpperID, T T_14, NT NT_directive]),
            (Production NT_alphas) ((Prod Pass) [NT NT_alpha]),
            (Production NT_alphas) ((Prod Pass) [NT NT_alpha, NT NT_alphas]),
            (Production NT_alpha) ((Prod Pass) [T T_Literal, T T_6]),
@@ -298,19 +308,19 @@ g4Regexes
      (T_13, Text.ANTLR.Lex.Regex.Symbol ')'),
      (T_14, Text.ANTLR.Lex.Regex.Symbol '.'),
      (T_15, Text.ANTLR.Lex.Regex.Symbol '-'),
-     (T_UpperID, 
+     (T_UpperID,
       Text.ANTLR.Lex.Regex.Concat
         [Text.ANTLR.Lex.Regex.Class "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
          Text.ANTLR.Lex.Regex.Kleene
            (Text.ANTLR.Lex.Regex.Class
               "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")]),
-     (T_LowerID, 
+     (T_LowerID,
       Text.ANTLR.Lex.Regex.Concat
         [Text.ANTLR.Lex.Regex.Class "abcdefghijklmnopqrstuvwxyz",
          Text.ANTLR.Lex.Regex.Kleene
            (Text.ANTLR.Lex.Regex.Class
               "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")]),
-     (T_Literal, 
+     (T_Literal,
       Text.ANTLR.Lex.Regex.Concat
         [Text.ANTLR.Lex.Regex.Symbol '\'',
          Text.ANTLR.Lex.Regex.Concat
@@ -318,18 +328,18 @@ g4Regexes
               (Union (Literal "\\'")
                      (NotClass "'")), --Text.ANTLR.Lex.Regex.NotClass "'"),
             Text.ANTLR.Lex.Regex.Symbol '\'']]),
-     (T_LineComment, 
+     (T_LineComment,
       Text.ANTLR.Lex.Regex.Concat
         [Text.ANTLR.Lex.Regex.Literal "//",
          Text.ANTLR.Lex.Regex.Concat
            [Text.ANTLR.Lex.Regex.Kleene (Text.ANTLR.Lex.Regex.NotClass "\n"),
             Text.ANTLR.Lex.Regex.Symbol '\n']]),
-     (T_EscapedChar, 
+     (T_EscapedChar,
       Text.ANTLR.Lex.Regex.Concat
         [Text.ANTLR.Lex.Regex.Symbol '\\',
          Text.ANTLR.Lex.Regex.Class "tnrfv"]),
      (T_SetChar, Text.ANTLR.Lex.Regex.NotClass "]"),
-     (T_WS, 
+     (T_WS,
       Text.ANTLR.Lex.Regex.PosClos
         (Text.ANTLR.Lex.Regex.Class " \t\n\r\f\v"))]
 g4DFAs = (map (fst &&& (regex2dfa . snd))) g4Regexes
@@ -451,6 +461,8 @@ ast2directive (AST NT_directive [T T_UpperID] [v0_UpperID])
   = G4S.UpperD $ ast2UpperID v0_UpperID
 ast2directive (AST NT_directive [T T_LowerID] [v0_LowerID])
   = G4S.LowerD $ ast2LowerID v0_LowerID
+ast2directive (AST NT_directive [T T_UpperID, T T_14, NT NT_directive] [v0_UpperID, _, v1_dir])
+  = G4S.UpperD $ (ast2UpperID v0_UpperID) ++ "." ++ ((\(G4S.UpperD s) -> s) (ast2directive v1_dir))
 ast2directive ast2 = error (show ast2)
 ast2lexemeRHS
   (AST NT_lexemeRHS

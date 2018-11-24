@@ -2,6 +2,16 @@
            , UndecidableInstances, StandaloneDeriving, TypeFamilies
            , ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses
            , OverloadedStrings, DeriveDataTypeable #-}
+{-|
+  Module      : Text.ANTLR.Parser
+  Description : Parsing API for constructing Haskell data types from lists of tokens
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+
+-}
 module Text.ANTLR.Parser where
 import Text.ANTLR.Grammar
 import Text.ANTLR.Pretty

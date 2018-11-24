@@ -1,5 +1,15 @@
 {-# LANGUAGE ScopedTypeVariables, DeriveGeneric, DeriveAnyClass
   , OverloadedStrings #-}
+{-|
+  Module      : Text.ANTLR.Lex.Tokenizer
+  Description : Tokenization algorithms
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+
+-}
 module Text.ANTLR.Lex.Tokenizer where
 import Text.ANTLR.Lex.Automata
 import Text.ANTLR.Lex.DFA

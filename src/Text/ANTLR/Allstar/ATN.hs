@@ -1,6 +1,16 @@
 {-# LANGUAGE ScopedTypeVariables, DeriveAnyClass, DeriveGeneric
            , FlexibleContexts, UndecidableInstances, StandaloneDeriving
            , OverloadedStrings #-}
+{-|
+  Module      : Text.ANTLR.Allstar.ATN
+  Description : Augmented recursive transition network algorithms
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+
+-}
 module Text.ANTLR.Allstar.ATN where
 -- Augmented Transition Network
 import Text.ANTLR.Grammar

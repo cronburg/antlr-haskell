@@ -1,5 +1,15 @@
 {-# LANGUAGE ScopedTypeVariables, DeriveAnyClass, DeriveGeneric,
     OverloadedStrings #-}
+{-|
+  Module      : Text.ANTLR.Allstar.Stacks
+  Description : Graph-structured stack (GSS) for the ALL(*) algorithm
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+
+-}
 module Text.ANTLR.Allstar.Stacks
   ( Stacks(..)
   , (#)

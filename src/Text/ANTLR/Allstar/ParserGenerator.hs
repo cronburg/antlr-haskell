@@ -1,4 +1,15 @@
 {-# LANGUAGE TypeFamilies, FlexibleContexts #-}
+{-|
+  Module      : Text.ANTLR.Allstar.ParserGenerator
+  Description : ALL(*) parsing algorithm
+  Copyright   : (c) Sam Lasser,
+                (c) Karl Cronburg, 2017-2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+
+-}
 module Text.ANTLR.Allstar.ParserGenerator where
 
 import Data.List

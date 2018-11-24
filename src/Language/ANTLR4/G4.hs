@@ -1,6 +1,18 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric, TypeFamilies, QuasiQuotes
     , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
     , FlexibleInstances, UndecidableInstances, DeriveDataTypeable #-}
+{-|
+  Module      : Language.ANTLR4.G4
+  Description : Core G4 quasiquoter for antlr-haskell
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+
+  Until better haddock integration is developed, you'll need to look
+  at the source for this module to see the G4 grammar for G4.
+-}
 module Language.ANTLR4.G4 (g4) where
 
 import Control.Arrow ( (&&&) )
@@ -10,7 +22,6 @@ import Text.ANTLR.Common
 import Text.ANTLR.Grammar
 import Text.ANTLR.Parser
 import qualified Text.ANTLR.LR as LR
---import Language.Chisel.Tokenizer
 import Text.ANTLR.Lex.Tokenizer as T
 import qualified Text.ANTLR.Set as S
 import Text.ANTLR.Set (Hashable(..), Generic(..))
@@ -24,7 +35,6 @@ import qualified Language.Haskell.TH as TH
 import Language.ANTLR4.Boot.Quote (antlr4)
 import Language.ANTLR4.Syntax
 import qualified Language.ANTLR4.Boot.Syntax  as G4S
---import Language.ANTLR4.Boot.Syntax (Regex(..), G4(..))
 import qualified Language.ANTLR4.Boot.Quote   as G4Q
 
 import Debug.Trace as D
@@ -43,22 +53,6 @@ plusGNonTerm = G4S.GNonTerm (G4S.Regular '+')
 
 regexAnyChar = G4S.Negation (G4S.CharSet [])
 
--- TODO: Qualified names on RHS / as g4 directive
-g4sGrammar = G4S.Grammar
-g4sProd    = G4S.Prod
-g4sCharSet = G4S.CharSet
-g4sPosClos = G4S.PosClos
-g4sQuestion  = G4S.Question
-g4sKleene    = G4S.Kleene
-g4sNegation  = G4S.Negation
-g4sConcat    = G4S.Concat
-g4sUnion     = G4S.Union
-g4sNamed     = G4S.Named
-
-dUpper   = G4S.UpperD
-dLower   = G4S.LowerD
-dHaskell = G4S.HaskellD
-
 dQual [] = G4S.UpperD []
 dQual xs = case last xs of
   [] -> G4S.UpperD $ concatWith "." xs
@@ -75,8 +69,8 @@ qDir l u = [l,u]
         | decl1 ';' decls           -> cons
         ;
 
-  decl1 : 'grammar' UpperID                 -> g4sGrammar
-        | LowerID ':' prods                 -> g4sProd
+  decl1 : 'grammar' UpperID                 -> G4S.Grammar
+        | LowerID ':' prods                 -> G4S.Prod
         | UpperID ':' lexemeRHS             -> lexDecl
         | 'fragment' UpperID ':' lexemeRHS  -> lexFragment
         ;
@@ -94,17 +88,13 @@ qDir l u = [l,u]
           ;
 
   directive : qDirective          -> dQual
-            | UpperID             -> dUpper
-            | LowerID             -> dLower
-            | '${' HaskellExp '}' -> dHaskell
+            | UpperID             -> G4S.UpperD
+            | LowerID             -> G4S.LowerD
+            | '${' HaskellExp '}' -> G4S.HaskellD
             ;
 
   qDirective  : UpperID '.' qDot -> qDir
               ;
-
-  //qDirective : qDot                 -> list
-  //           | qDot '.' qDirective  -> cons
-  //           ;
 
   qDot  : UpperID
         | LowerID
@@ -115,8 +105,6 @@ qDir l u = [l,u]
   alphas : alpha                    -> list
          | alpha alphas             -> cons
 				 | '(' alphas ')'
-
-	// TODO:
 				 | '(' alphas ')' '?'
 				 | '(' alphas ')' '*'
 				 | '(' alphas ')' '+'
@@ -138,25 +126,25 @@ qDir l u = [l,u]
 
   // Regex Stuff:
 
-  regexes1 : regexes                -> g4sConcat
+  regexes1 : regexes                -> G4S.Concat
            ;
 
   regexes : regex                   -> list
           | regex regexes           -> cons
           ;
 
-  regex   :     regex1 '?'          -> g4sQuestion
-          |     regex1 '*'          -> g4sKleene
-          |     regex1 '+'          -> g4sPosClos
-          | '~' regex1              -> g4sNegation
+  regex   :     regex1 '?'          -> G4S.Question
+          |     regex1 '*'          -> G4S.Kleene
+          |     regex1 '+'          -> G4S.PosClos
+          | '~' regex1              -> G4S.Negation
           |     regex1              -> id
           ;
 
-  regex1  : '[' charSet ']'           -> g4sCharSet
+  regex1  : '[' charSet ']'           -> G4S.CharSet
           | Literal                   -> literalRegex
-          | UpperID                   -> g4sNamed
+          | UpperID                   -> G4S.Named
           | '(' regexes1 ')'
-          | unionR                    -> g4sUnion
+          | unionR                    -> G4S.Union
           | '.'                       -> regexAnyChar
           ;
 
@@ -177,13 +165,12 @@ qDir l u = [l,u]
   LowerID : [a-z][a-zA-Z0-9_]*      -> String;
   Literal     : '\'' (~ '\'')+ '\'' -> stripQuotesReadEscape;
   LineComment : '//' (~ '\n')* '\n' -> String;
-  
+
   SetChar     : ~ ']'               -> char ;
   WS          : [ \t\n\r\f\v]+      -> String;
   EscapedChar : '\\' [tnrfv]      	-> readEscape ;
 
 |]
--- LiteralR : '\'' (~ '\'')+ '\''    -> stripQuotes ;
 
 isWhitespace T_LineComment = True
 isWhitespace T_WS = True
@@ -195,7 +182,6 @@ g4_codeGen input = do
   let fileName = TH.loc_filename loc
   let (line,column) = TH.loc_start loc
 
-  --case (glrParse . filter (not . isWhitespace)) $ tokenize input of
   case glrParse isWhitespace input of
     r@(LR.ResultAccept ast) -> codeGen r
     LR.ResultSet    s   ->
@@ -205,8 +191,11 @@ g4_codeGen input = do
     err                 -> error $ pshow' err
 
 -- TODO: Convert a Universal AST into a [G4S.G4]
-codeGen (LR.ResultAccept ast) = G4Q.g4_decls $ ast2decls ast --trace (show ast) (return [])
+codeGen (LR.ResultAccept ast) = G4Q.g4_decls $ ast2decls ast
 
+-- | Entrypoint to the G4 quasiquoer. Currently only supports declaration-level
+--   Haskell generation of G4 grammars using a GLR parser. The output grammars
+--   need not use a GLR parser themselves.
 g4 :: QuasiQuoter
 g4 = QuasiQuoter
   (error "parse exp")

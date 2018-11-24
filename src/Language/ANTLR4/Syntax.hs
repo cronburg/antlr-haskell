@@ -1,9 +1,19 @@
+{-|
+  Module      : Language.ANTLR4.Syntax
+  Description : Helper syntax functions used by core G4 parser
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+-}
 module Language.ANTLR4.Syntax where
 import Language.ANTLR4.Boot.Syntax
 import Language.ANTLR4.Regex (Regex(..))
 
 import qualified Debug.Trace as D
 
+-- | Debugging support
 trace s = D.trace ("Language.ANTLR4.Syntax] " ++ s)
 
 append :: String -> String -> String
@@ -25,6 +35,7 @@ prodNoDir     as   = PRHS as Nothing Nothing Nothing
 list2 a b = [a,b]
 range a b = [a .. b]
 
+-- | Parse an escape characters allowable in G4:
 readEscape :: String -> Char
 readEscape s = let
     eC ('\\':'n':xs)   = '\n'
@@ -37,8 +48,10 @@ readEscape s = let
     eC ('\\':'\'':xs)  = '\''
     eC ('\\':'\\':xs)  = '\\'
   in eC s
---read $ "'" ++ s ++ "'"
 
+-- | Parse a literal String by stripping the quotes at the beginning and end of
+--   the String, and replacing all escaped characters with the actual escape
+--   character code.
 stripQuotesReadEscape :: String -> String
 stripQuotesReadEscape s = let
 

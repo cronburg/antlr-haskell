@@ -1,4 +1,14 @@
 {-# LANGUAGE ScopedTypeVariables, DeriveLift #-}
+{-|
+  Module      : Text.ANTLR.Lex.Regex
+  Description : Regular expressions as used during tokenization
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+
+-}
 module Text.ANTLR.Lex.Regex where
 
 import Text.ANTLR.Set (Hashable, singleton, fromList)

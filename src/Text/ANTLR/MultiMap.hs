@@ -1,5 +1,15 @@
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass, MonadComprehensions, DeriveLift,
       DeriveDataTypeable #-}
+{-|
+  Module      : Text.ANTLR.MultiMap
+  Description : A one-to-many key value map
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+
+-}
 module Text.ANTLR.MultiMap where
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromMaybe)

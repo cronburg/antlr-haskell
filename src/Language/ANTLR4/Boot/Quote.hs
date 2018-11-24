@@ -1,5 +1,14 @@
 {-# LANGUAGE  QuasiQuotes, TemplateHaskell, ScopedTypeVariables, DataKinds,
               LambdaCase, FlexibleContexts #-}
+{-|
+  Module      : Language.ANTLR4.Boot.Quote
+  Description : ANTLR4 boot-level quasiquoter
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+-}
 module Language.ANTLR4.Boot.Quote
 ( antlr4, ProdElem(..), g4_decls, mkLRParser
 ) where
@@ -58,7 +67,7 @@ haskellParseType s = case LHM.parseType s of
 
 type2returnType :: TH.Type -> TH.Type
 type2returnType = let
-    
+
     t2rT :: TH.Type -> TH.Type
     t2rT (ForallT xs ys t) = t2rT t
     t2rT ((AppT (AppT ArrowT from) to)) = t2rT to
@@ -72,7 +81,7 @@ type2returnType = let
 
 info2returnType :: Info -> TH.Type
 info2returnType i = let
-  
+
   in case i of
       (VarI _ t _) -> type2returnType t
       _ -> error (show i)
@@ -130,13 +139,13 @@ data BaseType = List | Mybe
 
 baseType (G4S.Regular '?') = Mybe
 baseType (G4S.Regular '*') = List
-    
+
 -- Find the (first) name of the grammar
 grammarName :: [G4S.G4] -> String
 grammarName [] = error "Grammar missing a name"
 grammarName (G4S.Grammar{G4S.gName = gName}:_) = gName
 grammarName (_:xs) = grammarName xs
-    
+
 mkLower [] = []
 mkLower (a:as) = toLower a : as
 
@@ -225,7 +234,7 @@ g4_decls ast = let
       Nothing
       (map (\s -> normalC (mkName $ "NT_" ++ s) []) $ nonterms ++ regexNonTermSymbols)
       [symbolDerives]
-    
+
     -- E.g. ['(', ')', ';', 'exp', 'decl']
     allLexicalSymbols :: [String]
     allLexicalSymbols = map (lookupTName "") terminalLiterals ++ lexemeNames
@@ -248,7 +257,7 @@ g4_decls ast = let
       dataD (cxt [])
         (mkName $ tDataName ast)
         []
-        Nothing 
+        Nothing
         (map (\s -> normalC (mkName s) []) (map ("T_" ++) allLexicalSymbols))
         --(\s -> normalC (mkName $ lookupTName "T_" s) []) lexemes) ++ (lexemeNames "T_"))
         [symbolDerives]
@@ -288,11 +297,11 @@ g4_decls ast = let
     mkCon   = conE . mkName . mkUpper
     mkConNT = conE . mkName . ("NT_" ++)
 
-    -- 
+    --
     genTermAnnotProds :: [G4S.G4] -> [G4S.G4]
     genTermAnnotProds [] = []
     genTermAnnotProds (G4S.Prod {G4S.pName = n, G4S.patterns = ps}:xs) = let
-        
+
         withAlphas newName d a = G4S.Prod {G4S.pName = newName, G4S.patterns =
           [ G4S.PRHS
               { G4S.pred        = Nothing
@@ -301,7 +310,7 @@ g4_decls ast = let
               , G4S.pDirective  = Just d
               }
           ]}
-        
+
         gTAP :: G4S.ProdElem -> [G4S.G4]
         gTAP (G4S.GNonTerm (G4S.Regular '?') nt) = trace (show nt)
           [ withAlphas (nt ++ "_quest") (G4S.UpperD "Maybe") [G4S.GNonTerm G4S.NoAnnot nt]
@@ -332,14 +341,14 @@ g4_decls ast = let
     annotName' (G4S.GNonTerm annot s) = annotName annot s
 
     regexNonTermSymbols = let
-        
+
         rNTS (G4S.Prod {G4S.patterns = ps}) = Just $ map G4S.alphas ps
         rNTS _ = Nothing
-    
+
       in nub $ map annotName' $ filter (not . G4S.isNoAnnot . G4S.annot) (concat $ concat $ catMaybes $ map rNTS ast)
 
     toElem :: G4S.ProdElem -> TH.ExpQ
-    toElem (G4S.GTerm annot s)    = [| $(mkCon "T")  $(mkCon $ lookupTName "T_" (annotName annot s)) |] -- $(return $ LitE $ StringL s)) |]
+    toElem (G4S.GTerm annot s)    = [| $(mkCon "T")  $(mkCon $ lookupTName "T_" (annotName annot s)) |]
     toElem (G4S.GNonTerm annot s)
       | (not . null) s && isLower (head s) = [| $(mkCon "NT") $(mkConNT (annotName annot s)) |]
       | otherwise = toElem (G4S.GTerm G4S.NoAnnot s)
@@ -370,13 +379,13 @@ g4_decls ast = let
     {----------------------- Tokenizer -----------------------}
 
     tokenNameTypeQ = tySynD (mkName "TokenName") [] (conT $ mkName $ tDataName ast)
-    
+
     defBang = bang noSourceUnpackedness noSourceStrictness
 
     lexemeValueDerives = derivClause Nothing $ map (conT . mkName)
       ["Show", "Ord", "Eq", "Generic", "Hashable", "Data"]
 
-    -- 
+    --
     lexemeTypeConstructors = let
         nullD (G4S.UpperD s) = null s
         nullD (G4S.LowerD s) = null s
@@ -420,7 +429,7 @@ g4_decls ast = let
     -- (T_*) and constructs a token value type instance using 'read' where
     -- appropriate based on the directives given in the grammar.
     lexeme2ValueQ lName = let
-        
+
         l2VQ (_, Literal i) =
           clause [varP lName, conP (mkName $ "T_" ++ show i) []]
           (normalB [| $(conE $ mkName $ "V_" ++ show i) |]) []
@@ -434,10 +443,10 @@ g4_decls ast = let
           | otherwise =
               clause [varP lName, conP (mkName $ "T_" ++ s) []]
               (normalB [| $(conE $ mkName $ "V_" ++ s) (trace $(varE lName) (read $(varE lName) :: $t)) |]) []
-              
+
               --info <- reify $ mkName d
               --normalC (mkName $ "V_" ++ lName) [bangType defBang (return $ info2returnType info)]
-      
+
       in funD (mkName "lexeme2value") (map l2VQ allLexicalTypes)
 
     -- Convert a G4 regex into the backend regex type (for constructing token
@@ -490,7 +499,7 @@ g4_decls ast = let
           (normalB [| pStr $(litE $ stringL $ "'" ++ lexeme ++ "'") |])
           []
 
-        pTFName lexeme = 
+        pTFName lexeme =
           clause [conP (mkName $ lookupTName "T_" lexeme) []]
           (normalB [| pStr $(litE $ stringL $ lexeme) |])
           []
@@ -502,17 +511,17 @@ g4_decls ast = let
           (normalB [| pStr $(litE $ stringL $ "'" ++ lexeme ++ "'") |])
           []
 
-        pVFName lexeme = 
+        pVFName lexeme =
           clause [conP (mkName $ lookupTName "V_" lexeme) [varP (mkName "v")]]
           (normalB [| pChr '\'' >> prettify v >> pChr '\'' |])
           []
       in funD fncnName (map pVFLit terminalLiterals ++ map pVFName lexemeNames)
-    
+
     -- Pattern matches on an AST to produce a Maybe DataType
     ast2DTFncnsQ nameAST = let
-        
+
         astFncnName s = mkName $ "ast2" ++ s
-        
+
         a2d G4S.Lex{G4S.annotation = Nothing, G4S.lName  = _A, G4S.pattern = G4S.LRHS{G4S.directive = dir}}
           = Just [(mkName $ "ast2" ++ _A
                    ,[ clause  [ conP (mkName "Leaf")
@@ -568,7 +577,6 @@ g4_decls ast = let
                                      $(listP $ map mkConP as)
                                      $(astListPattern as)
                                 |]
-                                     -- $(listP $ map (varP . fst) $ vars as)
                               ]
                         (case (dir, vars as) of
                           (Just (G4S.UpperD d), vs) -> normalB $ foldl astAppRec (conE $ mkName d) vs
@@ -580,7 +588,7 @@ g4_decls ast = let
                         ) []
                     | G4S.PRHS{G4S.alphas = as, G4S.pDirective = dir} <- ps
                     ]
-          
+
           retType = let
             rT G4S.PRHS{G4S.alphas = as, G4S.pDirective = dir}
               = case (dir, vars as) of
@@ -615,9 +623,9 @@ g4_decls ast = let
         --regex_a2d :: G4S.G4 -> [DecQ]
         regex_a2d :: G4S.G4 -> [(Name, [ClauseQ])]
         regex_a2d G4S.Prod{G4S.pName = _A, G4S.patterns = ps} = let
-          
+
             clauses = [ clause [ [p| ast2 |] ] (normalB [| error (show ast2) |]) [] ]
-      
+
 
             eachAlpha (G4S.GNonTerm (G4S.Regular '?') s) = let -- "_quest"
                 ntName = "NT_" ++ s
@@ -665,8 +673,8 @@ g4_decls ast = let
                       rest  <- newName "xs"
                       let me   = varE $ astFncnName $ s ++ "_star"
                           base = varE $ astFncnName s
-                      clause [ [p| AST $(conP nStar []) [NT $(conP n []), NT $(conP nStar [])] [ $(varP first), $(varP rest) ] |] ] 
-                        (normalB [| ($(base) $(varE first)) : ($(me) $(varE rest)) |]) 
+                      clause [ [p| AST $(conP nStar []) [NT $(conP n []), NT $(conP nStar [])] [ $(varP first), $(varP rest) ] |] ]
+                        (normalB [| ($(base) $(varE first)) : ($(me) $(varE rest)) |])
                         []
                 , do  param <- newName "param"
                       clause [ [p| $(varP param) |] ]
@@ -694,8 +702,8 @@ g4_decls ast = let
                       rest  <- newName "xs"
                       let me   = varE $ astFncnName $ s ++ "_plus"
                           base = varE $ astFncnName s
-                      clause [ [p| AST $(conP nPlus []) [NT $(conP n []), NT $(conP nPlus [])] [ $(varP first), $(varP rest) ] |] ] 
-                        (normalB [| ($(base) $(varE first)) : ($(me) $(varE rest)) |]) 
+                      clause [ [p| AST $(conP nPlus []) [NT $(conP n []), NT $(conP nPlus [])] [ $(varP first), $(varP rest) ] |] ]
+                        (normalB [| ($(base) $(varE first)) : ($(me) $(varE rest)) |])
                         []
                 , do  param <- newName "param"
                       clause [ [p| $(varP param) |] ]
@@ -704,24 +712,24 @@ g4_decls ast = let
                 ])]
             eachAlpha (G4S.GNonTerm G4S.NoAnnot s) = []
             eachAlpha (G4S.GTerm annot s) = []
-          
+
             mkFncn s = map (\c -> (astFncnName s, [c])) clauses
-      
+
             -- TODO
             makeEpsilonClauses _ = []
 
           in (concatMap eachAlpha . concatMap G4S.alphas) ps
           --in concatMap makeEpsilonClauses ps
         regex_a2d _ = []
-                    
+
         a2d_error_clauses G4S.Prod{G4S.pName = _A} =
           [(astFncnName _A, [ clause [ [p| ast2 |] ] (normalB [| error (show ast2) |]) [] ])]
         a2d_error_clauses _ = []
-          
+
           --concat $ (concatMap eachAlpha . map G4S.alphas) ps
 
         epsilon_a2d (G4S.Prod{G4S.pName = _A, G4S.patterns = ps}) = let
-          
+
             mkConP (G4S.GNonTerm annot nt)
               -- Some nonterminals are really terminal tokens (regular expressions):
               | isUpper (head nt)     = conP (mkName "T")  [conP (mkName $ lookupTName "T_" $ annotName annot nt) []]
@@ -730,13 +738,13 @@ g4_decls ast = let
 
             justStr (G4S.GNonTerm annot s) = annotName annot s
             justStr (G4S.GTerm    _     s) = s
-            
+
             justStr' (Left a) = Just $ justStr a
             justStr' _        = Nothing
-                
+
             maybeBaseType (Left _) = Nothing
             maybeBaseType (Right x) = Just x
-                
+
             isValid (Left x)   = G4S.isGNonTerm x
             isValid (Right _)  = True
             --isValid _          = False
@@ -747,7 +755,7 @@ g4_decls ast = let
                 vars' (Just Mybe, i, Nothing)  = (Just Mybe, "Nothing", "undefined")
                 vars' (Just List, i, Nothing)  = (Just List, "[]", "undefined")
                 --vars' (base_type, i, Nothing)  = (base_type, "[]", "undefined")
-                      
+
 
               in (map vars' . map (\(i,a) -> (maybeBaseType a, i, justStr' a)) . filter (isValid . snd) . zip [0 .. length as]) as
 
@@ -775,7 +783,7 @@ g4_decls ast = let
                 (G4S.Regular '+') -> appE b (appE recName $ varE $ mkName varName)
                 otherwise         -> error $ show (b,(varName,recName))
                 -}
-                
+
             catLefts [] = []
             catLefts (((Left x)):rst) = x : catLefts rst
             catLefts (_:rst) = catLefts rst
@@ -785,11 +793,11 @@ g4_decls ast = let
                                   $(astListPattern as)
                          |]
                        ]
-            
+
             appBodyType (base_type, vN@(v:_), rN)
               | isLower v = appE (varE $ mkName rN) $ varE $ mkName vN
               | otherwise = conE $ mkName vN
-            
+
             body dir as = (case (dir, vars as) of
                             (Just (G4S.UpperD d), vs)    -> foldl astAppRec (conE $ mkName d) vs
                             (Just (G4S.LowerD d), vs)    -> foldl astAppRec (varE $ mkName d) vs
@@ -804,7 +812,7 @@ g4_decls ast = let
                           )
 
             e_a2d (G4S.PRHS{G4S.alphas = as0, G4S.pDirective = dir}) = let
-               
+
                 isEpsilonAnnot (G4S.Regular '?') = True
                 isEpsilonAnnot (G4S.Regular '*') = True
                 isEpsilonAnnot _ = False
@@ -825,7 +833,7 @@ g4_decls ast = let
                   | otherwise    = p1 : ps
 
                 combos xs = foldl orderNub [] (combos' [] $ map Left xs)
-                
+
               in  [(astFncnName _A,
                     map (\as' -> clause (pats as') (normalB $ body dir as') []) $ combos as0
                   )]
@@ -851,8 +859,8 @@ g4_decls ast = let
   -- variables. In order to achieve the same type variable you need to run one
   -- in the Q monad first then pass the resulting type to other parts of the
   -- code that need it (thus capturing the type variable).
-  in do 
-        
+  in do
+
         let tokVal    = mkName "TokenValue"
             tokName   = mkName "TokenName"
             ntSym     = mkName $ ntDataName ast
@@ -864,12 +872,12 @@ g4_decls ast = let
             nameUnit  = mkName $ mkLower (gName ast ++ "Grammar")
         prettyTFncnName <- newName "prettifyT"
         prettyValueFncnName <- newName "prettifyValue"
-       
+
         stateTypeName <- newName "s"
         let stateType = varT stateTypeName
-        
+
         let unitTy = [t| () |]
-        
+
         gTyUnit <- justGrammarTy ast unitTy
         gUnitFunD <- funD nameUnit [clause [] (normalB $ [| LL.removeEpsilons $(varE name) |]) []]
         gTySigUnit <- sigD nameUnit (return gTyUnit)
@@ -888,7 +896,7 @@ g4_decls ast = let
 
         tokenNameType  <- tokenNameTypeQ
         tokenValueType <- tokenValueTypeQ
-        
+
         let lName = mkName "l"
         lexeme2Value   <- lexeme2ValueQ lName
 
@@ -899,7 +907,7 @@ g4_decls ast = let
 
         astDecl <-tySynD nameAST   [] [t| AST $(conT ntSym) $(conT nameToken) |]
         tokDecl <- tySynD nameToken [] [t| Token $(conT tSym) $(conT tokVal) |]
-       
+
         decls <- [d|
           instance Ref $(conT ntSym) where
             type Sym $(conT ntSym) = $(conT ntSym)
@@ -932,7 +940,7 @@ g4_decls ast = let
 
           the_ast = $(lift ast)
           |]
-        
+
         prettyTFncn <- prettyTFncnQ prettyTFncnName
         prettyVFncn <- prettyVFncnQ prettyValueFncnName
 
@@ -951,7 +959,7 @@ g4_decls ast = let
           , dfas, astDecl, tokDecl
           ] ++ decls ++ ast2DTFncns
 
-mkLRParser ast g = 
+mkLRParser ast g =
   let
     nameDFAs  = mkName (mkLower $ gName ast ++ "DFAs")
     tokName   = mkName "TokenName"
@@ -959,7 +967,7 @@ mkLRParser ast g =
     name = mkName $ mkLower (grammarName ast ++ "Grammar")
     is = sort $ S.toList $ LR.lr1Items g
     tbl       = LR.lr1Table g
-   
+
     tblInt = LR.convTableInt tbl is
     (_lr1Table', errs) = LR.disambiguate tblInt
     lr1Table' = M.toList tblInt -- _lr1Table'

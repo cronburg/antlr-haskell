@@ -1,5 +1,15 @@
 {-# LANGUAGE ScopedTypeVariables, MonadComprehensions, DeriveGeneric
  , DeriveAnyClass, FlexibleContexts, OverloadedStrings #-}
+{-|
+  Module      : Text.ANTLR.LL1
+  Description : LL1 parsing algorithm and accompanying first/follow functions
+  Copyright   : (c) Karl Cronburg, 2018
+  License     : BSD3
+  Maintainer  : karl@cs.tufts.edu
+  Stability   : experimental
+  Portability : POSIX
+
+-}
 module Text.ANTLR.LL1
   ( recognize
   , first, follow
