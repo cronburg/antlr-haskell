@@ -17,7 +17,8 @@ module Text.ANTLR.LL1
   , isLL1, parseTable
   , predictiveParse
   , removeEpsilons, removeEpsilons'
-  , leftFactor, Prime(..)
+  , leftFactor
+  , Prime(..)
   ) where
 import Text.ANTLR.Grammar
 import Text.ANTLR.Pretty
@@ -49,14 +50,15 @@ foldWhile pred fncn = let
 
 epsIn set _ = IconEps `member` set
 
--- Fold over a set of ProdElems (symbols) while all the previous sets of
--- symbols contains an epsilon.
+-- | Fold over a set of ProdElems (symbols) while all the previous sets of
+--   symbols contains an epsilon.
 foldWhileEpsilon fncn b0 []     = empty
 foldWhileEpsilon fncn b0 [a]    = fncn a b0
 foldWhileEpsilon fncn b0 (a:as)
   | epsIn a b0 = foldWhile epsIn fncn (fncn a b0) as
   | otherwise  = fncn a b0
 
+-- | First set of a grammar.
 first ::
   forall sts nts. (Eq nts, Eq sts, Ord nts, Ord sts, Hashable nts, Hashable sts)
   => Grammar () nts sts -> [ProdElem nts sts] -> Set (Icon sts)
@@ -80,6 +82,7 @@ first g = let
       | otherwise           = ts
   in firstMany . map (firstOne empty)
 
+-- | Follow set of a grammar.
 follow ::
   forall nts sts. (Eq nts, Eq sts, Ord nts, Ord sts, Hashable nts, Hashable sts)
   => Grammar () nts sts -> nts -> Set (Icon sts)
@@ -122,10 +125,14 @@ follow g = let
             ]
   in follow' empty
 
--- A -> α | β for all distinct ordered pairs of α and β,
---      first(α) `intersection` first(β) == empty
--- and if epsilon is in α, then
---      first(α) `intersection` follow(A) == empty
+-- | Is the given grammar in LL(1)?
+--   
+-- @
+--   A -> α | β for all distinct ordered pairs of α and β,
+--        first(α) `intersection` first(β) == empty
+--   and if epsilon is in α, then
+--        first(α) `intersection` follow(A) == empty
+-- @
 isLL1
   :: (Eq nts, Eq sts, Ord nts, Ord sts, Hashable nts, Hashable sts)
   => Grammar () nts sts -> Bool
@@ -190,16 +197,13 @@ parseTable' fncn g = let
       , IconEOF  `member` follow g _A
       ]
 
+-- | The algorithm for computing an LL parse table from a grammar.
 parseTable :: 
   forall nts sts. (Eq nts, Eq sts, Ord nts, Ord sts, Hashable sts, Hashable nts)
   => Grammar () nts sts -> ParseTable nts sts
 parseTable = parseTable' union
 
--- FALSE:
--- Important distinction: an incomplete treenode contains production elements
--- with terminal *tokens* not terminal *symbols*, because eventually tokens get
--- pulled out of an incomplete node and acted upon by the parser to construct
--- the AST:
+
 data TreeNode ast nts sts =
     Comp   ast
   | InComp nts (ProdElems nts sts) [ast] Int
@@ -235,6 +239,7 @@ isComp (Comp _) = True
 isComp _ = False
 isInComp = not . isComp
 
+-- | Language recognizer using 'predictiveParse'.
 recognize ::
   ( Eq nts, Ref t, Eq (Sym t), HasEOF (Sym t)
   , Ord nts, Ord t, Ord (Sym t), Ord (StripEOF (Sym t))
@@ -243,6 +248,7 @@ recognize ::
   => Grammar () nts (StripEOF (Sym t)) -> [t] -> Bool
 recognize g = (Nothing /=) . predictiveParse g (const ())
 
+-- | Top-down predictive parsing algorithm.
 predictiveParse
   :: forall nts t ast.
   (Prettify nts, Prettify t, Prettify (Sym t), Prettify (StripEOF (Sym t)), Prettify ast
@@ -307,8 +313,8 @@ predictiveParse g act w0 = let
           [Comp ast] -> Just ast
           _          -> Nothing
 
-{- Remove all epsilon productions, i.e. productions of the form "A -> eps",
- - without affecting the language accepted -}
+-- | Remove all epsilon productions, i.e. productions of the form "A -> eps",
+--   without affecting the language accepted.
 removeEpsilons' ::
   forall s nts t. (Eq t, Eq nts, Prettify t, Prettify nts, Prettify s, Ord t, Ord nts, Hashable t, Hashable nts)
   => [Production s nts t] -> [Production s nts t]
@@ -361,6 +367,8 @@ removeEpsilons' ps_init = let
 
   in ps'
 
+-- | Remove all epsilon productions, i.e. productions of the form "A -> eps",
+--   without affecting the language accepted.
 removeEpsilons ::
   forall s nts t. (Eq t, Eq nts, Prettify t, Prettify nts, Prettify s, Ord t, Ord nts, Hashable t, Hashable nts)
   => Grammar s nts t -> Grammar s nts t
@@ -374,6 +382,9 @@ instance (Prettify nts) => Prettify (Prime nts) where
     prettify nts
     pStr $ T.replicate i (T.singleton '\'')
 
+-- | Left-factor a grammar to make it LL(1). This is experimental and mostly untested.
+--   This adds 'Prime's to the nonterminal symbols in cases where we need to break up
+--   a production rule in order to left factor it.
 leftFactor ::
   forall s nts t. (Eq t, Eq nts, Prettify t, Prettify nts, Ord t, Ord nts, Hashable nts)
   => Grammar s nts t -> Grammar s (Prime nts) t

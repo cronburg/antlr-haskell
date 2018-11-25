@@ -1,14 +1,14 @@
 {-# LANGUAGE DeriveLift, DeriveGeneric, DeriveAnyClass #-}
 {-|
   Module      : Language.ANTLR4.Regex
-  Description : G4 syntax for regular expressions
+  Description : Parsec parser for G4 regular expressions
   Copyright   : (c) Karl Cronburg, 2018
   License     : BSD3
   Maintainer  : karl@cs.tufts.edu
   Stability   : experimental
   Portability : POSIX
 -}
-module Language.ANTLR4.Regex (Regex(..), parseRegex, regexP) where
+module Language.ANTLR4.Regex (parseRegex, regexP) where
 import Language.Haskell.TH.Lift (Lift(..))
 import Text.ParserCombinators.Parsec
 import qualified Text.Parsec.String     as PS
@@ -21,24 +21,10 @@ import Text.ParserCombinators.Parsec.Language
 import qualified Debug.Trace as D -- trace, traceM
 
 import Text.ANTLR.Set ( Hashable(..), Generic(..) )
+import Language.ANTLR4.Boot.Syntax ( Regex(..) )
 
 --traceM s = D.traceM ("[Regex] " ++ s)
 traceM = return
-
--- | G4 representation of a regex (G4 regex syntax, not regexs used by tokenizer)
-data Regex s =
-    Epsilon
-  | Literal    [s]
-  | Union      [Regex s]
-  | Concat     [Regex s]
-  | Kleene     (Regex s)
-  | PosClos    (Regex s)
-  | Question   (Regex s)
-  | CharSet    [s] -- TODO: Set s, and ranges of characters
-  | Negation   (Regex s)
-  | Named      String
-  deriving (Lift, Eq, Show, Generic, Hashable)
--- TODO: Lex regexs (e.g. complement sets, escape chars, ...)
 
 (<||>) a b = try a <|> try b
 

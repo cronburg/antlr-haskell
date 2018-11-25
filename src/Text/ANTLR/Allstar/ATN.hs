@@ -12,22 +12,20 @@
 
 -}
 module Text.ANTLR.Allstar.ATN where
--- Augmented Transition Network
+-- Augmented recursive Transition Network
 import Text.ANTLR.Grammar
 --import Text.ANTLR.Allstar.GSS hiding (Edge, Node)
 import Text.ANTLR.Allstar.Stacks
-import Text.ANTLR.Set (Set(..), empty, fromList, toList)
+import Text.ANTLR.Set (Set(..), empty, fromList, toList, Hashable, Generic)
 import Text.ANTLR.Pretty
 
+-- | Graph-structured stack over ATN states.
 type Gamma nt = Stacks (ATNState nt)
 
+-- | An ATN defining some language we wish to parse
 data ATN s nt t = ATN
-  -- q  :: Set ATNState
-  -- Σ is an alphabet consisting of distinct elements which are comparable for
-  -- equality.
-  -- _Σ :: Set (Edge s)
-  { _Δ :: Set (Transition s nt t) }
-  deriving (Eq, Ord, Show)
+  { _Δ :: Set (Transition s nt t) -- ^ The transition function
+  } deriving (Eq, Ord, Show)
 
 instance (Prettify s, Prettify nt, Prettify t, Hashable nt, Hashable t, Eq nt, Eq t) => Prettify (ATN s nt t) where
   prettify atn = do
@@ -36,16 +34,16 @@ instance (Prettify s, Prettify nt, Prettify t, Hashable nt, Hashable t, Eq nt, E
     prettify $ _Δ atn
     incrIndent (-4)
 
--- Tuple corresponding to a distinct transition in the ATN:
+-- | Tuple corresponding to a distinct transition in the ATN:
 type Transition s nt t = (ATNState nt, Edge s nt t, ATNState nt)
 
--- The possible subscripts from Figure 8 of the ALL(*) paper
+-- | The possible subscripts from Figure 8 of the ALL(*) paper
 data ATNState nt  = Start  nt
                   | Middle nt Int Int
                   | Accept nt
   deriving (Eq, Generic, Hashable, Ord, Show)
 
--- LaTeX style ATN states. TODO: check length of NT printed and put curly braces
+-- | LaTeX style ATN states. TODO: check length of NT printed and put curly braces
 -- around it if more than one character.
 instance (Prettify nt) => Prettify (ATNState nt) where
   prettify (Start nt)  = pStr "p_"  >> prettify nt
@@ -57,20 +55,13 @@ instance (Prettify nt) => Prettify (ATNState nt) where
     prettify j
     pStr "}"
 
-sigma :: ATN s nt t -> [Edge s nt t]
-sigma = undefined
-
-e :: ATN s nt t -> Set (ATNState nt)
-e = undefined
-
-f :: ATN s nt t -> Set (ATNState nt)
-f = undefined
-
-data Edge s nt t = NTE nt
-                 | TE  t
-                 | PE  (Predicate ())
-                 | ME  (Mutator   ())
-                 | Epsilon
+-- | An edge in an ATN.
+data Edge s nt t =
+    NTE nt              -- ^ Nonterminal edge
+  | TE  t               -- ^ Terminal edge
+  | PE  (Predicate ())  -- ^ Predicated edge with no state
+  | ME  (Mutator   ())  -- ^ Mutator edge with no state
+  | Epsilon             -- ^ Nondeterministic edge parsing nothing
   deriving (Eq, Generic, Hashable, Ord, Show)
 
 instance (Prettify s, Prettify nt, Prettify t) => Prettify (Edge s nt t) where
@@ -84,7 +75,7 @@ instance (Prettify s, Prettify nt, Prettify t) => Prettify (Edge s nt t) where
       Epsilon -> pStr "ε"
     pStr "-->"
 
--- atnOf :: Grammar -> (ATNState,Edge) -> Maybe ATNState
+-- | Convert a G4 grammar into an ATN for parsing with ALL(*)
 atnOf
   :: forall nt t s. (Eq nt, Eq t, Hashable nt, Hashable t)
   => Grammar s nt t -> ATN s nt t

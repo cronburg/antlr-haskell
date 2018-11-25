@@ -10,7 +10,12 @@
   Portability : POSIX
 
 -}
-module Text.ANTLR.Allstar.ParserGenerator where
+module Text.ANTLR.Allstar.ParserGenerator
+  ( GrammarSymbol(..), Token(..), ATNEnv(..)
+  , AST(..), ATNState(..), ATNEdge(..)
+  , ATNEdgeLabel(..)
+  , parse
+  ) where
 
 import Data.List
 import qualified Data.Set as DS
@@ -22,7 +27,7 @@ import Debug.Trace
 -- Change ATN repr. so NT name is the key, NT name doesn't appear in state identifiers
 -- Consider more nested representation of ATN, where integer path IDs are keys
 
--- grammar types
+-- | Grammar symbol types
 data GrammarSymbol nt t = NT nt | T t | EPS deriving (Eq, Ord, Show)
 
 -- ATN types
@@ -38,9 +43,26 @@ data ATNState nt    = INIT nt | CHOICE nt Int | MIDDLE Int | FINAL nt deriving
 
 -}
 
-data ATNState nt = Init nt | Middle nt Int Int | Final nt deriving (Eq, Ord, Show)
+-- | Specifies the nonterminal we're currently parsing as well as
+--   what state we are in for parsing some NT symbol.
+data ATNState nt =
+    Init nt            -- ^ Starting state
+  | Middle nt Int Int  -- ^ Intermediate state
+  | Final nt           -- ^ Accepting state
+  deriving (Eq, Ord, Show)
+
+-- | Starting state, NT/T symbol to parse, and ending state.
 type ATNEdge nt t = (ATNState nt, ATNEdgeLabel nt t, ATNState nt)
-data ATNEdgeLabel nt t = GS (GrammarSymbol nt t) | PRED Bool deriving (Eq, Ord, Show)
+
+-- | The domain of labels on edges in an augmented recursive transition network,
+--   namely the symbol we parse upon traversing an edge.
+data ATNEdgeLabel nt t =
+    GS (GrammarSymbol nt t)  -- ^ The symbol to parse upon traversing an edge
+  | PRED Bool                -- ^ Unimplemented predicates in ALL(*)
+  deriving (Eq, Ord, Show)
+
+-- | A set of ATN edges, defining the grammar over which the ALL(*) parsing
+--   algorithm operates.
 type ATNEnv nt t = DS.Set (ATNEdge nt t)
 
 isInit :: ATNState nt -> Bool
@@ -70,14 +92,14 @@ type DFAEdge nt t   = (DFAState nt, t, DFAState nt)
 data DFAState nt    = Dinit [ATNConfig nt] | D [ATNConfig nt] | F Int | Derror deriving (Eq, Ord, Show)
 type DFAEnv nt t    = [(GrammarSymbol nt t, DFA nt t)]
 
--- Input sequence type
+-- | Input sequence type
 class Token t where
   type Label t :: *
   type Literal t :: *
   getLabel   :: t -> Label t
   getLiteral :: t -> Literal t
 
--- Return type of parse function
+-- | Return type of parse function
 data AST nt tok = Node nt [AST nt tok] | Leaf tok deriving (Eq, Show)
 
 --------------------------------CONSTANTS---------------------------------------
@@ -147,6 +169,8 @@ bind k v ((k', v') : al') = if k == k' then (k, v) : al' else (k', v') : bind k 
 --------------------------------ALL(*) FUNCTIONS--------------------------------
 -- should parse() also return residual input sequence?
 
+-- | ALL(*) parsing algorithm. This is __not__ the entrypoint as used by
+--   user-facing code. See 'Text.ANTLR.Allstar.parse' instead.
 parse :: (Eq nt, Show nt, Ord nt, Eq (Label tok), Show (Label tok), Ord (Label tok), Token tok, Show tok) =>
          [tok] -> GrammarSymbol nt (Label tok) -> ATNEnv nt (Label tok) -> Bool -> Either String (AST nt tok)
 parse input startSym atnEnv useCache =

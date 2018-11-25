@@ -20,19 +20,22 @@ category:            Library
 description:         Please see the README on Github at <https://github.com/cronburg/antlr-haskell#readme>
 
 dependencies:
-- base >= 4.7 && < 5
-- containers
-- mtl
-- parsec
-- template-haskell >= 2.12
-- text
-- transformers
-- deepseq
-- hashable
-- unordered-containers >= 0.2.9
-- th-lift
-- haskell-src-meta
-- ghc-prim
+- base                 >= 4.11.1.0 && < 5
+- containers           >= 0.5.11   && < 0.6
+- mtl                  >= 2.2.2    && < 2.3
+- template-haskell     >= 2.13     && < 2.14
+- text                 >= 1.2.3.1  && < 1.3
+- transformers         >= 0.5.5.0  && < 0.6
+- deepseq              >= 1.4.3.0  && < 1.5   # NFData
+- hashable             >= 1.2.7.0  && < 1.3
+- unordered-containers >= 0.2.9    && < 0.3
+- th-lift              >= 0.7.11   && < 0.8   # Language.Haskell.TH.Lift
+- haskell-src-meta     >= 0.8.0.3  && < 0.9   # Parsing of G4 directives to TH
+
+#- ghc-prim
+
+# Only included during debugging / when parsec boot parsers are needed:
+#- parsec
 
 library:
   source-dirs: src
@@ -57,12 +60,14 @@ library:
 
       # ANTLR4 (G4) core quasiquoter:
     - Language.ANTLR4
-    - Language.ANTLR4.Boot.Parser
     - Language.ANTLR4.Boot.Quote
     - Language.ANTLR4.Boot.Syntax
     - Language.ANTLR4.G4
-    - Language.ANTLR4.Regex
     - Language.ANTLR4.Syntax
+
+# These are only included during debugging / when parsec boot parsers are needed:
+#    - Language.ANTLR4.Boot.Parser
+#    - Language.ANTLR4.Regex
 
       # Standalone quasiquoters:
     - Language.ANTLR4.FileOpener
@@ -94,12 +99,12 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - antlr-haskell
-    - test-framework
-    - test-framework-hunit
-    - test-framework-quickcheck2
-    - QuickCheck
-    - HUnit
-    - call-stack
+    - test-framework >= 0.8
+    - test-framework-hunit >= 0.3
+    - test-framework-quickcheck2 >= 0.3
+    - QuickCheck >= 2.11
+    - HUnit >= 1.6
+    - call-stack >= 0.1
     default-extensions:
     - DeriveLift
     - DeriveDataTypeable
@@ -117,12 +122,12 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - antlr-haskell
-    - test-framework
-    - test-framework-hunit
-    - test-framework-quickcheck2
-    - QuickCheck
-    - HUnit
-    - call-stack
+    - test-framework >= 0.8
+    - test-framework-hunit >= 0.3
+    - test-framework-quickcheck2 >= 0.3
+    - QuickCheck >= 2.11
+    - HUnit >= 1.6
+    - call-stack >= 0.1
     default-extensions:
     - DeriveLift
     - DeriveDataTypeable
@@ -140,12 +145,12 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - antlr-haskell
-    - test-framework
-    - test-framework-hunit
-    - test-framework-quickcheck2
-    - QuickCheck
-    - HUnit
-    - call-stack
+    - test-framework >= 0.8
+    - test-framework-hunit >= 0.3
+    - test-framework-quickcheck2 >= 0.3
+    - QuickCheck >= 2.11
+    - HUnit >= 1.6
+    - call-stack >= 0.1
     default-extensions:
     - DeriveLift
     - DeriveDataTypeable
@@ -164,12 +169,12 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - antlr-haskell
-    - test-framework
-    - test-framework-hunit
-    - test-framework-quickcheck2
-    - QuickCheck
-    - HUnit
-    - call-stack
+    - test-framework >= 0.8
+    - test-framework-hunit >= 0.3
+    - test-framework-quickcheck2 >= 0.3
+    - QuickCheck >= 2.11
+    - HUnit >= 1.6
+    - call-stack >= 0.1
     default-extensions:
     - DeriveLift
     - DeriveDataTypeable
@@ -188,12 +193,12 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - antlr-haskell
-    - test-framework
-    - test-framework-hunit
-    - test-framework-quickcheck2
-    - QuickCheck
-    - HUnit
-    - call-stack
+    - test-framework >= 0.8
+    - test-framework-hunit >= 0.3
+    - test-framework-quickcheck2 >= 0.3
+    - QuickCheck >= 2.11
+    - HUnit >= 1.6
+    - call-stack >= 0.1
     default-extensions:
     - DeriveLift
     - DeriveDataTypeable
@@ -212,12 +217,12 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - antlr-haskell
-    - test-framework
-    - test-framework-hunit
-    - test-framework-quickcheck2
-    - QuickCheck
-    - HUnit
-    - call-stack
+    - test-framework >= 0.8
+    - test-framework-hunit >= 0.3
+    - test-framework-quickcheck2 >= 0.3
+    - QuickCheck >= 2.11
+    - HUnit >= 1.6
+    - call-stack >= 0.1
     default-extensions:
     - DeriveLift
     - DeriveDataTypeable
@@ -235,12 +240,12 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - antlr-haskell
-    - test-framework
-    - test-framework-hunit
-    - test-framework-quickcheck2
-    - QuickCheck
-    - HUnit
-    - call-stack
+    - test-framework >= 0.8
+    - test-framework-hunit >= 0.3
+    - test-framework-quickcheck2 >= 0.3
+    - QuickCheck >= 2.11
+    - HUnit >= 1.6
+    - call-stack >= 0.1
     default-extensions:
     - DeriveLift
     - DeriveDataTypeable
@@ -258,12 +263,12 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - antlr-haskell
-    - test-framework
-    - test-framework-hunit
-    - test-framework-quickcheck2
-    - QuickCheck
-    - HUnit
-    - call-stack
+    - test-framework >= 0.8
+    - test-framework-hunit >= 0.3
+    - test-framework-quickcheck2 >= 0.3
+    - QuickCheck >= 2.11
+    - HUnit >= 1.6
+    - call-stack >= 0.1
     default-extensions:
     - DeriveLift
     - DeriveDataTypeable
@@ -296,12 +301,12 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - antlr-haskell
-    - test-framework
-    - test-framework-hunit
-    - test-framework-quickcheck2
-    - QuickCheck
-    - HUnit
-    - call-stack
+    - test-framework >= 0.8
+    - test-framework-hunit >= 0.3
+    - test-framework-quickcheck2 >= 0.3
+    - QuickCheck >= 2.11
+    - HUnit >= 1.6
+    - call-stack >= 0.1
     default-extensions:
     - DeriveLift
     - DeriveDataTypeable
@@ -319,12 +324,12 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - antlr-haskell
-    - test-framework
-    - test-framework-hunit
-    - test-framework-quickcheck2
-    - QuickCheck
-    - HUnit
-    - call-stack
+    - test-framework >= 0.8
+    - test-framework-hunit >= 0.3
+    - test-framework-quickcheck2 >= 0.3
+    - QuickCheck >= 2.11
+    - HUnit >= 1.6
+    - call-stack >= 0.1
     default-extensions:
     - DeriveLift
     - DeriveDataTypeable

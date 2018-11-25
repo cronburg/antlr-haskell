@@ -8,10 +8,15 @@
   Portability : POSIX
 -}
 module Language.ANTLR4 (
+  -- * Functions
+  -- | Compile-time support for expanding LR-specific data types:
+    mkLRParser
+  -- | Other basic functions used in generated code:
+  , (&&&)
   -- * Module exports
   -- | Most importantly for the Grammar type so that the quasiquoter can generate
   -- new grammar itself:
-    module Text.ANTLR.Grammar
+  , module Text.ANTLR.Grammar
   -- | Supporting data types and instances so that the spliced AST translator
   -- functions can talk about parse events, tokens, and EOF:
   , module Text.ANTLR.Parser
@@ -29,11 +34,6 @@ module Language.ANTLR4 (
   , Hashable(..), Generic(..), Data(..), Lift(..)
   -- | Parser interface data types:
   , S.Set(..), T.Token(..), LRResult(..)
-  -- * Functions
-  -- | Compile-time support for expanding LR-specific data types:
-  , mkLRParser
-  -- | Other basic functions used in generated code:
-  , (&&&)
   )
 where
 

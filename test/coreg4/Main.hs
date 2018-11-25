@@ -14,7 +14,8 @@ import qualified Language.ANTLR4.Example.G4 as G4
 import Language.ANTLR4.Example.Hello
 import Text.ANTLR.Parser (AST(..))
 import qualified Text.ANTLR.LR as LR
-import Language.ANTLR4.Regex (parseRegex, Regex(..))
+import Language.ANTLR4.Boot.Syntax (Regex(..))
+--import Language.ANTLR4.Regex (parseRegex)
 
 import qualified Language.ANTLR4.G4 as P -- Parser
 
@@ -26,6 +27,7 @@ hello_g4_test_type_check = do
   let _ = helloGrammar
   1 @?= 1
 
+{-
 regex_test = do
   parseRegex "[ab]* 'a' 'b' 'b'"
   @?= Right
@@ -35,6 +37,7 @@ regex_test = do
     , Literal "b"
     , Literal "b"
     ])
+-}
 
 _1 = G4.lookupToken "1"
 
@@ -60,7 +63,7 @@ main :: IO ()
 main = defaultMainWithOpts
   [ testCase "g4_basic_compilation_type_check" test_g4_basic_type_check
   , testCase "hello_parse_type_check" hello_g4_test_type_check
-  , testCase "regex_test" regex_test
+--  , testCase "regex_test" regex_test
   , testCase "test_g4" test_g4
   , testCase "test_hello" test_hello
   ] mempty

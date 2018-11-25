@@ -9,31 +9,11 @@
 -}
 module Language.ANTLR4.Syntax where
 import Language.ANTLR4.Boot.Syntax
-import Language.ANTLR4.Regex (Regex(..))
 
 import qualified Debug.Trace as D
 
 -- | Debugging support
 trace s = D.trace ("Language.ANTLR4.Syntax] " ++ s)
-
-append :: String -> String -> String
-append = (++)
-
-list a = [a]
-cons = (:)
-lexemeDirective r d = LRHS r (Just d)
-lexemeNoDir     r   = LRHS r Nothing
-lexDecl = Lex Nothing
-lexFragment = Lex (Just Fragment)
-
-literalRegex :: String -> Regex Char
-literalRegex = Literal
-
-prodDirective as d = PRHS as Nothing Nothing (Just d)
-prodNoDir     as   = PRHS as Nothing Nothing Nothing
-
-list2 a b = [a,b]
-range a b = [a .. b]
 
 -- | Parse an escape characters allowable in G4:
 readEscape :: String -> Char
@@ -74,7 +54,4 @@ stripQuotesReadEscape s = let
   --in trace s $ (sQRE . init . tail) s
   in (sQRE . init . tail) s
   --read $ "\"" ++ (init . tail) s ++ "\"" :: String
-
-char :: String -> Char
-char = head
 

@@ -33,6 +33,8 @@ import Data.Text (strip, splitOn, pack, unpack)
 --   foo = id
 --   file_contents = [open| test/file.foo |]
 -- @
+--
+-- @foo@ gets called on the contents of files with the extension @.foo@.
 open :: QuasiQuoter
 open = QuasiQuoter
   { quoteExp  = openExp

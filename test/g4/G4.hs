@@ -10,7 +10,7 @@ import Test.HUnit
 import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
-import Language.ANTLR4 hiding (tokenize, Regex(..))
+import Language.ANTLR4 hiding (tokenize)
 import Text.ANTLR.Grammar
 import qualified Language.ANTLR4.Example.Optionals as Opt
 import Language.ANTLR4.Example.G4 as G4

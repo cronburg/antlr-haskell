@@ -9,7 +9,7 @@ import Language.ANTLR4
 import Language.Chisel.Syntax as S
 import Language.Chisel.Grammar
 
-import qualified GHC.Types as G
+--import qualified GHC.Types as G
 import qualified Text.ANTLR.LR as LR
 
 $(mkLRParser the_ast chiselGrammar)

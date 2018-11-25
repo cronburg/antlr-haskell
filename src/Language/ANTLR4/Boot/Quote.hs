@@ -10,8 +10,10 @@
   Portability : POSIX
 -}
 module Language.ANTLR4.Boot.Quote
-( antlr4, ProdElem(..), g4_decls, mkLRParser
-) where
+  ( antlr4
+  , g4_decls
+  , mkLRParser
+  ) where
 import Prelude hiding (exp, init)
 import System.IO.Unsafe (unsafePerformIO)
 import Data.List (nub, elemIndex, groupBy, sortBy, sort)
@@ -33,7 +35,6 @@ import qualified Language.ANTLR4.Boot.Syntax as G4S
 --import qualified Language.ANTLR4.Boot.Parser as G4P
 import qualified Language.ANTLR4.Boot.SplicedParser as G4P
 
-import qualified Language.ANTLR4.Regex  as G4R
 import Text.ANTLR.Grammar
 import Text.ANTLR.Parser (AST(..), StripEOF(..))
 import Text.ANTLR.Pretty
@@ -89,6 +90,19 @@ info2returnType i = let
 --trace s = id
 --traceM = return
 
+-- | There are three different quasiquoters in antlr-haskell, each with varying
+--   support for different G4 features. If you're looking for the user-facing
+--   quasiquoter then turn back now, because here-be-dragons. The user-facing
+--   quasiquoter can be found in 'Language.ANTLR4.G4' as @g4@.
+--
+--   * __User-facing__ QuasiQuoter is in 'Language.ANTLR4.G4'
+--   * __Spliced__ QuasiQuoter is here
+--   * __Boot__ parser is in @src/Language/ANTLR4/Boot/Parser.hs.boot@
+--
+--   The spliced quasiquoter, as packaged and shipped with distributions of
+--   antlr-haskell, allows for bootstrapping of the user-facing quasiquoter
+--   without requiring parsec as a dependency. The boot quasiquoter on the
+--   other hand is written entirely in parsec.
 antlr4 :: QuasiQuoter
 antlr4 =  QuasiQuoter
   (error "parse exp")
@@ -163,7 +177,9 @@ tDataName  ast = gName ast ++ "TSymbol"
 
 gName ast = grammarName ast
 
-
+-- | This function does the heavy-lifting of Haskell code generation, most notably
+--   generating non-terminal, terminal, and grammar data types as well as accompanying
+--   parsing functions.
 g4_decls :: [G4S.G4] -> TH.Q [TH.Dec] -- exp :: G4
 g4_decls ast = let
 
@@ -451,25 +467,25 @@ g4_decls ast = let
 
     -- Convert a G4 regex into the backend regex type (for constructing token
     -- recognizers as DFAs):
-    convertRegex :: (Show c) => (String -> G4R.Regex c) -> G4R.Regex c -> R.Regex c
+    convertRegex :: (Show c) => (String -> G4S.Regex c) -> G4S.Regex c -> R.Regex c
     convertRegex getNamedR = let
-        cR G4R.Epsilon       = R.Epsilon
-        cR (G4R.Literal [])  = R.Epsilon
-        cR (G4R.Literal [c]) = R.Symbol c
-        cR (G4R.Literal cs)  = R.Literal cs
-        cR (G4R.Union rs)    = R.MultiUnion $ map cR rs
-        cR (G4R.Concat rs)   = R.Concat $ map cR rs
-        cR (G4R.Kleene r)    = R.Kleene $ cR r
-        cR (G4R.PosClos r)   = R.PosClos $ cR r
-        cR (G4R.Question r)  = R.Question $ cR r
-        cR (G4R.CharSet cs)  = R.Class cs
-        cR (G4R.Negation (G4R.CharSet cs)) = R.NotClass cs
-        cR (G4R.Negation (G4R.Literal s)) = R.NotClass s
-        cR r@(G4R.Negation _) = error $ "unimplemented: " ++ show r
-        cR (G4R.Named n)    = convertRegex getNamedR $ getNamedR n
+        cR G4S.Epsilon       = R.Epsilon
+        cR (G4S.Literal [])  = R.Epsilon
+        cR (G4S.Literal [c]) = R.Symbol c
+        cR (G4S.Literal cs)  = R.Literal cs
+        cR (G4S.Union rs)    = R.MultiUnion $ map cR rs
+        cR (G4S.Concat rs)   = R.Concat $ map cR rs
+        cR (G4S.Kleene r)    = R.Kleene $ cR r
+        cR (G4S.PosClos r)   = R.PosClos $ cR r
+        cR (G4S.Question r)  = R.Question $ cR r
+        cR (G4S.CharSet cs)  = R.Class cs
+        cR (G4S.Negation (G4S.CharSet cs)) = R.NotClass cs
+        cR (G4S.Negation (G4S.Literal s)) = R.NotClass s
+        cR r@(G4S.Negation _) = error $ "unimplemented: " ++ show r
+        cR (G4S.Named n)    = convertRegex getNamedR $ getNamedR n
       in cR
 
-    getNamedRegex :: String -> G4R.Regex Char
+    getNamedRegex :: String -> G4S.Regex Char
     getNamedRegex n = let
         -- Only the lexeme (fragments) with the given name:
         gNR (G4S.Lex{G4S.annotation = Just G4S.Fragment, G4S.lName = lName}) = lName == n
@@ -483,7 +499,7 @@ g4_decls ast = let
     mkRegexesQ = let
         mkLitR :: String -> ExpQ
         mkLitR s = [| ($( conE $ mkName $ lookupTName "T_" s)
-                        , $(lift $ convertRegex getNamedRegex $ G4R.Literal s)) |]
+                        , $(lift $ convertRegex getNamedRegex $ G4S.Literal s)) |]
 
         mkLexR :: G4S.G4 -> Maybe ExpQ
         mkLexR (G4S.Lex{G4S.annotation = Nothing, G4S.lName = lName, G4S.pattern = G4S.LRHS{G4S.regex = r}}) = Just
@@ -959,6 +975,11 @@ g4_decls ast = let
           , dfas, astDecl, tokDecl
           ] ++ decls ++ ast2DTFncns
 
+-- | Support for this is __very__ experimental. This function allows you
+--   to splice in compile-time computed versions of the LR1 data structures
+--   so as to decrease the runtime of at-runtime parsing.
+--   See @test/g4/G4.hs@ and @test/g4/Main.hs@ in the antlr-haskell source for
+--   example usage of the @glrParseFast@ function generated.
 mkLRParser ast g =
   let
     nameDFAs  = mkName (mkLower $ gName ast ++ "DFAs")

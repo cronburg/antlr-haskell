@@ -12,17 +12,19 @@
 
 -}
 module Text.ANTLR.Grammar
-  ( Ref(..), sameNTs, sameTs
+  ( -- * Data types
+    Grammar(..)
   , ProdElem(..), ProdElems
   , Production(..), ProdRHS(..), StateFncn(..)
-  , Predicate(..), Mutator(..)
-  , Grammar(..), getRHS, getLHS
-  , defaultGrammar
+  , Predicate(..), Mutator(..), Ref(..)
+  -- * Basic setter / getter functions:
+  , getRHS, getLHS
   , isSem, isAction
+  , sameNTs, sameTs
   , isNT, isT, isEps, getNTs, getTs, getEps
   , prodsFor, getProds
   , validGrammar, hasAllNonTerms, hasAllTerms, startIsNonTerm
-  , symbols, Hashable(..), Generic(..)
+  , symbols, defaultGrammar
   ) where
 import Prelude hiding (pi)
 import Data.List (nub, sort)
@@ -47,25 +49,26 @@ uPIO = unsafePerformIO
 -- When we *Show* production elements, they should contain source location
 -- information, but when we *compare* them, we should ignore the source info.
 
--- Something is "Ref" if it can be symbolized by some symbol in a set of
--- symbols. Symbols are typically Strings, an enum data type, or some other
--- Eq-able (best if finite) set of things.
+-- | Something is "Ref" if it can be symbolized by some symbol in a set of
+--   symbols. Symbols are typically Strings, an enum data type, or some other
+--   Eq-able (best if finite) set of things.
 class Ref v where
-  -- One symbol type for every value type v.
+  -- | One symbol type for every value type v.
   type Sym v :: *
+  -- | Compute (or extract) the symbol for some concrete value.
   getSymbol :: v -> Sym v
 
 compareSymbols :: (Ref ref, Eq (Sym ref)) => ref -> ref -> Bool
 compareSymbols a b = getSymbol a == getSymbol b
 
--- Nonterminals can be symbolized (for now the types are equivalent, i.e.
--- nt == Sym nt)
+-- | Nonterminals can be symbolized (for now the types are equivalent, i.e.
+--   nt == Sym nt)
 sameNTs :: forall nt. (Ref nt, Eq (Sym nt)) => nt -> nt -> Bool
 sameNTs = compareSymbols
 
--- Terminals can be symbolized (in the current implementation, the input
--- terminal type to a parser is (t == Token n v) and the terminal symbol type is
--- (ts == Sym t == n) where n is defined as the name of a token (Token n v).
+-- | Terminals can be symbolized (in the current implementation, the input
+--   terminal type to a parser is @(t == 'Token' n v)@ and the terminal symbol type is
+--   @(ts == 'Sym t' == n)@ where @n@ is defined as the name of a token @('Token' n v)@.
 sameTs :: forall t. (Ref t, Eq (Sym t)) => t -> t -> Bool
 sameTs = compareSymbols
 
@@ -77,28 +80,36 @@ instance Ref (String, b) where
   type Sym (String, b) = String
   getSymbol = fst
 
--- Grammar ProdElems. nts == Non Terminal Symbol (type), ts == Terminal Symbol (type)
--- Production elements are only used in the grammar data structure and parser,
--- therefore these types (nt and ts) are *not* necessarily equivalent to the
--- terminal types seen by the tokenizer (nonterminals are special because no one
--- sees them until after parsing). Also pushing (ts = Sym t) up to the top of
--- data constructors gets rid of a lot of unnecessary standalone deriving
--- instances. Standalone deriving instances in this case are a programming
--- anti-pattern for allowing you to improperly parametrize your types. In this
--- case a ProdElem cares about the *terminal symbol type*, not the *terminal
--- token type*. In fact it's redundant to say "terminal token" because all
--- tokens are terminals in the grammar. A token is by definition a tokenized
--- *value* with a *named* terminal symbol, which is in fact exactly what the
--- Token type looks like in Text.ANTLR.Lex.Tokenizer: Token n v (name and
--- value). So wherever I see an 'n' type variable in the tokenizer, this is
--- equivalent to (Sym t) in the parser. And wherever I see a (Token n v) in the
--- tokenizer, this gets passed into the parser as 't':
--- - n           == Sym t
--- - (Token n v) == t
+-- | Grammar ProdElems
+--   
+--   > nts == Non Terminal Symbol (type)
+--   > ts == Terminal Symbol (type)
+--
+--   Production elements are only used in the grammar data structure and parser,
+--   therefore these types (nt and ts) are __not__ necessarily equivalent to the
+--   terminal types seen by the tokenizer (nonterminals are special because no one
+--   sees them until after parsing). Also pushing @(ts = Sym t)@ up to the top of
+--   data constructors gets rid of a lot of unnecessary standalone deriving
+--   instances. Standalone deriving instances in this case are a programming
+--   anti-pattern for allowing you to improperly parametrize your types. In this
+--   case a 'ProdElem' cares about the __terminal symbol type__, not the __terminal
+--   token type__. In fact it's redundant to say *terminal token* because all
+--   tokens are terminals in the grammar. A token is by definition a tokenized
+--   __value__ with a __named__ terminal symbol, which is in fact exactly what the
+--   'Token' type looks like in 'Text.ANTLR.Lex.Tokenizer': @'Token' n v@ (name and
+--   value). So wherever I see an @n@ type variable in the tokenizer, this is
+--   equivalent to @('Sym' t)@ in the parser. And wherever I see a @('Token' n v)@ in the
+--   tokenizer, this gets passed into the parser as 't':
+--
+--   @
+--     n           == 'Sym' t
+--     ('Token' n v) == t
+--   @
+--
 data ProdElem nts ts =
-    NT nts
-  | T  ts
-  | Eps
+    NT nts -- ^ Nonterminal production element
+  | T  ts  -- ^ Terminal production element
+  | Eps    -- ^ Empty string production element
   deriving (Eq, Ord, Generic, Hashable, Show, Data, Lift)
 
 instance (Prettify nts, Prettify ts) => Prettify (ProdElem nts ts) where
@@ -106,25 +117,33 @@ instance (Prettify nts, Prettify ts) => Prettify (ProdElem nts ts) where
   prettify (T  ts)  = prettify  ts
   prettify Eps      = pStr "ε"
 
+-- | Is the 'ProdElem' a nonterminal?
 isNT (NT _) = True
 isNT _      = False
 
+-- | Is the 'ProdElem' a terminal?
 isT (T _) = True
 isT _     = False
 
+-- | Is the 'ProdElem' an epsilon?
 isEps Eps = True
 isEps _   = False
 
+-- | Get just the nonterminals from a list
 getNTs = map (\(NT nt) -> nt) . filter isNT
+-- | Get just the terminals from a list
 getTs  = map (\(T t) -> t) . filter isT
-getEps = map (\Eps -> Eps) . filter isEps -- no
+-- | Get just the epsilons from a list (umm...)
+getEps = map (\Eps -> Eps) . filter isEps
 
+-- | Zero or more production elements
 type ProdElems nts ts = [ProdElem nts ts]
 
+-- | A function to run when a production rule fires, operating some state @s@.
 data StateFncn s =
-    Pass                   -- No predicate or mutator
-  | Sem    (Predicate ())   -- Semantic predicate
-  | Action (Mutator ())     -- Mutator, ProdElems is always empty in this one
+    Pass                    -- ^ No predicate or mutator
+  | Sem    (Predicate ())   -- ^ Semantic predicate
+  | Action (Mutator ())     -- ^ Mutator, ProdElems is always empty in this one
   deriving (Eq, Ord, Generic, Hashable, Show, Data, Lift)
 
 instance Prettify (StateFncn s) where
@@ -132,6 +151,7 @@ instance Prettify (StateFncn s) where
   prettify (Sem p)    = prettify p
   prettify (Action a) = prettify a
 
+-- | Right-hand side of a single production rule
 data ProdRHS s nts ts = Prod (StateFncn s) (ProdElems nts ts)
   deriving (Eq, Ord, Generic, Hashable, Show, Data, Lift)
 
@@ -140,14 +160,18 @@ instance (Prettify s, Prettify nts, Prettify ts) => Prettify (ProdRHS s nts ts) 
     prettify sf
     prettify ps
 
+-- | Is this 'ProdRHS' a semantic predicate?
 isSem (Prod (Sem _) _) = True
 isSem _ = False
 
+-- | Is this 'ProdRHS' a mutator?
 isAction (Prod (Action _) _) = True
 isAction _ = False
 
+-- | Get just the production elements from a bunch of production rules
 getProds = map (\(Prod _ ss) -> ss)
 
+-- | A single production rule
 data Production s nts ts = Production nts (ProdRHS s nts ts)
   deriving (Eq, Ord, Generic, Hashable, Data, Lift)
 
@@ -165,13 +189,15 @@ instance (Prettify s, Prettify nts, Prettify ts) => Prettify (Production s nts t
 instance (Show s, Show nts, Show ts) => Show (Production s nts ts) where
   show (Production nts rhs) = show nts ++ " -> " ++ show rhs
 
+-- | Inline get 'ProdRHS' of a 'Production'
 getRHS :: Production s nts ts -> ProdRHS s nts ts
 getRHS (Production lhs rhs) = rhs
 
+-- | Inline get the nonterminal symbol naming a 'Production'
 getLHS :: Production s nts ts -> nts
 getLHS (Production lhs rhs) = lhs
 
--- Get only the productions for the given nonterminal symbol nts:
+-- | Get only the productions for the given nonterminal symbol nts:
 prodsFor :: forall s nts ts. (Eq nts) => Grammar s nts ts -> nts -> [Production s nts ts]
 prodsFor g nts = let
     matchesNT :: Production s nts t -> Bool
@@ -180,16 +206,13 @@ prodsFor g nts = let
 
 -- TODO: boiler plate auto deriving for "named" of a user defined type?
 
--- Predicates and Mutators act over some state. The String
--- identifiers should eventually correspond to source-level
--- e.g. location / allocation site information, i.e. two
--- predicates or mutators are equivalent iff they were
--- constructed from the same production rule.
+-- | Predicates and Mutators act over some state. The String
+--   identifiers should eventually correspond to source-level
+--   e.g. location / allocation site information, i.e. two
+--   predicates or mutators are equivalent iff they were
+--   constructed from the same production rule.
 data Predicate p = Predicate String p
   deriving (Data)
-
-class Pred s where
-  runPred :: s -> Bool
 
 instance (Data s, Typeable s) => Lift (Predicate s)
 instance (Data s, Typeable s) => Lift (Mutator s)
@@ -212,6 +235,8 @@ instance Prettify (Predicate s) where
 instance Prettify (Mutator s) where
   prettify (Mutator n _) = pStr' n
 
+-- | Function for mutating the state of the parser when a certain
+--   production rule fires.
 data Mutator   s = Mutator String ()
   deriving (Data)
 
@@ -227,6 +252,7 @@ instance Show (Mutator s) where
 instance Hashable (Mutator s) where
   hashWithSalt salt (Mutator m1 _) = salt `hashWithSalt` m1
 
+-- | Core representation of a grammar, as used by the parsing algorithms.
 data Grammar s nts ts = G
   { ns  :: Set nts
   , ts  :: Set ts
@@ -265,16 +291,19 @@ instance (Prettify s, Prettify nts, Prettify ts, Hashable ts, Eq ts, Hashable nt
     incrIndent (-2)
     pStr "}"
 
+-- | All possible production elements of a given grammar.
 symbols
   :: (Ord nts, Ord ts, Hashable s, Hashable nts, Hashable ts)
   => Grammar s nts ts -> Set (ProdElem nts ts)
 symbols g = S.insert Eps $ S.map NT (ns g) `union` S.map T (ts g)
 
+-- | The empty grammar - accepts nothing, with one starting nonterminal
+--   and nowhere to go.
 defaultGrammar
   :: forall s nts ts. (Ord ts, Hashable ts, Hashable nts, Eq nts)
   => nts -> Grammar s nts ts
 defaultGrammar start = G
-  { ns  = empty
+  { ns  = S.singleton start
   , ts  = empty
   , ps  = []
   , _πs = empty
@@ -282,6 +311,7 @@ defaultGrammar start = G
   , s0  = start
   }
 
+-- | Does the given grammar make any sense?
 validGrammar
   :: forall s nts ts.
   (Eq nts, Ord nts, Eq ts, Ord ts, Hashable nts, Hashable ts)
@@ -292,18 +322,21 @@ validGrammar g =
   && startIsNonTerm g
 --  && distinctTermsNonTerms g
 
+-- | All nonterminals in production rules can be found in the nonterminals list.
 hasAllNonTerms
   :: (Eq nts, Ord nts, Hashable nts, Hashable ts)
   => Grammar s nts ts -> Bool
 hasAllNonTerms g =
   ns g == (fromList . getNTs . concat . getProds . map getRHS $ ps g)
 
+-- | All terminals in production rules can be found in the terminal list.
 hasAllTerms
   :: (Eq ts, Ord ts, Hashable nts, Hashable ts)
   => Grammar s nts ts -> Bool
 hasAllTerms g =
   ts g == (fromList . getTs . concat . getProds . map getRHS $ ps g)
 
+-- | The starting symbol is a valid nonterminal.
 startIsNonTerm
   :: (Ord nts, Hashable nts)
   => Grammar s nts ts -> Bool

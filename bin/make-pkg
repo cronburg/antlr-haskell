@@ -1,0 +1,39 @@
+#!/bin/bash
+SCRIPTDIR="$(cd "`dirname $0`"; pwd)"
+GITDIR="$(dirname "$SCRIPTDIR")"
+
+# =============================================================================
+# MODIFY THESE PARAMETERS EACH TIME YOU PUBLISH A NEW VERSION:
+arch=x86_64-linux-tinfo6
+cVersion=2.2.0.1
+pVersion=0.1.0.0
+# =============================================================================
+
+gzDir=$GITDIR/.stack-work/dist/$arch/Cabal-$cVersion
+gzFile=antlr-haskell-$pVersion.tar.gz
+
+echo "Changing to directory $GITDIR"
+cd "$GITDIR"
+
+# Generates .stack-work/dist/[arch]/Cabal-[version]/antlr-haskell-[version].tar.gz :
+echo "Generating $gzFile"
+stack sdist --pvp-bounds both
+
+# Generates .stack-work/dist/[arch]/Cabal-[version]/doc/html/antlr-haskell/* :
+echo "Generating haddock documentation"
+stack haddock --haddock-hyperlink-source --no-haddock-deps
+
+# Copy source gzipped tar file to dist:
+mkdir -p dist
+cp $gzDir/$gzFile dist/
+
+# Copy over the haddock documentation:
+destDir=dist/antlr-haskell-$pVersion/antlr-haskell-$pVersion-docs
+mkdir -p $destDir
+cp -r $gzDir/doc/html/antlr-haskell $destDir
+
+# Generate tar file to upload to hackage:
+echo "Making haddock tar file for *manual* upload to https://hackage.haskell.org/package/antlr-haskell-$pVersion/maintain/docs"
+tarFile=antlr-haskell-$pVersion-docs.tar
+tar --format=ustar -cvf dist/$tarFile $destDir | grep index.html
+

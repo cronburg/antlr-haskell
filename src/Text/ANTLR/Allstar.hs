@@ -13,10 +13,10 @@
   this package.
 -}
 module Text.ANTLR.Allstar
-  ( parse
+  ( parse, atnOf
   , ALL.Token(..)
   , ALL.GrammarSymbol(..)
-  , ALL.ATNEnv, atnOf
+  , ALL.ATNEnv
   ) where
 
 import qualified Text.ANTLR.Allstar.ParserGenerator as ALL
@@ -33,8 +33,9 @@ fromAllstarAST :: ALL.AST nts t -> P.AST nts t
 fromAllstarAST (ALL.Node nt asts) = P.AST nt [] (map fromAllstarAST asts)
 fromAllstarAST (ALL.Leaf tok)     = P.Leaf tok
 
--- | Go from an antlr-haskell Grammar to an Allstar ATNEnv
 --   TODO: Handle predicate and mutator state during the conversion
+-- | Go from an antlr-haskell Grammar to an Allstar ATNEnv. ALL(*) does not
+--   current support predicates and mutators.
 atnOf :: (Ord nt, Ord t, S.Hashable nt, S.Hashable t) => G.Grammar s nt t -> ALL.ATNEnv nt t
 atnOf g = DS.fromList (map convTrans (S.toList (ATN._Δ (ATN.atnOf g))))
 
@@ -53,6 +54,7 @@ convEdge (ATN.PE p)   = ALL.PRED True -- TODO
 convEdge (ATN.ME m)   = ALL.PRED True -- TODO
 convEdge ATN.Epsilon  = ALL.GS ALL.EPS
 
+-- | Entrypoint to the ALL(*) parsing algorithm.
 parse inp s0 atns cache = fromAllstarAST <$> ALL.parse inp s0 atns cache
 
 convSymbol s = ALL.NT s

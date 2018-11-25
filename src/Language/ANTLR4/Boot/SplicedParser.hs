@@ -34,6 +34,23 @@ import qualified Language.ANTLR4.Boot.Syntax  as G4S
 
 import Debug.Trace as D
 
+-- | Construct a list from a single element
+list a = [a]
+cons = (:)
+lexemeDirective r d = G4S.LRHS r (Just d)
+lexemeNoDir     r   = G4S.LRHS r Nothing
+lexDecl = G4S.Lex Nothing
+lexFragment = G4S.Lex (Just G4S.Fragment)
+
+literalRegex :: String -> G4S.Regex Char
+literalRegex = G4S.Literal
+
+prodDirective as d = G4S.PRHS as Nothing Nothing (Just d)
+prodNoDir     as   = G4S.PRHS as Nothing Nothing Nothing
+
+list2 a b = [a,b]
+range a b = [a .. b]
+
 gterm         = G4S.GTerm    G4S.NoAnnot
 gnonTerm      = G4S.GNonTerm G4S.NoAnnot
 
@@ -289,7 +306,7 @@ lexeme2value l T_EscapedChar
   = V_EscapedChar
       ((readEscape l :: Char))
 lexeme2value l T_SetChar
-  = V_SetChar ((char l :: Char))
+  = V_SetChar ((head l :: Char))
 lexeme2value l T_WS = V_WS l
 g4Regexes
   = [(T_0, Text.ANTLR.Lex.Regex.Symbol ';'),
@@ -418,7 +435,7 @@ ast2charSet
   (AST NT_charSet
        [NT NT_charSet1, NT NT_charSet]
        [v0_charSet1, v1_charSet])
-  = (append (ast2charSet1 v0_charSet1)) (ast2charSet v1_charSet)
+  = ((++) (ast2charSet1 v0_charSet1)) (ast2charSet v1_charSet)
 ast2charSet ast2 = error (show ast2)
 ast2charSet1
   (AST NT_charSet1

@@ -19,6 +19,7 @@ import Text.ANTLR.Set (Generic(..))
 import Text.ANTLR.Lex.Tokenizer (Token(..))
 import Data.Data (Data(..))
 import Language.Haskell.TH.Lift (Lift(..))
+import Text.ANTLR.Set (Hashable)
 
 -- Action function is given the nonterminal we just matched on, and the
 -- corresponding list of production elements (grammar symbols) in the RHS of the matched production

@@ -7,7 +7,7 @@ import Text.ANTLR.Parser
 import qualified Data.Text as T
 import qualified Text.ANTLR.Lex.Tokenizer as T
 
-import Text.ANTLR.Set (fromList, union, empty, Set(..), (\\))
+import Text.ANTLR.Set (fromList, union, empty, Set(..), (\\), Hashable(..), Generic(..))
 import qualified Text.ANTLR.Set as S
 import qualified Text.ANTLR.MultiMap as M
 

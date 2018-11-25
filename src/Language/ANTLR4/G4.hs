@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric, TypeFamilies, QuasiQuotes
     , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
-    , FlexibleInstances, UndecidableInstances, DeriveDataTypeable #-}
+    , FlexibleInstances, UndecidableInstances, DeriveDataTypeable
+    , TemplateHaskell #-}
 {-|
   Module      : Language.ANTLR4.G4
   Description : Core G4 quasiquoter for antlr-haskell
@@ -39,6 +40,28 @@ import qualified Language.ANTLR4.Boot.Quote   as G4Q
 
 import Debug.Trace as D
 
+char :: String -> Char
+char = head
+
+append :: String -> String -> String
+append = (++)
+
+list a = [a]
+cons = (:)
+lexemeDirective r d = G4S.LRHS r (Just d)
+lexemeNoDir     r   = G4S.LRHS r Nothing
+lexDecl = G4S.Lex Nothing
+lexFragment = G4S.Lex (Just G4S.Fragment)
+
+literalRegex :: String -> G4S.Regex Char
+literalRegex = G4S.Literal
+
+prodDirective as d = G4S.PRHS as Nothing Nothing (Just d)
+prodNoDir     as   = G4S.PRHS as Nothing Nothing Nothing
+
+list2 a b = [a,b]
+range a b = [a .. b]
+
 gterm         = G4S.GTerm    G4S.NoAnnot
 gnonTerm      = G4S.GNonTerm G4S.NoAnnot
 
@@ -61,6 +84,9 @@ dQual xs = case last xs of
     | otherwise -> G4S.LowerD $ concatWith "." xs
 
 qDir l u = [l,u]
+
+-- Force the above declarations (and their types) into scope:
+$( return [] )
 
 [antlr4|
   grammar G4;
@@ -104,10 +130,10 @@ qDir l u = [l,u]
 
   alphas : alpha                    -> list
          | alpha alphas             -> cons
-				 | '(' alphas ')'
-				 | '(' alphas ')' '?'
-				 | '(' alphas ')' '*'
-				 | '(' alphas ')' '+'
+         | '(' alphas ')'
+         | '(' alphas ')' '?'
+         | '(' alphas ')' '*'
+         | '(' alphas ')' '+'
          ;
 
   alpha : Literal '?'               -> maybeGTerm
@@ -168,7 +194,7 @@ qDir l u = [l,u]
 
   SetChar     : ~ ']'               -> char ;
   WS          : [ \t\n\r\f\v]+      -> String;
-  EscapedChar : '\\' [tnrfv]      	-> readEscape ;
+  EscapedChar : '\\' [tnrfv]        -> readEscape ;
 
 |]
 

@@ -32,7 +32,7 @@ import Text.ParserCombinators.Parsec.Pos      (newPos)
 import Data.Char
 
 import Language.ANTLR4.Boot.Syntax
-import Language.ANTLR4.Regex (Regex(..), parseRegex, regexP)
+import Language.ANTLR4.Regex (parseRegex, regexP)
 
 --traceM s = D.traceM ("[ANTLR4.Boot.Parser] " ++ s)
 traceM = return

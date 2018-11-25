@@ -8,7 +8,7 @@ module Parser
 import Language.ANTLR4
 import Grammar
 
-import qualified GHC.Types as G
+--import qualified GHC.Types as G
 import qualified Text.ANTLR.LR as LR
 
 $(mkLRParser the_ast sexpressionGrammar)
