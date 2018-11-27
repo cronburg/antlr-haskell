@@ -18,6 +18,7 @@ category:            Library
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
 description:         Please see the README on Github at <https://github.com/cronburg/antlr-haskell#readme>
+                     and <https://www.cronburg.com/2018/antlr-haskell-project/>.
 
 dependencies:
 - base                 >= 4.11 && < 5
