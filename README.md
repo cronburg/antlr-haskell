@@ -24,8 +24,17 @@ Haskell we have followed the following principles:
 The library can be built with:
 
 ```
-stack init # Currently selects lts-9.0 resolver
-stack repl
+stack build # stack version 1.9.1.1
+stack test antlr-haskell:simpl
+```
+
+Or with cabal-2.4.0.1 like:
+
+```
+cabal configure
+cabal install --only-dependencies --enable-tests
+cabal build
+cabal test sexpression
 ```
 
 ### sample grammar for ALL(\*)

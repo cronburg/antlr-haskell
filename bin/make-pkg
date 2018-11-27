@@ -5,7 +5,7 @@ GITDIR="$(dirname "$SCRIPTDIR")"
 # =============================================================================
 # MODIFY THESE PARAMETERS EACH TIME YOU PUBLISH A NEW VERSION:
 arch=x86_64-linux-tinfo6
-cVersion=2.2.0.1
+cVersion=2.4.0.1
 pVersion=0.1.0.0
 # =============================================================================
 
@@ -21,7 +21,7 @@ stack sdist --pvp-bounds both
 
 # Generates .stack-work/dist/[arch]/Cabal-[version]/doc/html/antlr-haskell/* :
 echo "Generating haddock documentation"
-stack haddock --haddock-hyperlink-source --no-haddock-deps
+stack haddock --haddock-hyperlink-source # --no-haddock-deps
 
 # Copy source gzipped tar file to dist:
 mkdir -p dist

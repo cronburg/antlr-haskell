@@ -13,7 +13,7 @@
 
 -}
 module Text.ANTLR.Parser where
-import Text.ANTLR.Grammar
+import Text.ANTLR.Grammar hiding (Action)
 import Text.ANTLR.Pretty
 import Text.ANTLR.Set (Generic(..))
 import Text.ANTLR.Lex.Tokenizer (Token(..))
@@ -47,7 +47,7 @@ instance (Prettify ast, Prettify nts, Prettify (StripEOF (Sym t)), Prettify t) =
     prettify e
     incrIndent (-2)
 
--- | An 'Action' as seen by the host language (Haskell) is a function from parse
+-- | An Action as seen by the host language (Haskell) is a function from parse
 --   events to an abstract-syntax tree that the function constructs based on which
 --   non-terminal or terminal symbol was seen.
 type Action ast nts t = ParseEvent ast nts t -> ast

@@ -18,7 +18,7 @@ module Text.ANTLR.LL1
   , predictiveParse
   , removeEpsilons, removeEpsilons'
   , leftFactor
-  , Prime(..)
+  , Prime(..), ParseTable, PTKey, PTValue
   ) where
 import Text.ANTLR.Grammar
 import Text.ANTLR.Pretty
@@ -147,23 +147,24 @@ isLL1 g =
       , α /= β
       ]
 
-type Key nts sts = (nts, Icon sts)
+-- | Keys in the LL1 parse table.
+type PTKey nts sts = (nts, Icon sts)
 
--- All possible productions we could reduce. Empty implies parse error,
--- singleton implies unambiguous entry, multiple implies ambiguous:
-type Value nts sts = Set (ProdElems nts sts)
+-- | All possible productions we could reduce. Empty implies parse error,
+--   singleton implies unambiguous entry, multiple implies ambiguous:
+type PTValue nts sts = Set (ProdElems nts sts)
 
 ambigVal
   :: (Ord nts, Ord sts, Hashable nts, Hashable sts)
-  => Value nts sts -> Bool
+  => PTValue nts sts -> Bool
 ambigVal = (1 >) . size
 
--- M[A,s] = α for each symbol s `member` FIRST(α)
-type ParseTable nts sts = M.Map (Key nts sts) (Value nts sts)
+-- | M[A,s] = α for each symbol s `member` FIRST(α)
+type ParseTable nts sts = M.Map (PTKey nts sts) (PTValue nts sts)
 
 parseTable' ::
   forall nts sts. (Eq nts, Eq sts, Ord nts, Ord sts, Eq nts, Hashable sts, Hashable nts)
-  => (Value nts sts -> Value nts sts -> Value nts sts) -> Grammar () nts sts -> ParseTable nts sts
+  => (PTValue nts sts -> PTValue nts sts -> PTValue nts sts) -> Grammar () nts sts -> ParseTable nts sts
 parseTable' fncn g = let
 
     insertMe ::
@@ -282,7 +283,7 @@ predictiveParse g act w0 = let
     pushStack (T t)   _  (InComp nts ss asts i:stree) = reduce $ InComp nts ss (act (TermE t) : asts) (i - 1) : stree
     pushStack Eps     _  (InComp nts ss asts i:stree) = reduce $ InComp nts ss (act EpsE             : asts) (i - 1) : stree
    
-    -- ParseTable terminal type *has* an EOF (not StripEOF (Sym t))
+    -- 'ParseTable' terminal type *has* an EOF (not StripEOF (Sym t))
     _M :: ParseTable nts (StripEOF (Sym t))
     _M = parseTable g
 

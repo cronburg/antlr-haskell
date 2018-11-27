@@ -1,7 +1,9 @@
+cabal.config
 antlr-haskell.cabal
 /books
 .stack-work/
 dist
+/dist-*
 cabal-dev
 *.o
 *.hi

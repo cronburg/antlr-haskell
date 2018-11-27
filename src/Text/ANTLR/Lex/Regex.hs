@@ -71,7 +71,7 @@ regex2nfa' from to r = let
 regex2nfa :: (Hashable s, Ord s) => Regex s -> NFA s Int
 regex2nfa = regex2nfa' id id
 
--- | Entrypoint for translating a regular expression into a 'DFA' with integer indices.
+-- | Entrypoint for translating a regular expression into a 'DFA.DFA' with integer indices.
 regex2dfa :: (Hashable s, Ord s) => Regex s -> DFA.DFA s (DFAState Int)
 regex2dfa = nfa2dfa . regex2nfa
 

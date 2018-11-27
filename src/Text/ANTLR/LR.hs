@@ -22,6 +22,7 @@ module Text.ANTLR.LR
   , lr1S0, glrParseInc', glrParseInc2
   , convGoto, convStateInt, convGotoStatesInt, convTableInt, tokenizerFirstSets
   , disambiguate
+  , SLRClosure, SLRItem, SLRTable, Closure, LR1Item, Goto, Goto', Config, Tokenizer
   ) where
 import Text.ANTLR.Grammar
 import qualified Text.ANTLR.LL1 as LL
@@ -94,7 +95,7 @@ type LR1LookAhead sts           = Icon sts
 -- | An LR1 state is a set of items with one lookahead symbol.
 type CoreLR1State nts sts       = Set (LR1Item nts sts)
 
--- | An 'SLRClosure' is just a LR 'Closure' in disguise.
+-- | An SLRClosure is just a LR 'Closure' in disguise.
 type SLRClosure lrstate = Closure lrstate
 -- | SLR items have no lookahead.
 type SLRItem  nts sts = Item    () nts sts

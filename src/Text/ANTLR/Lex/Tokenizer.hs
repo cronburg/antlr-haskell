@@ -58,20 +58,24 @@ tokenSize EOF = 0
 -- | A Lexeme is a sequence of zero or more (matched) input symbols
 type Lexeme s = [s]
 
-{- *  dfaName: converts from DFAs to the names associated with them in
- -    the specification of the lexer.
- - *  fncn: function for constructing the value of a token from the lexeme
- -    matched (e.g. 'varName') and the associated token name (e.g. 'id')
- -}
-
 -- | A named DFA over symbols @s@, indices @i@, and names @n@.
 type NDFA s i n = (n, DFA s i)
 
 -- | Entrypoint for tokenizing an input stream given a list of named DFAs that
 --   we can match on.
+--   
+--   > @dfaTuples@: converts from DFAs to the names associated with them in
+--     the specification of the lexer.
+--
+--   > @fncn@: function for constructing the value of a token from the lexeme
+--     matched (e.g. @varName@) and the associated token name (e.g. @id@)
+--
 tokenize ::
   forall s i n v. (Eq i, Ord s, Eq s, Show s, Show i, Show n, Show v, Hashable i, Hashable s)
-  => [(n, DFA s i)] -> (Lexeme s -> n -> v) -> [s] -> [Token n v]
+  => [(n, DFA s i)]       -- ^ Association list of named DFAs.
+  -> (Lexeme s -> n -> v) -- ^ Constructs the value of a token from lexeme matched.
+  -> [s]                  -- ^ The input string.
+  -> [Token n v]          -- ^ The tokenized tokens.
 tokenize dfaTuples fncn input0 = let
 
     dfas0 = map snd dfaTuples
@@ -109,7 +113,10 @@ tokenize dfaTuples fncn input0 = let
 --   with the modified input stream to iteratively call 'tokenizeInc' on.
 tokenizeInc
   :: forall s i n v. (Eq i, Ord s, Eq n, Eq s, Show s, Show i, Show n, Show v, Hashable i, Hashable s, Hashable n)
-  => (n -> Bool) -> [(n, DFA s i)] -> (Lexeme s -> n -> v) -> (Set n -> [s] -> (Token n v, [s]))
+  => (n -> Bool)                         -- ^ Function that returns True on DFA names we wish to filter __out__ of the results.
+  -> [(n, DFA s i)]                      -- ^ Closure over association list of named DFAs.
+  -> (Lexeme s -> n -> v)                -- ^ Token value constructor from lexemes.
+  -> (Set n -> [s] -> (Token n v, [s]))  -- ^ The incremental tokenizer closure.
 tokenizeInc filterF dfaTuples fncn = let
 
     tI :: Set n -> [s] -> (Token n v, [s])

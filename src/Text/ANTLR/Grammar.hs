@@ -67,8 +67,8 @@ sameNTs :: forall nt. (Ref nt, Eq (Sym nt)) => nt -> nt -> Bool
 sameNTs = compareSymbols
 
 -- | Terminals can be symbolized (in the current implementation, the input
---   terminal type to a parser is @(t == 'Token' n v)@ and the terminal symbol type is
---   @(ts == 'Sym t' == n)@ where @n@ is defined as the name of a token @('Token' n v)@.
+--   terminal type to a parser is @(t == 'Text.ANTLR.Lex.Tokenizer.Token' n v)@ and the terminal symbol type is
+--   @(ts == 'Sym t' == n)@ where @n@ is defined as the name of a token @('Text.ANTLR.Lex.Tokenizer.Token' n v)@.
 sameTs :: forall t. (Ref t, Eq (Sym t)) => t -> t -> Bool
 sameTs = compareSymbols
 
@@ -96,14 +96,14 @@ instance Ref (String, b) where
 --   token type__. In fact it's redundant to say *terminal token* because all
 --   tokens are terminals in the grammar. A token is by definition a tokenized
 --   __value__ with a __named__ terminal symbol, which is in fact exactly what the
---   'Token' type looks like in 'Text.ANTLR.Lex.Tokenizer': @'Token' n v@ (name and
+--   'Text.ANTLR.Lex.Tokenizer.Token' type looks like in 'Text.ANTLR.Lex.Tokenizer': @'Text.ANTLR.Lex.Tokenizer.Token' n v@ (name and
 --   value). So wherever I see an @n@ type variable in the tokenizer, this is
---   equivalent to @('Sym' t)@ in the parser. And wherever I see a @('Token' n v)@ in the
---   tokenizer, this gets passed into the parser as 't':
+--   equivalent to @('Sym' t)@ in the parser. And wherever I see a @('Text.ANTLR.Lex.Tokenizer.Token' n v)@ in the
+--   tokenizer, this gets passed into the parser as @t@:
 --
 --   @
 --     n           == 'Sym' t
---     ('Token' n v) == t
+--     ('Text.ANTLR.Lex.Tokenizer.Token' n v) == t
 --   @
 --
 data ProdElem nts ts =
