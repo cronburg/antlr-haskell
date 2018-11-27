@@ -16,18 +16,19 @@ import Text.ANTLR.Lex.NFA
 import qualified Text.ANTLR.Lex.DFA as DFA
 import Language.Haskell.TH.Syntax (Lift(..))
 
+-- | Regular expression data representation as used by the tokenizer.
 data Regex s =
-    Epsilon                         -- Regex accepting the empty string
-  | Symbol     s                    -- An individual symbol in the alphabet
-  | Literal    [s]                  -- A literal sequence of symbols (concatenated together)
-  | Class      [s]                  -- A set of alternative symbols (unioned together)
-  | Union      (Regex s) (Regex s)  -- Union of two arbitrary regular expressions
-  | Concat     [Regex s]            -- Concatenation of 2 or more regular expressions
-  | Kleene     (Regex s)            -- Kleene closure of a regex
-  | PosClos    (Regex s)            -- Positive closure
-  | Question   (Regex s)            -- 0 or 1 instances
-  | MultiUnion [Regex s]            -- Union of two or more arbitrary regexs
-  | NotClass   [s]                  -- Complement of a character class
+    Epsilon                         -- ^ Regex accepting the empty string
+  | Symbol     s                    -- ^ An individual symbol in the alphabet
+  | Literal    [s]                  -- ^ A literal sequence of symbols (concatenated together)
+  | Class      [s]                  -- ^ A set of alternative symbols (unioned together)
+  | Union      (Regex s) (Regex s)  -- ^ Union of two arbitrary regular expressions
+  | Concat     [Regex s]            -- ^ Concatenation of 2 or more regular expressions
+  | Kleene     (Regex s)            -- ^ Kleene closure of a regex
+  | PosClos    (Regex s)            -- ^ Positive closure
+  | Question   (Regex s)            -- ^ 0 or 1 instances
+  | MultiUnion [Regex s]            -- ^ Union of two or more arbitrary regexs
+  | NotClass   [s]                  -- ^ Complement of a character class
   deriving (Lift)
 
 instance (Show s) => Show (Regex s) where
@@ -43,6 +44,7 @@ instance (Show s) => Show (Regex s) where
   show (MultiUnion rs) = tail $ concatMap (\r -> "|" ++ show r) rs
   show (NotClass rs)   = "[^" ++ tail (concatMap show rs) ++ "]"
 
+-- | Translation code of a regular expresion to an NFA.
 regex2nfa' ::
   forall s i. (Hashable i, Ord i, Hashable s, Eq s)
   => (i -> Int) -> (Int -> i) -> Regex s -> NFA s i
@@ -65,9 +67,11 @@ regex2nfa' from to r = let
     r2n (NotClass (s:ss)) = list2nfa $ [ (to 0, (True, fromList $ map Edge $ s:ss), to 1) ]
   in r2n r 
 
+-- | Entrypoint for translating a regular expression into an 'NFA' with integer indices.
 regex2nfa :: (Hashable s, Ord s) => Regex s -> NFA s Int
 regex2nfa = regex2nfa' id id
 
+-- | Entrypoint for translating a regular expression into a 'DFA' with integer indices.
 regex2dfa :: (Hashable s, Ord s) => Regex s -> DFA.DFA s (DFAState Int)
 regex2dfa = nfa2dfa . regex2nfa
 

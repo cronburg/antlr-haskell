@@ -374,6 +374,7 @@ removeEpsilons ::
   => Grammar s nts t -> Grammar s nts t
 removeEpsilons g = g { ps = removeEpsilons' $ ps g }
 
+-- | Add primes to nonterminal symbols.
 newtype Prime nts = Prime (nts, Int)
   deriving (Eq, Ord, Generic, Hashable, Show)
 

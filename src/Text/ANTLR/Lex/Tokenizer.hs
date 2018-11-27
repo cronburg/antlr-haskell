@@ -22,12 +22,12 @@ import qualified Debug.Trace as D
 import Data.List (find)
 import qualified Data.Text as T
 
--- Token with name (n), value (v), and number of input symbols consumed to match
--- it.
+-- | Token with names @n@, values @v@, and number of input symbols consumed to match
+--   it.
 data Token n v =
-    Token n v Int
-  | EOF
-  | Error T.Text -- TODO
+    Token n v Int  -- ^ Tokenized a token
+  | EOF            -- ^ The end-of-file token
+  | Error T.Text   -- ^ Error encountered while tokenizing
   deriving (Show, Ord, Generic, Hashable)
 
 instance (Prettify n, Prettify v) => Prettify (Token n v) where
@@ -42,19 +42,20 @@ instance Eq n => Eq (Token n v) where
   Error s     == Error s1     = s == s1
   _           == _            = False
 
--- Token Names are Input Symbols to the parser
+-- | Token Names are Input Symbols to the parser.
 tokenName :: Token n v -> n
 tokenName (Token n v _) = n
 
--- TODO: Debugging information goes in the value
+-- | Get the value of a token, ignoring its name.
 tokenValue :: Token n v -> v
 tokenValue (Token n v _) = v
 
+-- | Get the number of characters from the input that this token matched on.
 tokenSize :: Token n v -> Int
 tokenSize (Token _ _ i) = i
 tokenSize EOF = 0
 
--- A Lexeme is a sequence of zero or more (matched) input symbols
+-- | A Lexeme is a sequence of zero or more (matched) input symbols
 type Lexeme s = [s]
 
 {- *  dfaName: converts from DFAs to the names associated with them in
@@ -63,8 +64,11 @@ type Lexeme s = [s]
  -    matched (e.g. 'varName') and the associated token name (e.g. 'id')
  -}
 
+-- | A named DFA over symbols @s@, indices @i@, and names @n@.
 type NDFA s i n = (n, DFA s i)
 
+-- | Entrypoint for tokenizing an input stream given a list of named DFAs that
+--   we can match on.
 tokenize ::
   forall s i n v. (Eq i, Ord s, Eq s, Show s, Show i, Show n, Show v, Hashable i, Hashable s)
   => [(n, DFA s i)] -> (Lexeme s -> n -> v) -> [s] -> [Token n v]
@@ -98,8 +102,11 @@ tokenize dfaTuples fncn input0 = let
             : allTok dfaSims0 (drop (length l) currInput)
   in allTok (zip dfaTuples (map s0 dfas0)) input0
 
--- Incremental tokenizer takes in the same list of DFAs and AST value
--- constructor function, but instead returns an incremental tokenizer function.
+-- | Incremental tokenizer takes in the same list of DFAs and AST value
+--   constructor function, but instead returns an incremental tokenizer function
+--   that expects a set of names that we currently expect to tokenize on,
+--   the current input stream, and returns a single tokenized token along
+--   with the modified input stream to iteratively call 'tokenizeInc' on.
 tokenizeInc
   :: forall s i n v. (Eq i, Ord s, Eq n, Eq s, Show s, Show i, Show n, Show v, Hashable i, Hashable s, Hashable n)
   => (n -> Bool) -> [(n, DFA s i)] -> (Lexeme s -> n -> v) -> (Set n -> [s] -> (Token n v, [s]))
@@ -123,9 +130,4 @@ tokenizeInc filterF dfaTuples fncn = let
       
       in (next, drop (sum $ map tokenSize $ next : ignored) input)
   in tI
-
-
-
-
-
 

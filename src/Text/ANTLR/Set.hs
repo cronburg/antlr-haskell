@@ -17,8 +17,6 @@ module Text.ANTLR.Set
   , toList, fromList, (\\), findMin, maybeMin
   , Hashable(..), Generic(..)
   ) where
---import Data.Set.Monad
-
 import Text.ANTLR.Pretty
 
 import GHC.Generics (Generic, Rep)
@@ -42,23 +40,32 @@ import Data.HashSet as S
 
 import Prelude hiding (null, filter, map, foldr, foldl)
 
+-- | Use a hash-based set (hashable keys) for our internal set representation
+--   during parsing.
 type Set = S.HashSet
 
+-- | Is @e@ not a member of the set @s@.
 notMember e s = not $ member e s
 
+-- | Set fold
 fold = S.foldr
+
+-- | Set fold
 foldr = S.foldr
 
+-- | Find the minimum value of an orderable set.
 findMin :: (Ord a, Hashable a) => Set a -> a
 findMin = minimum . toList
 
 --maybeMin :: (Ord a, Hashable a) => Set a -> Maybe a
+-- | Get minimum of a set without erroring out on empty set.
 maybeMin as
   | S.size as == 0  = Nothing
   | otherwise       = Just $ findMin as
 
 infixl 9 \\
 
+-- | Set difference
 (\\) :: (Hashable a, Eq a) => Set a -> Set a -> Set a
 m1 \\ m2 = difference m1 m2
 
@@ -76,6 +83,7 @@ instance (Prettify a, Hashable a, Eq a) => Prettify (S.HashSet a) where
     pLine ""
 
 --filter :: (Hashable a, Eq a) => (a -> Bool) -> Set a -> Set a
+-- | Set filter
 filter f s = S.filter f s
 
 --instance (Hashable a, Eq a) => Hashable (S.HashSet a) where

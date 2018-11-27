@@ -33,32 +33,37 @@ import Data.Data (toConstr, Data(..))
 
 import qualified Data.Text as T
 
+-- | Pretty-printing state
 data PState = PState
-  { indent   :: Int    -- indentation level
-  , vis_chrs :: Int    -- number of visible characters
-  , str :: T.Text      -- constructed T.Text
-  , columns_soft :: Int
-  , columns_hard :: Int
-  , curr_col :: Int
-  , curr_row :: Int
+  { indent   :: Int     -- ^ current indentation level
+  , vis_chrs :: Int     -- ^ number of visible characters consumed so far
+  , str :: T.Text       -- ^ the string, 'T.Text', that we've constructed so far
+  , columns_soft :: Int -- ^ soft limit on number of columns to consume per row
+  , columns_hard :: Int -- ^ hard limit on number of columns to consume per row
+  , curr_col :: Int     -- ^ column number we're on in the current row of 'str'
+  , curr_row :: Int     -- ^ number of rows (newlines) we've printed to 'str'
   }
 
--- The pretty state monad
+-- | The pretty state monad
 type PrettyM val = State PState val
 
+-- | No value being threaded through the monad (because result is in 'str')
 type Pretty = PrettyM ()
 
+-- | Define the 'Prettify' type class for your pretty-printable type @t@.
 class Prettify t where
   {-# MINIMAL prettify #-}
 
+  -- | Defines how to pretty-print some type.
   prettify :: t -> Pretty
   default prettify :: (Show t) => t -> Pretty
   prettify = rshow
 
+  -- | Lists are pretty-printed specially.
   prettifyList :: [t] -> Pretty
   prettifyList = prettifyList_
 
--- Initial Pretty state
+-- | Initial Pretty state with safe soft and hard column defaults.
 initPState = PState
   { indent       = 0   -- Indentation level
   , vis_chrs     = 0   -- Number of visible characters consumed.
@@ -69,20 +74,21 @@ initPState = PState
   , curr_row     = 0   -- Number of newlines seen
   }
 
--- Prettify a string by putting it on the end of the current string state
+-- | Prettify a string by putting it on the end of the current string state
 pLine :: T.Text -> Pretty
 pLine s = do
   pStr s
   _pNewLine
 
+-- | Pretty print a literal string by just printing the string.
 pStr' :: String -> Pretty
 pStr' = pStr . T.pack
 
--- Currently assuming all input strings contain no newlines, and that this is
--- only called on relatively small strings because strings running over the end
--- of the hard column limit get dumped onto the next line *no matter what*.
--- T.Texts can run over the soft limit, but hitting the soft limit after a call
--- to pStr forces a newline.
+-- | This currently assumes all input strings contain no newlines, and that this is
+--   only called on relatively small strings because strings running over the end
+--   of the hard column limit get dumped onto the next line __no matter what__.
+--   T.Texts can run over the soft limit, but hitting the soft limit after a call
+--   to 'pStr' forces a newline.
 pStr :: T.Text -> Pretty
 pStr s = do
   pstate <- get
@@ -97,15 +103,15 @@ pStr s = do
   pstate <- get
   _doIf _pNewLine (curr_col pstate > columns_soft pstate)
 
--- TODO ...
+-- | Print a single character to the output.
 pChr :: Char -> Pretty
 pChr c = pStr $ T.singleton c
 
--- Get rid of if-then-else lines in the Pretty monad:
+-- | Gets rid of if-then-else lines in the Pretty monad code:
 _doIf fncn True  = fncn
 _doIf fncn False = return ()
 
--- Indent by the number of spaces specified in the state
+-- | Indent by the number of spaces specified in the state.
 _pIndent :: Pretty
 _pIndent = do
   pstate <- get
@@ -115,7 +121,7 @@ _pIndent = do
     , vis_chrs = vis_chrs pstate + indent pstate
     }
 
--- Insert a newline
+-- | Insert a newline
 _pNewLine :: Pretty
 _pNewLine = do
   pstate <- get
@@ -125,16 +131,19 @@ _pNewLine = do
     , curr_row = curr_row pstate + 1
     }
 
+-- | Run the pretty-printer, returning a 'T.Text'.
 pshow :: (Prettify t) => t -> T.Text
 pshow t = str $ execState (prettify t) initPState
 
+-- | Run the pretty-printer, returning a 'String'.
 pshow' :: (Prettify t) => t -> String
 pshow' = T.unpack . pshow
 
+-- | Run the pretty-printer with a specific indentation level.
 pshowIndent :: (Prettify t) => Int -> t -> T.Text
 pshowIndent i t = str $ execState (prettify t) $ initPState { indent = i }
 
--- Plain-vanilla show of something:
+-- | Plain-vanilla show of something in the 'Pretty' state monad.
 rshow :: (Show t) => t -> Pretty
 rshow t = do
   pstate <- get
@@ -145,23 +154,26 @@ rshow t = do
     , curr_col = curr_col pstate -- TODO
     }
 
+-- | Parenthesize something in 'Pretty'.
 pParens fncn = do
   pChr '('
   fncn
   pChr ')'
 
+-- | Increment the indentation level by modifying the pretty-printer state.
 incrIndent :: Int -> Pretty
 incrIndent n = do
   pstate <- get
   put $ pstate { indent = indent pstate + n }
 
+-- | Like 'incrIndent' but set indentation level instead of incrementing.
 setIndent :: Int -> Pretty
 setIndent n = do
   pstate <- get
   put $ pstate { indent = n }
 
--- Prettify the given value and compute the number of characters consumed as a
--- result.
+-- | Prettify the given value and compute the number of characters consumed as a
+--   result.
 pCount :: (Prettify v) => v -> PrettyM Int
 pCount v = do
   i0 <- indent <$> get
@@ -169,7 +181,7 @@ pCount v = do
   i1 <- indent <$> get
   return (i1 - i0)
 
--- Put 
+-- | Pretty-print a list with one entry per line.
 pListLines :: (Prettify v) => [v] -> Pretty
 pListLines vs = do
   pStr $ T.pack "[ "
@@ -191,6 +203,7 @@ instance (Prettify v) => Prettify (Maybe v) where
   prettify Nothing  = pStr "Nope"
   prettify (Just v) = pStr "Yep" >> pParens (prettify v)
 
+-- | Prettify a list with possibly more than one entry per line.
 prettifyList_ [] = pStr "[]"
 prettifyList_ vs = do
   pChr '['
@@ -231,9 +244,11 @@ instance (Prettify a, Prettify b, Prettify c, Prettify d) => Prettify (a,b,c,d) 
     prettify d
     pChr ')'
 
+-- | Pretty-print a list of values, separated by some other pretty-printer.
 sepBy s [] = return ()
 sepBy s (v:vs) = foldl (_sepBy s) v vs
 
+-- | Reorder pretty-printer bind.
 _sepBy s ma mb = ma >> s >> mb 
 
 instance Prettify Char where
@@ -245,12 +260,4 @@ instance Prettify Bool where prettify = rshow
 instance Prettify Int where prettify = rshow
 
 instance Prettify Double where prettify = rshow
-
---class BoundedEnum a where
---  showConstr :: a -> T.Text
-  --default showConstr :: (Data a) => a -> T.Text
-  --showConstr = show . toConstr
-
---instance (BoundedEnum a) => Prettify a where
---  prettify a = show $ toConstr a
 

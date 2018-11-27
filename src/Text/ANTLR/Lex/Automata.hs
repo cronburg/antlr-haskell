@@ -13,13 +13,13 @@ module Text.ANTLR.Lex.Automata where
 import Text.ANTLR.Set (Set(..), member, toList, union, notMember, Hashable(..), fromList)
 import qualified Text.ANTLR.Set as Set
 
--- e = edge type, s = symbols, i = state indices
+-- | An automaton with edges @e@, symbols @s@, and state indices @i@
 data Automata e s i = Automata
-  { _S :: Set i                  -- Finite set of states.
-  , _Σ :: Set s                  -- Input (edge) alphabet
-  , _Δ :: Set (Transition e i)   -- Transition function
-  , s0 :: i                      -- Start state
-  , _F :: Set i                  -- Accepting states
+  { _S :: Set i                  -- ^ Finite set of states.
+  , _Σ :: Set s                  -- ^ Input (edge) alphabet
+  , _Δ :: Set (Transition e i)   -- ^ Transition function
+  , s0 :: i                      -- ^ Start state
+  , _F :: Set i                  -- ^ Accepting states
   } deriving (Eq)
 
 instance (Eq e, Eq s, Eq i, Hashable e, Hashable s, Hashable i, Show e, Show s, Show i) => Show (Automata e s i) where
@@ -31,27 +31,35 @@ instance (Eq e, Eq s, Eq i, Hashable e, Hashable s, Hashable i, Show e, Show s, 
     ++ "\n  F:  " ++ show f
     ++ "\n"
 
-type AutomataEdge e = (Bool, Set e)
+-- | Edge label of an automaton, on which we traverse if we match
+--   on one of the tokens @t@ in the set. The boolean is for negation
+--   of the set.
+type AutomataEdge t = (Bool, Set t)
 
+-- | A triplet with an edge alphabet of @e@ and node states of @i@.
 type Transition e i = (i, AutomataEdge e, i)
 
+-- | The from-node component of a 'Transition'
 tFrom :: Transition e i -> i
 tFrom (a,b,c) = a
 
+-- | The to-node component of a 'Transition'
 tTo   :: Transition e i -> i
 tTo (a,b,c) = c
 
+-- | The set of edge characters in @e@ of a 'Transition'
 tEdge :: Transition e i -> Set e
 tEdge (a,(comp, b),c) = b
 
+-- | Determine the edge-label alphabet of a set of transitions.
 transitionAlphabet __Δ =
   [ e
   | (_, (c, es), _) <- toList __Δ
   , e               <- es
   ]
 
--- Compress a set of transitions such that every pair of (start,end) states
--- appears at most once in the set.
+-- | Compress a set of transitions such that every pair of (start,end) states
+--   appears at most once in the set.
 compress ::
   (Eq i, Eq e, Hashable i, Hashable e)
   => Set (Transition e i) -> Set (Transition e i)
@@ -65,8 +73,13 @@ compress __Δ = fromList
   | (a, (c, es), b) <- toList __Δ
   ]
 
+-- | XOR helper function over booleans.
 xor a b = (not a && b) || (not b && a)
 
+-- | Is the given transition triplet (with a single @e@ character as the edge
+--   edge label) in some set of transitions? Note that we need to handle complement
+--   sets here, in case the given @e@ is in the complement of one of the
+--   transitions in the set.
 transitionMember ::
   (Eq i, Hashable e, Eq e)
   => (i, e, i) -> Set (Transition e i) -> Bool
@@ -78,14 +91,20 @@ transitionMember (a, e, b) _Δ =
       , b' == b
       ]
 
+-- | Is the given character @s@ accepted by the given edge label?
 edgeMember s (complement, es) = xor complement (s `member` es)
 
+-- | An automaton must either 'Accept' or 'Reject'.
 data Result = Accept | Reject
 
+-- | Is the start state valid?
 validStartState nfa = s0 nfa `member` _S nfa
 
+-- | Are all of the ending states valid?
 validFinalStates nfa = and [s `member` _S nfa | s <- toList $ _F nfa]
 
+-- | Can all of the nodes as defined by the set of transitions be found
+--   in the set of allowable states '_S'?
 validTransitions ::
   forall e s i. (Hashable e, Hashable i, Eq e, Eq i)
   => Automata e s i -> Bool
@@ -98,10 +117,13 @@ validTransitions nfa = let
       && vT rest
   in vT $ (toList . _Δ) nfa
 
+-- | An automaton configuration is the set of state (indices) your
+--   can currently be in.
 type Config i = Set i
 
--- Generic closure function so that *someone* never asks "what's a closure?" ever
--- again.
+-- | Generic closure function so that *someone* never asks "what's a closure?" ever
+--   again. For an epsilon-closure the given @fncn@ needs to return 'True' when
+--   given an @e@ that is an epsilon, and 'False' in all other cases.
 closureWith
   :: forall e s i. (Hashable e, Hashable i, Eq e, Eq i)
   => (e -> Bool) -> Automata e s i -> Config i -> Config i
@@ -123,6 +145,9 @@ closureWith fncn Automata{_S = _S, _Δ = _Δ'} states = let
   in states `union` cl Set.empty states
   --in Set.foldr (\a b -> union (cl a) b) Set.empty states
 
+-- | Consume the @e@ character given, based on the fact that we are currently
+--   in some 'Config i' of states, resulting in a new config consisting of the
+--   states that we can get to by doing so.
 move
   :: forall e s i. (Hashable e, Hashable i, Eq i, Eq e)
   => Automata e s i -> Config i -> e -> Config i
@@ -131,14 +156,14 @@ move Automata{_S = _S, _Δ = _Δ} _T a = fromList
         , s' <- toList _S
         , (s, a, s') `transitionMember` _Δ ]
 
--- Whether or not (a, (True, _), b) is a transition
+-- | Whether or not (a, (True, _), b) is a transition in our set of transitions.
 complementMember
   :: (Hashable i, Eq i, Hashable e, Eq e)
   => (i, i) -> Set (Transition e i) -> Bool
 complementMember (a, b) =
   not . null . Set.filter (\(a', (c, _), b') -> a' == a && b' == b && c)
 
--- Set of states you can move to if you see a letter not in the alphabet
+-- | Set of states you can move to if you see a character not in the alphabet.
 moveComplement
   :: forall e s i. (Hashable e, Hashable i, Eq i, Eq e)
   => Automata e s i -> Config i -> Config i
