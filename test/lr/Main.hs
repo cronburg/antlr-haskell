@@ -26,6 +26,9 @@ import qualified Test.QuickCheck.Monadic as TQM
 import Text.ANTLR.HUnit
 import Text.ANTLR.Pretty (pshow)
 import qualified Debug.Trace as D
+
+import qualified GLRInc
+
 uPIO = unsafePerformIO
 
 grm = dragonBook41
@@ -378,5 +381,6 @@ main = defaultMainWithOpts
   , testCase "testLR1Table" testLR1Table
   , testCase "testPrettify" (testPrettify @?= ())
   , testCase "testGLR" testGLRParse
+  , testCase "test_GLRInc" GLRInc.test_GLRInc
   ] mempty
 
