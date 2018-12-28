@@ -28,6 +28,7 @@ import Text.ANTLR.Pretty (pshow)
 import qualified Debug.Trace as D
 
 import qualified GLRInc
+import qualified GLRPartial as GP
 
 uPIO = unsafePerformIO
 
@@ -382,5 +383,6 @@ main = defaultMainWithOpts
   , testCase "testPrettify" (testPrettify @?= ())
   , testCase "testGLR" testGLRParse
   , testCase "test_GLRInc" GLRInc.test_GLRInc
+  , testCase "test_GLRPartial" GP.test_GLRPartial
   ] mempty
 
