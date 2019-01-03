@@ -18,9 +18,11 @@ import Language.Haskell.TH.Syntax (lift)
 import qualified Text.ANTLR.LR as LR
 
 import Star0
+import Star1
 
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "test_star0" test_star0
+  , testCase "test_star1" test_star1
   ] mempty
 

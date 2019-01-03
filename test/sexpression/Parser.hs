@@ -3,7 +3,8 @@
     , FlexibleInstances, UndecidableInstances, TemplateHaskell #-}
 module Parser
   ( module Grammar
-  , glrParseFast
+  , glrParse, ast2sexpr
+--  , glrParseFast
   ) where
 import Language.ANTLR4
 import Grammar
@@ -11,5 +12,7 @@ import Grammar
 --import qualified GHC.Types as G
 import qualified Text.ANTLR.LR as LR
 
-$(mkLRParser the_ast sexpressionGrammar)
+$(g4_parsers sexpressionAST sexpressionGrammar)
+
+-- $(mkLRParser the_ast sexpressionGrammar)
 

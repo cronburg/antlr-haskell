@@ -24,7 +24,7 @@ module Language.ANTLR4 (
   -- 'Language.ANTLR4.Regex' which are regexes used for G4 parsing:
   , module Text.ANTLR.Lex.Regex
   -- | The G4 quasiquoter and accompanying grammar:
-  , module Language.ANTLR4.G4
+  , g4, g4_parsers
   -- | For defining pretty-printable instances of quasiquoter-generated data types:
   , module Text.ANTLR.Pretty
   -- | Tokenizer:
@@ -50,7 +50,8 @@ import Control.Arrow ( (&&&) )
 import Text.ANTLR.Lex.Regex
 
 import Language.ANTLR4.G4
-import Language.ANTLR4.Boot.Quote (mkLRParser)
+import Language.ANTLR4.Parser
+import Language.ANTLR4.Boot.Quote (mkLRParser, g4_parsers)
 
 import Data.Data (Data(..))
 import Language.Haskell.TH.Lift (Lift(..))

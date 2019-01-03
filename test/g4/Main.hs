@@ -12,10 +12,13 @@ import qualified Test.QuickCheck.Monadic as TQM
 
 import Language.ANTLR4 hiding (tokenize, Regex(..))
 import Text.ANTLR.Grammar
-import qualified Language.ANTLR4.Example.Optionals as Opt
+import qualified Language.ANTLR4.Example.Optional as Opt
+import qualified Language.ANTLR4.Example.OptionalParser as Opt
 import qualified Language.ANTLR4.Example.G4 as G4
+import qualified Language.ANTLR4.Example.G4Parser as G4
 import Language.ANTLR4.Example.G4 (g4BasicGrammar, G4BasicNTSymbol, G4BasicTSymbol, G4BasicAST)
 import Language.ANTLR4.Example.Hello
+import Language.ANTLR4.Example.HelloParser
 --import Language.ANTLR4.Regex
 import Text.ANTLR.Parser (AST(..))
 import qualified Text.ANTLR.LR as LR

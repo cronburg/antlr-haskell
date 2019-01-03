@@ -14,7 +14,7 @@
   Until better haddock integration is developed, you'll need to look
   at the source for this module to see the G4 grammar for G4.
 -}
-module Language.ANTLR4.G4 (g4) where
+module Language.ANTLR4.G4 where
 
 import Control.Arrow ( (&&&) )
 import Data.Char (isUpper)
@@ -197,35 +197,4 @@ $( return [] )
   EscapedChar : '\\' [tnrfv]        -> readEscape ;
 
 |]
-
-isWhitespace T_LineComment = True
-isWhitespace T_WS = True
-isWhitespace _ = False
-
-g4_codeGen :: String -> TH.Q [TH.Dec]
-g4_codeGen input = do
-  loc <- TH.location
-  let fileName = TH.loc_filename loc
-  let (line,column) = TH.loc_start loc
-
-  case glrParse isWhitespace input of
-    r@(LR.ResultAccept ast) -> codeGen r
-    LR.ResultSet    s   ->
-      if S.size s == 1
-        then codeGen (S.findMin s)
-        else D.trace (pshow' s) $ codeGen (S.findMin s)
-    err                 -> error $ pshow' err
-
--- TODO: Convert a Universal AST into a [G4S.G4]
-codeGen (LR.ResultAccept ast) = G4Q.g4_decls $ ast2decls ast
-
--- | Entrypoint to the G4 quasiquoer. Currently only supports declaration-level
---   Haskell generation of G4 grammars using a GLR parser. The output grammars
---   need not use a GLR parser themselves.
-g4 :: QuasiQuoter
-g4 = QuasiQuoter
-  (error "parse exp")
-  (error "parse pattern")
-  (error "parse type")
-  g4_codeGen
 

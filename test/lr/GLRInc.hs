@@ -15,24 +15,11 @@ import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
 import Language.Haskell.TH.Syntax (lift)
-import qualified Text.ANTLR.LR as LR
 import Language.ANTLR4.Syntax (stripQuotesReadEscape)
 
-data Plus = Plus String String | Minus String String
-  deriving (Eq, Show)
+import GLRIncGrammar
 
-[g4|
-  grammar GLRInc;
-
-  plus  : LowerID '+' Prim     -> Plus
-        | Prim    '-' LowerID  -> Minus
-        ;
-
-  LowerID : [a-z][a-zA-Z0-9_]* -> String;
-  Prim    : 'word'             -> String;
-
-  WS      : [ \t\n\r\f\v]+     -> String;
-|]
+$(g4_parsers gLRIncAST gLRIncGrammar)
 
 test_GLRInc = case glrParse (== T_WS) "word - foo" of
   (ResultAccept ast) -> ast2plus ast @?= Minus "word" "foo"

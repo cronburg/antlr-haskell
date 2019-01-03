@@ -1,6 +1,7 @@
 module Main where
 import Language.ANTLR4
-import Grammar
+--import Grammar
+import Parser
 import qualified Text.ANTLR.Set as S
 
 getAST (ResultAccept ast) = ast

@@ -4,16 +4,23 @@
 
 OPTS=--ghc-options="-ddump-splices"
 
-stack test antlr-haskell:simple $OPTS\
-  && stack test antlr-haskell:template $OPTS\
-  && stack test antlr-haskell:atn $OPTS\
-  && stack test antlr-haskell:coreg4 $OPTS\
-  && stack test antlr-haskell:ll $OPTS\
-  && stack test antlr-haskell:lr $OPTS\
-  && stack test antlr-haskell:lexer $OPTS\
-  && stack test antlr-haskell:g4 $OPTS\
-  && stack test antlr-haskell:sexpression $OPTS\
-  && stack test antlr-haskell:simple $OPTS\
-  && stack test antlr-haskell:allstar $OPTS\
-  && stack test antlr-haskell:chisel $OPTS\
+#TESTS="simple template atn coreg4 ll lr lexer g4 sexpression simple allstar chisel"
+TESTS=$(cd test
+        for f in *; do
+          if ! [[ "$f" = "shared"* ]]; then 
+            echo -n "$f "
+          fi
+        done)
+failures=""
+echo "Running tests: $TESTS"
+
+for t in $TESTS; do
+  stack test antlr-haskell:$t $OPTS
+  if [ $? -eq 1 ]; then
+    count=$((count + 1))
+    failures="$t $failures"
+  fi
+done
+echo "Total number of failures: $count"
+echo "Failed on: " $failures
 

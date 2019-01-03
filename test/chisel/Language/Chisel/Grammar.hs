@@ -2,11 +2,12 @@
     , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
     , FlexibleInstances, UndecidableInstances #-}
 module Language.Chisel.Grammar
-  ( parse, Language.Chisel.Grammar.tokenize, ChiselNTSymbol(..), ChiselTSymbol(..), ChiselAST
+  ( ChiselNTSymbol(..), ChiselTSymbol(..), ChiselAST
   , lowerID, upperID, prim, int, arrow, lparen, rparen, pound
   , vertbar, colon, comma, atsymbol, carrot, dot, linecomm, ws
   , Primitive(..), chiselGrammar, TokenValue(..)
-  , the_ast, TokenName(..), chiselDFAs, lexeme2value, isWhitespace, glrParse
+  , chiselAST, TokenName(..), chiselDFAs, lexeme2value, isWhitespace
+  , ChiselToken(..), list, cons, append
   ) where
 import Language.ANTLR4
 import Language.Chisel.Syntax as S
@@ -128,6 +129,4 @@ carrot     = lookupToken "^"
 dot        = lookupToken "."
 linecomm x = Token T_LineComment (V_LineComment x) (length x)
 ws       x = Token T_WS          (V_WS x)          (length x)
-
-parse = glrParse isWhitespace
 

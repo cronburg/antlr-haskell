@@ -17,17 +17,9 @@ import qualified Test.QuickCheck.Monadic as TQM
 import Language.Haskell.TH.Syntax (lift)
 import qualified Text.ANTLR.LR as LR
 
-[g4|
-  grammar Star0;
+import Star0Grammar
 
-  words   : page* -> ${\ps -> ps} ;
-
-  page    : Page ;
-
-  Page : 'page' -> String ;
-
-  WS      : [ \t\n\r\f\v]+     -> String;
-|]
+$(g4_parsers star0AST star0Grammar)
 
 test_star0 = case glrParse (== T_WS) "page page" of
   (ResultAccept ast) -> ast2words ast @?= ["page", "page"]

@@ -693,7 +693,9 @@ glrParseInc' g tbl goto s_0 tokenizerFirstSets act tokenizer w = let
         -- it just so happens that the type stuffed inside an LR1 lookahead Icon
         -- is precisely the terminal symbol type that the tokenizer uses to name
         -- DFAs.
-        dfaNames = fromMaybe (error "Impossible") $ s `M1.lookup` tokenizerFirstSets
+        dfaNames = fromMaybe (error $ "Failed DFA lookup: " ++ pshow' (s, tokenizerFirstSets))
+          $ s `M1.lookup` tokenizerFirstSets
+        
         (a, ws) = tokenizer dfaNames cs
         
         lr' :: LR1Action nts (StripEOF (Sym t)) lrstate -> LR1Result lrstate c ast

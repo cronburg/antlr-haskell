@@ -1,7 +1,7 @@
 {-# LANGUAGE QuasiQuotes, DeriveAnyClass, DeriveGeneric, TypeFamilies
     , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
     , FlexibleInstances, UndecidableInstances, FlexibleContexts #-}
-module Language.ANTLR4.Example.Optionals where
+module Language.ANTLR4.Example.Optional where
 import Language.ANTLR4
 
 opt a b c d = (1, 'b', 2.0, [1,2,3])

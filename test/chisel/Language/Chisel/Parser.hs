@@ -3,14 +3,17 @@
     , FlexibleInstances, UndecidableInstances, TemplateHaskell #-}
 module Language.Chisel.Parser
   ( module Language.Chisel.Grammar
-  , glrParseFast
+  , Language.Chisel.Parser.tokenize, glrParseFast
+  , parse, glrParse
   ) where
 import Language.ANTLR4
 import Language.Chisel.Syntax as S
 import Language.Chisel.Grammar
 
---import qualified GHC.Types as G
-import qualified Text.ANTLR.LR as LR
+$(g4_parsers chiselAST chiselGrammar)
 
-$(mkLRParser the_ast chiselGrammar)
+$(mkLRParser chiselAST chiselGrammar)
+
+parse = glrParse isWhitespace
+
 

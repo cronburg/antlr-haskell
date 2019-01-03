@@ -10,8 +10,10 @@ import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
 import Language.ANTLR4 hiding (tokenize, Regex(..))
+import qualified Language.ANTLR4.Example.G4Parser as G4P
 import qualified Language.ANTLR4.Example.G4 as G4
 import Language.ANTLR4.Example.Hello
+import Language.ANTLR4.Example.HelloParser
 import Text.ANTLR.Parser (AST(..))
 import qualified Text.ANTLR.LR as LR
 import Language.ANTLR4.Boot.Syntax (Regex(..))
@@ -44,7 +46,7 @@ _1 = G4.lookupToken "1"
 -- TODO: implement 'read' instance for TokenValue type so that I don't have to
 -- hardcode the name for literal terminals (e.g. '1' == T_0 below)
 test_g4 =
-  G4.slrParse (G4.tokenize "1")
+  G4P.slrParse (G4P.tokenize "1")
   @?=
   LR.ResultAccept (AST G4.NT_exp [T G4.T_0] [Leaf _1])
  
