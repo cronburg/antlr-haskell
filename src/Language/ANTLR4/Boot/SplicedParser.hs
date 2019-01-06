@@ -108,75 +108,75 @@ data G4TSymbol
     T_WS
   deriving (Eq, Ord, Show, Hashable, Generic, Bounded, Enum)
 g4Grammar' ::
-  Prettify s_aLE0 => Grammar s_aLE0 G4NTSymbol G4TSymbol
+  Prettify s_aLE0 => Grammar s_aLE0 G4NTSymbol G4TSymbol String
 g4Grammar'
-  = (defaultGrammar NT_decls :: Grammar s_aLE0 G4NTSymbol G4TSymbol)
+  = (defaultGrammar NT_decls :: Grammar s_aLE0 G4NTSymbol G4TSymbol String)
     {ns = S.fromList [minBound .. maxBound :: G4NTSymbol],
      ts = S.fromList [minBound .. maxBound :: G4TSymbol],
-     ps = [(Production NT_decls) ((Prod Pass) [NT NT_decl1, T T_0]),
+     ps = [(Production NT_decls) ((Prod Pass) [NT NT_decl1, T T_0]) (Just ""),
            (Production NT_decls)
-             ((Prod Pass) [NT NT_decl1, T T_0, NT NT_decls]),
-           (Production NT_decl1) ((Prod Pass) [T T_1, T T_UpperID]),
+             ((Prod Pass) [NT NT_decl1, T T_0, NT NT_decls]) (Just ""),
+           (Production NT_decl1) ((Prod Pass) [T T_1, T T_UpperID]) (Just ""),
            (Production NT_decl1)
-             ((Prod Pass) [T T_LowerID, T T_2, NT NT_prods]),
+             ((Prod Pass) [T T_LowerID, T T_2, NT NT_prods]) (Just ""),
            (Production NT_decl1)
-             ((Prod Pass) [T T_UpperID, T T_2, NT NT_lexemeRHS]),
+             ((Prod Pass) [T T_UpperID, T T_2, NT NT_lexemeRHS]) (Just ""),
            (Production NT_decl1)
-             ((Prod Pass) [T T_3, T T_UpperID, T T_2, NT NT_lexemeRHS]),
-           (Production NT_prods) ((Prod Pass) [NT NT_prodRHS]),
+             ((Prod Pass) [T T_3, T T_UpperID, T T_2, NT NT_lexemeRHS]) (Just ""),
+           (Production NT_prods) ((Prod Pass) [NT NT_prodRHS]) (Just ""),
            (Production NT_prods)
-             ((Prod Pass) [NT NT_prodRHS, T T_4, NT NT_prods]),
+             ((Prod Pass) [NT NT_prodRHS, T T_4, NT NT_prods]) (Just ""),
            (Production NT_lexemeRHS)
-             ((Prod Pass) [NT NT_regexes1, T T_5, NT NT_directive]),
-           (Production NT_lexemeRHS) ((Prod Pass) [NT NT_regexes1]),
+             ((Prod Pass) [NT NT_regexes1, T T_5, NT NT_directive]) (Just ""),
+           (Production NT_lexemeRHS) ((Prod Pass) [NT NT_regexes1]) (Just ""),
            (Production NT_prodRHS)
-             ((Prod Pass) [NT NT_alphas, T T_5, NT NT_directive]),
-           (Production NT_prodRHS) ((Prod Pass) [NT NT_alphas]),
-           (Production NT_directive) ((Prod Pass) [T T_UpperID]),
-           (Production NT_directive) ((Prod Pass) [T T_LowerID]),
-           (Production NT_directive) ((Prod Pass) [T T_UpperID, T T_14, NT NT_directive]),
-           (Production NT_alphas) ((Prod Pass) [NT NT_alpha]),
-           (Production NT_alphas) ((Prod Pass) [NT NT_alpha, NT NT_alphas]),
-           (Production NT_alpha) ((Prod Pass) [T T_Literal, T T_6]),
-           (Production NT_alpha) ((Prod Pass) [T T_LowerID, T T_6]),
-           (Production NT_alpha) ((Prod Pass) [T T_UpperID, T T_6]),
-           (Production NT_alpha) ((Prod Pass) [T T_Literal, T T_7]),
-           (Production NT_alpha) ((Prod Pass) [T T_LowerID, T T_7]),
-           (Production NT_alpha) ((Prod Pass) [T T_UpperID, T T_7]),
-           (Production NT_alpha) ((Prod Pass) [T T_Literal, T T_8]),
-           (Production NT_alpha) ((Prod Pass) [T T_LowerID, T T_8]),
-           (Production NT_alpha) ((Prod Pass) [T T_UpperID, T T_8]),
-           (Production NT_alpha) ((Prod Pass) [T T_Literal]),
-           (Production NT_alpha) ((Prod Pass) [T T_LowerID]),
-           (Production NT_alpha) ((Prod Pass) [T T_UpperID]),
-           (Production NT_regexes1) ((Prod Pass) [NT NT_regexes]),
-           (Production NT_regexes) ((Prod Pass) [NT NT_regex]),
-           (Production NT_regexes) ((Prod Pass) [NT NT_regex, NT NT_regexes]),
-           (Production NT_regex) ((Prod Pass) [NT NT_regex1, T T_6]),
-           (Production NT_regex) ((Prod Pass) [NT NT_regex1, T T_7]),
-           (Production NT_regex) ((Prod Pass) [NT NT_regex1, T T_8]),
-           (Production NT_regex) ((Prod Pass) [T T_9, NT NT_regex1]),
-           (Production NT_regex) ((Prod Pass) [NT NT_regex1]),
+             ((Prod Pass) [NT NT_alphas, T T_5, NT NT_directive]) (Just ""),
+           (Production NT_prodRHS) ((Prod Pass) [NT NT_alphas]) (Just ""),
+           (Production NT_directive) ((Prod Pass) [T T_UpperID]) (Just ""),
+           (Production NT_directive) ((Prod Pass) [T T_LowerID]) (Just ""),
+           (Production NT_directive) ((Prod Pass) [T T_UpperID, T T_14, NT NT_directive]) (Just ""),
+           (Production NT_alphas) ((Prod Pass) [NT NT_alpha]) (Just ""),
+           (Production NT_alphas) ((Prod Pass) [NT NT_alpha, NT NT_alphas]) (Just ""),
+           (Production NT_alpha) ((Prod Pass) [T T_Literal, T T_6]) (Just ""),
+           (Production NT_alpha) ((Prod Pass) [T T_LowerID, T T_6]) (Just ""),
+           (Production NT_alpha) ((Prod Pass) [T T_UpperID, T T_6]) (Just ""),
+           (Production NT_alpha) ((Prod Pass) [T T_Literal, T T_7]) (Just ""),
+           (Production NT_alpha) ((Prod Pass) [T T_LowerID, T T_7]) (Just ""),
+           (Production NT_alpha) ((Prod Pass) [T T_UpperID, T T_7]) (Just ""),
+           (Production NT_alpha) ((Prod Pass) [T T_Literal, T T_8]) (Just ""),
+           (Production NT_alpha) ((Prod Pass) [T T_LowerID, T T_8]) (Just ""),
+           (Production NT_alpha) ((Prod Pass) [T T_UpperID, T T_8]) (Just ""),
+           (Production NT_alpha) ((Prod Pass) [T T_Literal]) (Just ""),
+           (Production NT_alpha) ((Prod Pass) [T T_LowerID]) (Just ""),
+           (Production NT_alpha) ((Prod Pass) [T T_UpperID]) (Just ""),
+           (Production NT_regexes1) ((Prod Pass) [NT NT_regexes]) (Just ""),
+           (Production NT_regexes) ((Prod Pass) [NT NT_regex]) (Just ""),
+           (Production NT_regexes) ((Prod Pass) [NT NT_regex, NT NT_regexes]) (Just ""),
+           (Production NT_regex) ((Prod Pass) [NT NT_regex1, T T_6]) (Just ""),
+           (Production NT_regex) ((Prod Pass) [NT NT_regex1, T T_7]) (Just ""),
+           (Production NT_regex) ((Prod Pass) [NT NT_regex1, T T_8]) (Just ""),
+           (Production NT_regex) ((Prod Pass) [T T_9, NT NT_regex1]) (Just ""),
+           (Production NT_regex) ((Prod Pass) [NT NT_regex1]) (Just ""),
            (Production NT_regex1)
-             ((Prod Pass) [T T_10, NT NT_charSet, T T_11]),
-           (Production NT_regex1) ((Prod Pass) [T T_Literal]),
-           (Production NT_regex1) ((Prod Pass) [T T_UpperID]),
+             ((Prod Pass) [T T_10, NT NT_charSet, T T_11]) (Just ""),
+           (Production NT_regex1) ((Prod Pass) [T T_Literal]) (Just ""),
+           (Production NT_regex1) ((Prod Pass) [T T_UpperID]) (Just ""),
            (Production NT_regex1)
-             ((Prod Pass) [T T_12, NT NT_regexes1, T T_13]),
-           (Production NT_regex1) ((Prod Pass) [NT NT_unionR]),
-           (Production NT_regex1) ((Prod Pass) [T T_14]),
+             ((Prod Pass) [T T_12, NT NT_regexes1, T T_13]) (Just ""),
+           (Production NT_regex1) ((Prod Pass) [NT NT_unionR]) (Just ""),
+           (Production NT_regex1) ((Prod Pass) [T T_14]) (Just ""),
            (Production NT_unionR)
-             ((Prod Pass) [NT NT_regex, T T_4, NT NT_regex]),
+             ((Prod Pass) [NT NT_regex, T T_4, NT NT_regex]) (Just ""),
            (Production NT_unionR)
-             ((Prod Pass) [NT NT_regex, T T_4, NT NT_unionR]),
-           (Production NT_charSet) ((Prod Pass) [NT NT_charSet1]),
+             ((Prod Pass) [NT NT_regex, T T_4, NT NT_unionR]) (Just ""),
+           (Production NT_charSet) ((Prod Pass) [NT NT_charSet1]) (Just ""),
            (Production NT_charSet)
-             ((Prod Pass) [NT NT_charSet1, NT NT_charSet]),
+             ((Prod Pass) [NT NT_charSet1, NT NT_charSet]) (Just ""),
            (Production NT_charSet1)
-             ((Prod Pass) [T T_SetChar, T T_15, T T_SetChar]),
-           (Production NT_charSet1) ((Prod Pass) [T T_SetChar]),
-           (Production NT_charSet1) ((Prod Pass) [T T_EscapedChar])]}
-g4Grammar :: Grammar () G4NTSymbol G4TSymbol
+             ((Prod Pass) [T T_SetChar, T T_15, T T_SetChar]) (Just ""),
+           (Production NT_charSet1) ((Prod Pass) [T T_SetChar]) (Just ""),
+           (Production NT_charSet1) ((Prod Pass) [T T_EscapedChar]) (Just "")]}
+g4Grammar :: Grammar () G4NTSymbol G4TSymbol String
 g4Grammar = Text.ANTLR.LL1.removeEpsilons g4Grammar'
 type TokenName = G4TSymbol
 data TokenValue
@@ -389,7 +389,7 @@ allstarParse_aLE4 inp_aLE9
   = (((Text.ANTLR.Allstar.parse inp_aLE9)
         (ALL.NT NT_decls))
        (Text.ANTLR.Allstar.atnOf
-          (g4Grammar :: Grammar () G4NTSymbol G4TSymbol)))
+          (g4Grammar :: Grammar () G4NTSymbol G4TSymbol String)))
       True
 ast2EscapedChar (Leaf (Token _ (V_EscapedChar t) _)) = t
 ast2LineComment (Leaf (Token _ (V_LineComment t) _)) = t

@@ -77,12 +77,12 @@ instance (Prettify s, Prettify nt, Prettify t) => Prettify (Edge s nt t) where
 
 -- | Convert a G4 grammar into an ATN for parsing with ALL(*)
 atnOf
-  :: forall nt t s. (Eq nt, Eq t, Hashable nt, Hashable t)
-  => Grammar s nt t -> ATN s nt t
+  :: forall nt t s dt. (Eq nt, Eq t, Hashable nt, Hashable t)
+  => Grammar s nt t dt -> ATN s nt t
 atnOf g = let
 
-  _Δ :: Int -> Production s nt t -> [Transition s nt t]
-  _Δ i (Production lhs rhs) = let
+  _Δ :: Int -> Production s nt t dt -> [Transition s nt t]
+  _Δ i (Production lhs rhs _) = let
   --(Prod _α)) = let
 
     -- Construct an internal production state from the given ATN identifier

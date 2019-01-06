@@ -10,15 +10,15 @@ import System.IO.Unsafe (unsafePerformIO)
 -- 'Adaptive LL(*) Parsing: The Power of Dynamic Analysis'
 -- paper, namely the expected transitions based on Figures
 -- 5 through 8:
-paperATNGrammar = (defaultGrammar "C" :: Grammar () String String)
+paperATNGrammar = (defaultGrammar "C" :: Grammar () String String ())
   { ns = fromList ["S", "A"]
   , ts = fromList ["a", "b", "c", "d"]
   , s0 = "C"
   , ps =
-          [ Production "S" $ Prod Pass [NT "A", T "c"]
-          , Production "S" $ Prod Pass [NT "A", T "d"]
-          , Production "A" $ Prod Pass [T "a", NT "A"]
-          , Production "A" $ Prod Pass [T "b"]
+          [ production "S" $ Prod Pass [NT "A", T "c"]
+          , production "S" $ Prod Pass [NT "A", T "d"]
+          , production "A" $ Prod Pass [T "a", NT "A"]
+          , production "A" $ Prod Pass [T "b"]
           ]
   }
 
@@ -70,9 +70,9 @@ exp_paperATN = ATN
 addPredicates = paperATNGrammar
   { ps =
     ps paperATNGrammar ++
-    [ Production "A" $ Prod (Sem (Predicate "always"  ()))    [T "a"]
-    , Production "A" $ Prod (Sem (Predicate "never"   ()))     []
-    , Production "A" $ Prod (Sem (Predicate "always2" ()))   [NT "A", T "a"]
+    [ production "A" $ Prod (Sem (Predicate "always"  ()))    [T "a"]
+    , production "A" $ Prod (Sem (Predicate "never"   ()))     []
+    , production "A" $ Prod (Sem (Predicate "always2" ()))   [NT "A", T "a"]
     ]
   }
 
@@ -117,8 +117,8 @@ fireZeMissiles state = seq
 
 addMutators = addPredicates
   { ps = ps addPredicates ++
-    [ Production "A" $ Prod (Action (Mutator "fireZeMissiles" ())) []
-    , Production "S" $ Prod (Action (Mutator "identity"       ())) []
+    [ production "A" $ Prod (Action (Mutator "fireZeMissiles" ())) []
+    , production "S" $ Prod (Action (Mutator "identity"       ())) []
     ]
   }
 

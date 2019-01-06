@@ -21,6 +21,7 @@ import Language.Haskell.TH.Syntax (Exp)
 import qualified Language.Haskell.TH.Syntax as S
 
 import Text.ANTLR.Set ( Hashable(..), Generic(..) )
+import Text.ANTLR.Pretty (rshow, Prettify(..))
 
 -- | .g4 style syntax representation
 data G4 = -- | Grammar name declaration in g4
@@ -53,7 +54,9 @@ data Directive =
     UpperD String   -- ^ Probably a Haskell data constructor
   | LowerD String   -- ^ Probably just a Haskell function to call
   | HaskellD String -- ^ Arbitrary antiquoted Haskell code embedded in the G4 grammar
-  deriving (Show, Eq, Lift, Generic, Hashable)
+  deriving (Show, Eq, Ord, Lift, Generic, Hashable)
+
+instance Prettify Directive where prettify = rshow
 
 instance Hashable PRHS where
   hashWithSalt salt prhs = salt `hashWithSalt` alphas prhs

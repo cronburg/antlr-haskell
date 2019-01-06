@@ -167,8 +167,8 @@ mkLower (a:as) = toLower a : as
 mkUpper [] = []
 mkUpper (a:as) = toUpper a : as
 
-justGrammarTy ast s = [t| Grammar $(s) $(ntConT ast) $(tConT ast) |]
-justGrammarTy' ast s = [t| Grammar $(s) $(ntConT ast) (StripEOF (Sym $(tConT ast))) |]
+justGrammarTy ast s = [t| Grammar $(s) $(ntConT ast) $(tConT ast) G4S.Directive |]
+justGrammarTy' ast s = [t| Grammar $(s) $(ntConT ast) (StripEOF (Sym $(tConT ast))) G4S.Directive |]
 
 ntConT ast = conT $ mkName $ ntDataName ast
 tConT  ast = conT $ mkName $ tDataName ast
@@ -348,20 +348,39 @@ regexNonTermSymbols ast = let
 
   in nub $ map annotName' $ filter (not . G4S.isNoAnnot . G4S.annot) (concat $ concat $ catMaybes $ map rNTS ast)
 
-toElem :: G4AST -> G4S.ProdElem -> TH.ExpQ
-toElem ast (G4S.GTerm annot s)    = [| $(mkCon "T")  $(mkCon $ lookupTName ast "T_" (annotName annot s)) |]
-toElem ast (G4S.GNonTerm annot s)
-  | (not . null) s && isLower (head s) = [| $(mkCon "NT") $(mkConNT (annotName annot s)) |]
-  | otherwise = toElem ast (G4S.GTerm G4S.NoAnnot s)
+{-
+toElem :: G4AST -> G4S.ProdElem, Maybe DataType) -> (TH.ExpQ
+toElem ast (G4S.GTerm annot s, dt)    = ([| $(mkCon "T")  $(mkCon $ lookupTName ast "T_" (annotName annot s)) |], dt)
+toElem ast (G4S.GNonTerm annot s, dt)
+  | (not . null) s && isLower (head s) = ([| $(mkCon "NT") $(mkConNT (annotName annot s)) |], dt)
+  | otherwise = toElem ast (G4S.GTerm G4S.NoAnnot s, dt)
 
-mkProd :: String -> [TH.ExpQ] -> TH.ExpQ
-mkProd n [] = [| $(mkCon "Production") $(conE $ mkName $ "NT_" ++ n) ($(mkCon "Prod") $(mkCon "Pass") [Eps]) |]
-mkProd n es = [| $(mkCon "Production") $(conE $ mkName $ "NT_" ++ n) ($(mkCon "Prod") $(mkCon "Pass") $(listE es)) |]
+mkProd :: String -> [(TH.ExpQ, Maybe DataType)] -> TH.ExpQ
+mkProd n [] = [| $(mkCon "Production") $(conE $ mkName $ "NT_" ++ n) ($(mkCon "Prod") $(mkCon "Pass") [Eps]) (Just "") |]
+mkProd n es = [| $(mkCon "Production") $(conE $ mkName $ "NT_" ++ n) ($(mkCon "Prod") $(mkCon "Pass") $(listE es)) (Just "") |]
 
 getProds :: G4AST -> [G4S.G4] -> [TH.ExpQ]
 getProds ast [] = []
 getProds ast (G4S.Prod {G4S.pName = n, G4S.patterns = ps}:xs)
-  = map (mkProd n . map (toElem ast) . G4S.alphas) ps ++ ((getProds ast) xs)
+  = map (mkProd n . map (toElem ast) . (\p -> (G4S.alphas p, G4S.pDirective p))) ps ++ ((getProds ast) xs)
+getProds ast (_:xs) = (getProds ast) xs
+-}
+
+getProds :: G4AST -> [G4S.G4] -> [TH.ExpQ]
+getProds ast [] = []
+getProds ast (G4S.Prod {G4S.pName = n, G4S.patterns = ps}:xs) = let
+
+    toElem :: G4S.ProdElem -> TH.ExpQ
+    toElem (G4S.GTerm annot s)    = [| $(mkCon "T")  $(mkCon $ lookupTName ast "T_" (annotName annot s)) |]
+    toElem (G4S.GNonTerm annot s)
+      | (not . null) s && isLower (head s) = [| $(mkCon "NT") $(mkConNT (annotName annot s)) |]
+      | otherwise = toElem (G4S.GTerm G4S.NoAnnot s)
+
+    mkProd :: Maybe G4S.Directive -> [TH.ExpQ] -> TH.ExpQ
+    mkProd dir [] = [| $(mkCon "Production") $(conE $ mkName $ "NT_" ++ n) ($(mkCon "Prod") $(mkCon "Pass") [Eps]) $(lift dir) |]
+    mkProd dir es = [| $(mkCon "Production") $(conE $ mkName $ "NT_" ++ n) ($(mkCon "Prod") $(mkCon "Pass") $(listE es)) $(lift dir) |]
+
+  in map (\p -> mkProd (G4S.pDirective p) (map toElem $ G4S.alphas p)) ps ++ ((getProds ast) xs)
 getProds ast (_:xs) = (getProds ast) xs
 
 -- The first NonTerminal in the grammar (TODO: head of list)
@@ -843,8 +862,10 @@ epsilon_a2d ast (G4S.Prod{G4S.pName = _A, G4S.patterns = ps}) = let
   in concatMap e_a2d ps
 epsilon_a2d ast _ = []
 
---allClauses :: G4AST -> [(Name, [ClauseQ])]
-allClauses ast nameAST =
+astRemoveEpsilons ast = ast
+
+--allClauses :: Grammar s nts t -> G4AST -> [(Name, [ClauseQ])]
+allClauses gr ast nameAST =
              (concat . catMaybes . map (a2d ast nameAST)) ast -- standard clauses ignoring optionals (?,+,*) syntax
           ++ (concatMap regex_a2d) ast          -- Epsilon-removed optional ast conversion functions
           ++ (concatMap (epsilon_a2d ast)) ast        -- Clauses for productions with epsilons
@@ -854,8 +875,8 @@ funDecls lst@((name, _):_) = Just $ funD name $ concatMap snd lst
 funDecls [] = error "groupBy can't return an empty list"
 
 -- Pattern matches on an AST to produce a Maybe DataType
-ast2DTFncnsQ ast nameAST =
-  (catMaybes . map funDecls . groupBy (\a b -> fst a == fst b) . sortBy (comparing fst)) (allClauses ast nameAST)
+ast2DTFncnsQ gr ast nameAST =
+  (catMaybes . map funDecls . groupBy (\a b -> fst a == fst b) . sortBy (comparing fst)) (allClauses gr ast nameAST)
 
 unitTy = [t| () |]
 
@@ -949,7 +970,8 @@ g4_parsers ast gr = do
       name      = mkName $ mkLower (gName ast ++ "Grammar'")
       nameUnit  = mkName $ mkLower (gName ast ++ "Grammar")
   
-  ast2DTFncns <- sequence $ ast2DTFncnsQ ast nameAST
+  D.traceM $ "This is the grammar: " ++ pshow' gr
+  ast2DTFncns <- sequence $ ast2DTFncnsQ gr ast nameAST
   decls <- [d|
       instance Ref $(conT ntSym) where
         type Sym $(conT ntSym) = $(conT ntSym)

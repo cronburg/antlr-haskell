@@ -60,8 +60,8 @@ foldWhileEpsilon fncn b0 (a:as)
 
 -- | First set of a grammar.
 first ::
-  forall sts nts. (Eq nts, Eq sts, Ord nts, Ord sts, Hashable nts, Hashable sts)
-  => Grammar () nts sts -> [ProdElem nts sts] -> Set (Icon sts)
+  forall sts nts dt. (Eq nts, Eq sts, Ord nts, Ord sts, Hashable nts, Hashable sts)
+  => Grammar () nts sts dt -> [ProdElem nts sts] -> Set (Icon sts)
 first g = let
     firstOne :: Set (ProdElem nts sts) -> ProdElem nts sts -> Set (Icon sts)
     firstOne _ t@(T x) = singleton $ Icon x
@@ -73,7 +73,7 @@ first g = let
               [ firstOne (insert nts busy) y
               | y <- (\(Prod _ ss) -> ss) rhs
               ]
-            | Production _ rhs <- prodsFor g x ]
+            | Production _ rhs dt <- prodsFor g x ]
     
     firstMany :: [Set (Icon sts)] -> Set (Icon sts)
     firstMany []   = singleton IconEps
@@ -84,8 +84,8 @@ first g = let
 
 -- | Follow set of a grammar.
 follow ::
-  forall nts sts. (Eq nts, Eq sts, Ord nts, Ord sts, Hashable nts, Hashable sts)
-  => Grammar () nts sts -> nts -> Set (Icon sts)
+  forall nts sts dt. (Eq nts, Eq sts, Ord nts, Ord sts, Hashable nts, Hashable sts)
+  => Grammar () nts sts dt -> nts -> Set (Icon sts)
 follow g = let
     follow' busy _B
       | _B `member` busy = empty
@@ -121,7 +121,7 @@ follow g = let
           `union`
           foldr union empty
             [ followProd lhs_nts ss
-            | Production lhs_nts (Prod _ ss) <- ps g
+            | Production lhs_nts (Prod _ ss) dt <- ps g
             ]
   in follow' empty
 
@@ -135,7 +135,7 @@ follow g = let
 -- @
 isLL1
   :: (Eq nts, Eq sts, Ord nts, Ord sts, Hashable nts, Hashable sts)
-  => Grammar () nts sts -> Bool
+  => Grammar () nts sts dt -> Bool
 isLL1 g =
   validGrammar g && and
       [  (first g α `intersection` first  g β  == empty)
@@ -163,8 +163,8 @@ ambigVal = (1 >) . size
 type ParseTable nts sts = M.Map (PTKey nts sts) (PTValue nts sts)
 
 parseTable' ::
-  forall nts sts. (Eq nts, Eq sts, Ord nts, Ord sts, Eq nts, Hashable sts, Hashable nts)
-  => (PTValue nts sts -> PTValue nts sts -> PTValue nts sts) -> Grammar () nts sts -> ParseTable nts sts
+  forall nts sts dt. (Eq nts, Eq sts, Ord nts, Ord sts, Eq nts, Hashable sts, Hashable nts)
+  => (PTValue nts sts -> PTValue nts sts -> PTValue nts sts) -> Grammar () nts sts dt -> ParseTable nts sts
 parseTable' fncn g = let
 
     insertMe ::
@@ -175,7 +175,7 @@ parseTable' fncn g = let
     foldr insertMe M.empty
       -- For each terminal a `member` FIRST(α), add A -> α to M[A,α]
       [ (_A, Icon a, α)
-      | Production _A (Prod _ α) <- ps g
+      | Production _A (Prod _ α) dt <- ps g
       , Icon a <- toList $ first g α
       ]
     `M.union`
@@ -183,7 +183,7 @@ parseTable' fncn g = let
       -- If Eps `member` FIRST(α), add A -> α to M[A,b]
       -- for each b `member` FOLLOW(A)
       [ (_A, Icon b, α)
-      | Production _A (Prod _ α) <- ps g
+      | Production _A (Prod _ α) dt <- ps g
       , IconEps `member` first g α
       , Icon b <- toList $ follow g _A
       ]
@@ -193,15 +193,15 @@ parseTable' fncn g = let
       -- , AND IconEOF `member` FOLLOW(_A)
       -- add A -> α to M[A,IconEOF]
       [ (_A, IconEOF, α)
-      | Production _A (Prod _ α) <- ps g
+      | Production _A (Prod _ α) dt <- ps g
       , IconEps `member` first g α
       , IconEOF  `member` follow g _A
       ]
 
 -- | The algorithm for computing an LL parse table from a grammar.
 parseTable :: 
-  forall nts sts. (Eq nts, Eq sts, Ord nts, Ord sts, Hashable sts, Hashable nts)
-  => Grammar () nts sts -> ParseTable nts sts
+  forall nts sts dt. (Eq nts, Eq sts, Ord nts, Ord sts, Hashable sts, Hashable nts)
+  => Grammar () nts sts dt -> ParseTable nts sts
 parseTable = parseTable' union
 
 
@@ -246,19 +246,19 @@ recognize ::
   , Ord nts, Ord t, Ord (Sym t), Ord (StripEOF (Sym t))
   , Prettify nts, Prettify t, Prettify (Sym t), Prettify (StripEOF (Sym t))
   , Hashable (Sym t), Hashable nts, Hashable (StripEOF (Sym t)))
-  => Grammar () nts (StripEOF (Sym t)) -> [t] -> Bool
+  => Grammar () nts (StripEOF (Sym t)) dt -> [t] -> Bool
 recognize g = (Nothing /=) . predictiveParse g (const ())
 
 -- | Top-down predictive parsing algorithm.
 predictiveParse
-  :: forall nts t ast.
+  :: forall nts t ast dt.
   (Prettify nts, Prettify t, Prettify (Sym t), Prettify (StripEOF (Sym t)), Prettify ast
   , Eq nts, Eq (Sym t)
   , HasEOF (Sym t)
   , Ord (Sym t), Ord nts, Ord t, Ord (StripEOF (Sym t))
   , Hashable (Sym t), Hashable nts, Hashable (StripEOF (Sym t))
   , Ref t)
-  =>  Grammar () nts (StripEOF (Sym t)) -> Action ast nts t -> [t] ->  Maybe ast
+  =>  Grammar () nts (StripEOF (Sym t)) dt -> Action ast nts t -> [t] ->  Maybe ast
 predictiveParse g act w0 = let
 
     --reduce :: StackTree ast -> StackTree ast
@@ -317,13 +317,13 @@ predictiveParse g act w0 = let
 -- | Remove all epsilon productions, i.e. productions of the form "A -> eps",
 --   without affecting the language accepted.
 removeEpsilons' ::
-  forall s nts t. (Eq t, Eq nts, Prettify t, Prettify nts, Prettify s, Ord t, Ord nts, Hashable t, Hashable nts)
-  => [Production s nts t] -> [Production s nts t]
+  forall s nts t dt. (Eq t, Eq nts, Eq dt, Prettify t, Prettify nts, Prettify s, Ord t, Ord nts, Hashable t, Hashable nts)
+  => [Production s nts t dt] -> [Production s nts t dt]
 removeEpsilons' ps_init = let
 
-    epsNT :: Production s nts t -> [nts] -> [nts]
-    epsNT (Production nts (Prod _ []))    = (:) nts
-    epsNT (Production nts (Prod _ [Eps])) = (:) nts
+    epsNT :: Production s nts t dt -> [nts] -> [nts]
+    epsNT (Production nts (Prod _ []) dt)    = (:) nts
+    epsNT (Production nts (Prod _ [Eps]) dt) = (:) nts
     epsNT prod             = id
   
     -- All NTs with an epsilon production
@@ -337,15 +337,15 @@ removeEpsilons' ps_init = let
     isEPsProd _          = False
     -}
 
-    replicateProd :: nts -> Production s nts t -> [Production s nts t]
-    replicateProd nts0 (Production nt1 (Prod sf es)) = let
+    replicateProd :: nts -> Production s nts t dt -> [Production s nts t dt]
+    replicateProd nts0 (Production nt1 (Prod sf es) dt) = let
         
-        rP :: ProdElems nts t -> ProdElems nts t -> [Production s nts t]
-        rP ys []   = [Production nt1 (Prod sf $ reverse ys)]
+        rP :: ProdElems nts t -> ProdElems nts t -> [Production s nts t dt]
+        rP ys []   = [Production nt1 (Prod sf $ reverse ys) dt]
         rP ys (x:xs)
           | NT nts0 == x
-              = Production nt1 (Prod sf (reverse ys ++ xs))   -- Production with nts0 removed
-              : Production nt1 (Prod sf (reverse ys ++ x:xs)) -- Production without nts0 removed
+              = Production nt1 (Prod sf (reverse ys ++ xs)) dt   -- Production with nts0 removed
+              : Production nt1 (Prod sf (reverse ys ++ x:xs)) dt -- Production without nts0 removed
               : (  rP ys     xs  -- Recursively with nts0 removed
                 ++ rP (x:ys) xs) -- Recursively without nts0 removed
           | otherwise = rP (x:ys) xs
@@ -355,7 +355,7 @@ removeEpsilons' ps_init = let
       | p1 `elem` ps = ps
       | otherwise    = p1 : ps
 
-    ps' :: [Production s nts t]
+    ps' :: [Production s nts t dt]
     ps' = case epsNTs of
       []         -> ps_init
       (nts:ntss) -> removeEpsilons' $
@@ -363,16 +363,16 @@ removeEpsilons' ps_init = let
                           [ p' 
                           | p  <- ps_init
                           , p' <- replicateProd nts p
-                          , p' /= Production nts (Prod Pass [])
-                          , p' /= Production nts (Prod Pass [Eps])]
+                          , p' /= Production nts (Prod Pass []) (getDataType p')
+                          , p' /= Production nts (Prod Pass [Eps]) (getDataType p')]
 
   in ps'
 
 -- | Remove all epsilon productions, i.e. productions of the form "A -> eps",
 --   without affecting the language accepted.
 removeEpsilons ::
-  forall s nts t. (Eq t, Eq nts, Prettify t, Prettify nts, Prettify s, Ord t, Ord nts, Hashable t, Hashable nts)
-  => Grammar s nts t -> Grammar s nts t
+  forall s nts t dt. (Eq t, Eq nts, Eq dt, Prettify t, Prettify nts, Prettify s, Ord t, Ord nts, Ord dt, Hashable t, Hashable nts)
+  => Grammar s nts t dt -> Grammar s nts t dt
 removeEpsilons g = g { ps = removeEpsilons' $ ps g }
 
 -- | Add primes to nonterminal symbols.
@@ -388,16 +388,16 @@ instance (Prettify nts) => Prettify (Prime nts) where
 --   This adds 'Prime's to the nonterminal symbols in cases where we need to break up
 --   a production rule in order to left factor it.
 leftFactor ::
-  forall s nts t. (Eq t, Eq nts, Prettify t, Prettify nts, Ord t, Ord nts, Hashable nts)
-  => Grammar s nts t -> Grammar s (Prime nts) t
+  forall s nts t dt. (Eq t, Eq nts, Prettify t, Prettify nts, Ord t, Ord nts, Hashable nts)
+  => Grammar s nts t dt -> Grammar s (Prime nts) t dt
 leftFactor = let
 
-  primeify :: Grammar s nts t -> Grammar s (Prime nts) t
+  primeify :: Grammar s nts t dt -> Grammar s (Prime nts) t dt
   primeify g = G
     { ns = fromList $ [ Prime (nts, 0) | nts <- toList $ ns g ]
     , ts = ts g
-    , ps = [ Production (Prime (nts, 0)) (Prod sf $ map prmPE ss)
-           | Production nts (Prod sf ss) <- ps g ]
+    , ps = [ Production (Prime (nts, 0)) (Prod sf $ map prmPE ss) dt
+           | Production nts (Prod sf ss) dt <- ps g ]
     , s0 = Prime (s0 g, 0)
     , _πs = _πs g
     , _μs = _μs g
@@ -408,7 +408,7 @@ leftFactor = let
   prmPE (T x)   = T x
   prmPE Eps     = Eps
   
-  lF :: Grammar s (Prime nts) t -> Grammar s (Prime nts) t
+  lF :: Grammar s (Prime nts) t dt -> Grammar s (Prime nts) t dt
   lF g = let
     -- Longest common prefix of two lists
     lcp :: ProdElems (Prime nts) t -> ProdElems (Prime nts) t -> ProdElems (Prime nts) t
@@ -421,8 +421,8 @@ leftFactor = let
     lcps :: [(Prime nts, ProdElems (Prime nts) t)]
     lcps = [ (nts0, maximumBy (comparing length)
                    [ lcp xs ys
-                   | Production _ (Prod _ xs) <- filter ((== nts0) . getLHS) (ps g)
-                   , Production _ (Prod _ ys) <- filter ((== nts0) . getLHS) (ps g)
+                   | Production _ (Prod _ xs) _ <- filter ((== nts0) . getLHS) (ps g)
+                   , Production _ (Prod _ ys) _ <- filter ((== nts0) . getLHS) (ps g)
                    , xs /= ys
                    ])
            | nts0 <- toList $ ns g ]
@@ -433,27 +433,27 @@ leftFactor = let
     incr :: Prime nts -> Prime nts
     incr (Prime (nts, i)) = Prime (nts, i + 1)
 
-    ps' :: [(Prime nts, ProdElems (Prime nts) t)] -> [Production s (Prime nts) t]
-    ps' []           = ps g
+    ps' :: [(Prime nts, ProdElems (Prime nts) t)] -> [Production s (Prime nts) t dt]
+    ps' []            = ps g
     ps' ((nts, xs):_) =
         -- Unaffected productions
-        [ Production nts0 (Prod v rhs)
-        | Production nts0 (Prod v rhs) <- ps g
+        [ Production nts0 (Prod v rhs) dt
+        | Production nts0 (Prod v rhs) dt <- ps g
         , nts0 /= nts
         ]
       ++
         -- Unaffected productions
-        [ Production nts0 (Prod v rhs)
-        | Production nts0 (Prod v rhs) <- ps g
+        [ Production nts0 (Prod v rhs) dt
+        | Production nts0 (Prod v rhs) dt <- ps g
         , nts == nts0 && not (xs `isPrefixOf` rhs)
         ]
       ++
         -- Affected productions
-        [ Production (incr nts0) (Prod v (drop (length xs) rhs))
-        | Production nts0 (Prod v rhs) <- ps g
+        [ Production (incr nts0) (Prod v (drop (length xs) rhs)) dt
+        | Production nts0 (Prod v rhs) dt <- ps g
         , nts == nts0 && xs `isPrefixOf` rhs
         ]
-      ++ [Production nts (Prod Pass $ xs ++ [NT $ incr nts])]
+      ++ [Production nts (Prod Pass $ xs ++ [NT $ incr nts]) Nothing]
   {- [ (prime nts, drop (length xs) ys)
                     | (nt1, ys) <- ps g
                     , nt1 == nts

@@ -8,6 +8,7 @@ import Language.Chisel.Parser
 import Language.Chisel.Syntax
 import Text.ANTLR.Grammar (Grammar(..), ProdElem(..))
 import Language.ANTLR4.FileOpener (open)
+import Language.ANTLR4.Boot.Syntax (Directive(..))
 
 import System.IO.Unsafe (unsafePerformIO)
 import Data.Monoid
@@ -132,7 +133,7 @@ parseGHCTestBig =
     e                     -> e @?= LR.ResultAccept LeafEps
 
 testPrettify =
-  unsafePerformIO (putStr $ T.unpack $ pshow (chiselGrammar :: Grammar () ChiselNTSymbol ChiselTSymbol))
+  unsafePerformIO (putStr $ T.unpack $ pshow (chiselGrammar :: Grammar () ChiselNTSymbol ChiselTSymbol Directive))
   @?= ()
 
 testFast =

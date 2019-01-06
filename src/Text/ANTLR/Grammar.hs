@@ -18,7 +18,7 @@ module Text.ANTLR.Grammar
   , Production(..), ProdRHS(..), StateFncn(..)
   , Predicate(..), Mutator(..), Ref(..)
   -- * Basic setter / getter functions:
-  , getRHS, getLHS
+  , getRHS, getLHS, getDataType
   , isSem, isAction
   , sameNTs, sameTs
   , isNT, isT, isEps, getNTs, getTs, getEps
@@ -171,12 +171,12 @@ isAction _ = False
 -- | Get just the production elements from a bunch of production rules
 getProds = map (\(Prod _ ss) -> ss)
 
--- | A single production rule
-data Production s nts ts = Production nts (ProdRHS s nts ts)
+-- | A single production rule with some datatype dt annotating what gets produced when this production rule fires.
+data Production s nts ts dt = Production nts (ProdRHS s nts ts) (Maybe dt)
   deriving (Eq, Ord, Generic, Hashable, Data, Lift)
 
-instance (Prettify s, Prettify nts, Prettify ts) => Prettify (Production s nts ts) where
-  prettify (Production nts (Prod sf ps)) = do
+instance (Prettify s, Prettify nts, Prettify ts, Prettify dt) => Prettify (Production s nts ts dt) where
+  prettify (Production nts (Prod sf ps) dt) = do
     len <- pCount nts
     -- Put the indentation level after the nonterminal, or just incr by 2 if
     -- lazy...
@@ -184,24 +184,28 @@ instance (Prettify s, Prettify nts, Prettify ts) => Prettify (Production s nts t
     pStr " -> "
     prettify sf
     prettify ps
+    prettify dt
     incrIndent (-4)
 
-instance (Show s, Show nts, Show ts) => Show (Production s nts ts) where
-  show (Production nts rhs) = show nts ++ " -> " ++ show rhs
+instance (Show s, Show nts, Show ts, Show dt) => Show (Production s nts ts dt) where
+  show (Production nts rhs dt) = show nts ++ " -> " ++ show rhs ++ " (" ++ show dt ++ ")"
 
 -- | Inline get 'ProdRHS' of a 'Production'
-getRHS :: Production s nts ts -> ProdRHS s nts ts
-getRHS (Production lhs rhs) = rhs
+getRHS :: Production s nts ts dt -> ProdRHS s nts ts
+getRHS (Production lhs rhs dt) = rhs
 
 -- | Inline get the nonterminal symbol naming a 'Production'
-getLHS :: Production s nts ts -> nts
-getLHS (Production lhs rhs) = lhs
+getLHS :: Production s nts ts dt -> nts
+getLHS (Production lhs rhs dt) = lhs
+
+getDataType :: Production s nts t dt -> Maybe dt
+getDataType (Production lhs rhs dt) = dt
 
 -- | Get only the productions for the given nonterminal symbol nts:
-prodsFor :: forall s nts ts. (Eq nts) => Grammar s nts ts -> nts -> [Production s nts ts]
+prodsFor :: forall s nts ts dt. (Eq nts) => Grammar s nts ts dt -> nts -> [Production s nts ts dt]
 prodsFor g nts = let
-    matchesNT :: Production s nts t -> Bool
-    matchesNT (Production nts' _) = nts' == nts
+    matchesNT :: Production s nts t dt -> Bool
+    matchesNT (Production nts' _ _) = nts' == nts
   in filter matchesNT (ps g)
 
 -- TODO: boiler plate auto deriving for "named" of a user defined type?
@@ -253,17 +257,17 @@ instance Hashable (Mutator s) where
   hashWithSalt salt (Mutator m1 _) = salt `hashWithSalt` m1
 
 -- | Core representation of a grammar, as used by the parsing algorithms.
-data Grammar s nts ts = G
+data Grammar s nts ts dt = G
   { ns  :: Set nts
   , ts  :: Set ts
-  , ps  :: [Production s nts ts]
+  , ps  :: [Production s nts ts dt]
   , s0  :: nts
   , _πs :: Set (Predicate s)
   , _μs :: Set (Mutator   s)
   } deriving (Show, Lift)
 
-instance (Eq s, Eq nts, Eq ts, Hashable nts, Hashable ts, Prettify s, Prettify nts, Prettify ts)
-  => Eq (Grammar s nts ts) where
+instance (Eq s, Eq nts, Eq ts, Eq dt, Hashable nts, Hashable ts, Prettify s, Prettify nts, Prettify ts)
+  => Eq (Grammar s nts ts dt) where
   g1 == g2 = ns g1 == ns g2
           && ts g1 == ts g2
           && eqLists (nub $ ps g1) (nub $ ps g2)
@@ -276,8 +280,8 @@ eqLists [] vs = False
 eqLists vs [] = False
 eqLists (v1:vs) vs2 = eqLists vs (filter (/= v1) vs2)
 
-instance (Prettify s, Prettify nts, Prettify ts, Hashable ts, Eq ts, Hashable nts, Eq nts, Ord ts, Ord nts)
-  => Prettify (Grammar s nts ts) where
+instance (Prettify s, Prettify nts, Prettify ts, Prettify dt, Hashable ts, Eq ts, Hashable nts, Eq nts, Ord ts, Ord nts, Ord dt)
+  => Prettify (Grammar s nts ts dt) where
   prettify G {ns = ns, ts = ts, ps = ps, s0 = s0, _πs = _πs, _μs = _μs} = do
     pLine "Grammar:"
     pStr "{ "
@@ -294,14 +298,14 @@ instance (Prettify s, Prettify nts, Prettify ts, Hashable ts, Eq ts, Hashable nt
 -- | All possible production elements of a given grammar.
 symbols
   :: (Ord nts, Ord ts, Hashable s, Hashable nts, Hashable ts)
-  => Grammar s nts ts -> Set (ProdElem nts ts)
+  => Grammar s nts ts dt -> Set (ProdElem nts ts)
 symbols g = S.insert Eps $ S.map NT (ns g) `union` S.map T (ts g)
 
 -- | The empty grammar - accepts nothing, with one starting nonterminal
 --   and nowhere to go.
 defaultGrammar
-  :: forall s nts ts. (Ord ts, Hashable ts, Hashable nts, Eq nts)
-  => nts -> Grammar s nts ts
+  :: forall s nts ts dt. (Ord ts, Hashable ts, Hashable nts, Eq nts)
+  => nts -> Grammar s nts ts dt
 defaultGrammar start = G
   { ns  = S.singleton start
   , ts  = empty
@@ -313,9 +317,9 @@ defaultGrammar start = G
 
 -- | Does the given grammar make any sense?
 validGrammar
-  :: forall s nts ts.
+  :: forall s nts ts dt.
   (Eq nts, Ord nts, Eq ts, Ord ts, Hashable nts, Hashable ts)
-  => Grammar s nts ts -> Bool
+  => Grammar s nts ts dt -> Bool
 validGrammar g =
      hasAllNonTerms g
   && hasAllTerms g
@@ -325,21 +329,21 @@ validGrammar g =
 -- | All nonterminals in production rules can be found in the nonterminals list.
 hasAllNonTerms
   :: (Eq nts, Ord nts, Hashable nts, Hashable ts)
-  => Grammar s nts ts -> Bool
+  => Grammar s nts ts dt -> Bool
 hasAllNonTerms g =
   ns g == (fromList . getNTs . concat . getProds . map getRHS $ ps g)
 
 -- | All terminals in production rules can be found in the terminal list.
 hasAllTerms
   :: (Eq ts, Ord ts, Hashable nts, Hashable ts)
-  => Grammar s nts ts -> Bool
+  => Grammar s nts ts dt -> Bool
 hasAllTerms g =
   ts g == (fromList . getTs . concat . getProds . map getRHS $ ps g)
 
 -- | The starting symbol is a valid nonterminal.
 startIsNonTerm
   :: (Ord nts, Hashable nts)
-  => Grammar s nts ts -> Bool
+  => Grammar s nts ts dt -> Bool
 startIsNonTerm g = s0 g `member` ns g
 
 --distinctTermsNonTerms g =

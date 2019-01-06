@@ -74,7 +74,7 @@ propClosureClosure :: Set Item' -> Property
 propClosureClosure items' = let items = S.map (\(I' is) -> is) items' in True ==>
   (c' . c') items == c' items
 
-newtype Grammar' = G' (Grammar () String String)
+newtype Grammar' = G' (Grammar () String String ())
   deriving (Eq, Show)
 
 instance Arbitrary Grammar' where
@@ -147,12 +147,12 @@ _I5  = fromList  [ slrItem (ItemNT "F") [T "id"] []]
 _I3  = fromList  [ slrItem (ItemNT "T") [NT "F"] []]
 _I10 = fromList  [ slrItem (ItemNT "T") [NT "F",T "*",NT "T"] []]
 
-r1 = Reduce $ Production "E" $ Prod Pass [NT "E", T "+", NT "T"]
-r2 = Reduce $ Production "E" $ Prod Pass [NT "T"]
-r3 = Reduce $ Production "T" $ Prod Pass [NT "T", T "*", NT "F"]
-r4 = Reduce $ Production "T" $ Prod Pass [NT "F"]
-r5 = Reduce $ Production "F" $ Prod Pass [T "(", NT "E", T ")"]
-r6 = Reduce $ Production "F" $ Prod Pass [T "id"]
+r1 = Reduce $ production "E" $ Prod Pass [NT "E", T "+", NT "T"]
+r2 = Reduce $ production "E" $ Prod Pass [NT "T"]
+r3 = Reduce $ production "T" $ Prod Pass [NT "T", T "*", NT "F"]
+r4 = Reduce $ production "T" $ Prod Pass [NT "F"]
+r5 = Reduce $ production "F" $ Prod Pass [T "(", NT "E", T ")"]
+r6 = Reduce $ production "F" $ Prod Pass [T "id"]
 
 -- Easier to debug when shown separately:
 testSLRTable =
@@ -278,9 +278,9 @@ lr1TableExp = M.fromList
   ]
 
 --r5 = Reduce ("F", Prod Pass [T "(", NT "E", T ")"])
-r1' = Reduce $ Production "S" $ Prod Pass [NT "C", NT "C"]
-r2' = Reduce $ Production "C" $ Prod Pass [T "c", NT "C"]
-r3' = Reduce $ Production "C" $ Prod Pass [T "d"]
+r1' = Reduce $ production "S" $ Prod Pass [NT "C", NT "C"]
+r2' = Reduce $ production "C" $ Prod Pass [T "c", NT "C"]
+r3' = Reduce $ production "C" $ Prod Pass [T "d"]
 
 testLR1Items =
   lr1Items dragonBook455

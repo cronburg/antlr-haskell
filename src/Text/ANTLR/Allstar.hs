@@ -36,7 +36,7 @@ fromAllstarAST (ALL.Leaf tok)     = P.Leaf tok
 --   TODO: Handle predicate and mutator state during the conversion
 -- | Go from an antlr-haskell Grammar to an Allstar ATNEnv. ALL(*) does not
 --   current support predicates and mutators.
-atnOf :: (Ord nt, Ord t, S.Hashable nt, S.Hashable t) => G.Grammar s nt t -> ALL.ATNEnv nt t
+atnOf :: (Ord nt, Ord t, S.Hashable nt, S.Hashable t) => G.Grammar s nt t dt -> ALL.ATNEnv nt t
 atnOf g = DS.fromList (map convTrans (S.toList (ATN._Δ (ATN.atnOf g))))
 
 -- | ATN Transition to AllStar version

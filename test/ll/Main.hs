@@ -29,7 +29,7 @@ type LL1Terminal    = String
 
 uPIO = unsafePerformIO
 
-grm :: Grammar () LL1NonTerminal LL1Terminal
+grm :: Grammar () LL1NonTerminal LL1Terminal ()
 grm = dragonBook428
 
 termination = first grm [NT "E"] @?= first grm [NT "E"]
@@ -69,7 +69,7 @@ firstAll =
     , (T "id",  fromList [Icon "id"])
     ]
 
-grm' :: Grammar () LL1NonTerminal LL1Terminal
+grm' :: Grammar () LL1NonTerminal LL1Terminal ()
 grm' = grm
 
 followAll :: IO ()
@@ -141,27 +141,29 @@ dragonPredParse =
                 ]
             ])
 
-singleLang = (defaultGrammar "S" :: Grammar () String Char)
+singleLang :: Grammar () String Char ()
+singleLang = (defaultGrammar "S" :: Grammar () String Char ())
   { s0 = "S"
   , ns = fromList ["S", "X"]
   , ts = fromList ['a']
-  , ps =  [ Production "S" $ Prod Pass [NT "X", T 'a']
-          , Production "X" $ Prod Pass [Eps]
+  , ps =  [ production "S" $ Prod Pass [NT "X", T 'a']
+          , production "X" $ Prod Pass [Eps]
           ]
   }
 
 testRemoveEpsilons =
   removeEpsilons singleLang
   @?= singleLang
-    { ps =  [ Production "S" $ Prod Pass [NT "X", T 'a']
-            , Production "S" $ Prod Pass [T 'a']
+    { ps =  [ production "S" $ Prod Pass [NT "X", T 'a']
+            , production "S" $ Prod Pass [T 'a']
             ]
     }
 
+singleLang2 :: Grammar () String Char ()
 singleLang2 = singleLang
   { ts = fromList ['a', 'b']
-  , ps =  [ Production "S" $ Prod Pass [NT "X", T 'a', NT "X", T 'b', NT "X"]
-          , Production "X" $ Prod Pass [Eps]
+  , ps =  [ production "S" $ Prod Pass [NT "X", T 'a', NT "X", T 'b', NT "X"]
+          , production "X" $ Prod Pass [Eps]
           ]
   }
 
@@ -169,42 +171,43 @@ testRemoveEpsilons2 =
   (Set.fromList . ps . removeEpsilons) singleLang2
   @?=
   fromList
-    [ Production "S" $ Prod Pass [        T 'a',         T 'b'        ]
-    , Production "S" $ Prod Pass [        T 'a',         T 'b', NT "X"]
-    , Production "S" $ Prod Pass [        T 'a', NT "X", T 'b'        ]
-    , Production "S" $ Prod Pass [        T 'a', NT "X", T 'b', NT "X"]
-    , Production "S" $ Prod Pass [NT "X", T 'a',         T 'b'        ]
-    , Production "S" $ Prod Pass [NT "X", T 'a',         T 'b', NT "X"]
-    , Production "S" $ Prod Pass [NT "X", T 'a', NT "X", T 'b'        ]
-    , Production "S" $ Prod Pass [NT "X", T 'a', NT "X", T 'b', NT "X"]
+    [ production "S" $ Prod Pass [        T 'a',         T 'b'        ]
+    , production "S" $ Prod Pass [        T 'a',         T 'b', NT "X"]
+    , production "S" $ Prod Pass [        T 'a', NT "X", T 'b'        ]
+    , production "S" $ Prod Pass [        T 'a', NT "X", T 'b', NT "X"]
+    , production "S" $ Prod Pass [NT "X", T 'a',         T 'b'        ]
+    , production "S" $ Prod Pass [NT "X", T 'a',         T 'b', NT "X"]
+    , production "S" $ Prod Pass [NT "X", T 'a', NT "X", T 'b'        ]
+    , production "S" $ Prod Pass [NT "X", T 'a', NT "X", T 'b', NT "X"]
     ]
 
 testRemoveEpsilons3 =
   removeEpsilons dragonBook428
-  @?= (defaultGrammar "E" :: Grammar () String String)
+  @?= (defaultGrammar "E" :: Grammar () String String ())
     { ns = fromList ["E", "E'", "T", "T'", "F"]
     , ts = fromList ["+", "*", "(", ")", "id"]
     , s0 = "E"
-    , ps = [ Production "E"  $ Prod Pass [NT "T", NT "E'"]
-           , Production "E'" $ Prod Pass [T "+", NT "T", NT "E'"]
-           , Production "E'" $ Prod Pass [Eps] -- Implicitly epsilon
-           , Production "T"  $ Prod Pass [NT "F", NT "T'"]
-           , Production "T'" $ Prod Pass [T "*", NT "F", NT "T'"]
-           , Production "T'" $ Prod Pass [Eps]
-           , Production "F"  $ Prod Pass [T "(", NT "E", T ")"]
-           , Production "F"  $ Prod Pass [T "id"]
+    , ps = [ production "E"  $ Prod Pass [NT "T", NT "E'"]
+           , production "E'" $ Prod Pass [T "+", NT "T", NT "E'"]
+           , production "E'" $ Prod Pass [Eps] -- Implicitly epsilon
+           , production "T"  $ Prod Pass [NT "F", NT "T'"]
+           , production "T'" $ Prod Pass [T "*", NT "F", NT "T'"]
+           , production "T'" $ Prod Pass [Eps]
+           , production "F"  $ Prod Pass [T "(", NT "E", T ")"]
+           , production "F"  $ Prod Pass [T "id"]
            ]
     } 
 
-leftGrammar0 = (defaultGrammar 'S' :: Grammar () Char String)
+leftGrammar0 :: Grammar () Char Char ()
+leftGrammar0 = (defaultGrammar 'S' :: Grammar () Char Char ())
   { ns = fromList "SABC"
   , ts = fromList "defg"
   , s0 = 'S'
-  , ps = [ Production 'S' $ Prod Pass [NT 'A']
-         , Production 'A' $ Prod Pass [T 'd', T 'e', NT 'B']
-         , Production 'A' $ Prod Pass [T 'd', T 'e', NT 'C']
-         , Production 'B' $ Prod Pass [T 'f']
-         , Production 'C' $ Prod Pass [T 'g']
+  , ps = [ production 'S' $ Prod Pass [NT 'A']
+         , production 'A' $ Prod Pass [T 'd', T 'e', NT 'B']
+         , production 'A' $ Prod Pass [T 'd', T 'e', NT 'C']
+         , production 'B' $ Prod Pass [T 'f']
+         , production 'C' $ Prod Pass [T 'g']
          ]
   }
 
@@ -214,12 +217,12 @@ testLeftFactor =
   { ns = fromList $ map Prime [('S', 0), ('A', 0), ('B', 0), ('C', 0)]
   , ts = fromList "defg"
   , s0 = Prime ('S', 0)
-  , ps = [ Production (Prime ('S', 0)) $ Prod Pass [NT $ Prime ('A', 0)]
-         , Production (Prime ('A', 0)) $ Prod Pass [T 'd', T 'e', NT $ Prime ('A', 1)]
-         , Production (Prime ('A', 1)) $ Prod Pass [NT $ Prime ('B', 0)]
-         , Production (Prime ('A', 1)) $ Prod Pass [NT $ Prime ('C', 0)]
-         , Production (Prime ('B', 0)) $ Prod Pass [T 'f']
-         , Production (Prime ('C', 0)) $ Prod Pass [T 'g']
+  , ps = [ production (Prime ('S', 0)) $ Prod Pass [NT $ Prime ('A', 0)]
+         , production (Prime ('A', 0)) $ Prod Pass [T 'd', T 'e', NT $ Prime ('A', 1)]
+         , production (Prime ('A', 1)) $ Prod Pass [NT $ Prime ('B', 0)]
+         , production (Prime ('A', 1)) $ Prod Pass [NT $ Prime ('C', 0)]
+         , production (Prime ('B', 0)) $ Prod Pass [T 'f']
+         , production (Prime ('C', 0)) $ Prod Pass [T 'g']
          ]
   , _πs = fromList []
   , _μs = fromList []
