@@ -298,7 +298,9 @@ strBangType = (defBang, conT $ mkName "String")
 mkCon   = conE . mkName . mkUpper
 mkConNT = conE . mkName . ("NT_" ++)
 
---
+-- | Regular expression term annotations are just syntactic sugar by any other name.
+--   Computes the set of productions that need to be added to the grammar to support
+--   surface-syntax-level annotations on production rule terms.
 genTermAnnotProds :: [G4S.G4] -> [G4S.G4]
 genTermAnnotProds [] = []
 genTermAnnotProds (G4S.Prod {G4S.pName = n, G4S.patterns = ps}:xs) = let
@@ -314,17 +316,17 @@ genTermAnnotProds (G4S.Prod {G4S.pName = n, G4S.patterns = ps}:xs) = let
 
     gTAP :: G4S.ProdElem -> [G4S.G4]
     gTAP (G4S.GNonTerm (G4S.Regular '?') nt) = trace (show nt)
-      [ withAlphas (nt ++ "_quest") (G4S.UpperD "Maybe") [G4S.GNonTerm G4S.NoAnnot nt]
-      , withAlphas (nt ++ "_quest") (G4S.UpperD "Maybe") [] -- epsilon
+      [ withAlphas (nt ++ "_quest") (G4S.UpperD "Just") [G4S.GNonTerm G4S.NoAnnot nt]
+      , withAlphas (nt ++ "_quest") (G4S.UpperD "Nothing") [] -- epsilon
       ]
     gTAP (G4S.GNonTerm (G4S.Regular '*') nt) =
-      [ withAlphas (nt ++ "_star")  (G4S.LowerD "cons")  [G4S.GNonTerm G4S.NoAnnot nt, G4S.GNonTerm G4S.NoAnnot (nt ++ "_star")]
-      , withAlphas (nt ++ "_star")  (G4S.LowerD "list")  [G4S.GNonTerm G4S.NoAnnot nt]
-      , withAlphas (nt ++ "_star")  (G4S.LowerD "list")  []
+      [ withAlphas (nt ++ "_star")  (G4S.HaskellD "(:)")  [G4S.GNonTerm G4S.NoAnnot nt, G4S.GNonTerm G4S.NoAnnot (nt ++ "_star")]
+      , withAlphas (nt ++ "_star")  (G4S.HaskellD "\\x -> [x]")  [G4S.GNonTerm G4S.NoAnnot nt]
+      , withAlphas (nt ++ "_star")  (G4S.HaskellD "[]")  []
       ]
     gTAP (G4S.GNonTerm (G4S.Regular '+') nt) =
-      [ withAlphas (nt ++ "_plus")  (G4S.LowerD "cons")  [G4S.GNonTerm G4S.NoAnnot nt, G4S.GNonTerm G4S.NoAnnot (nt ++ "_plus")]
-      , withAlphas (nt ++ "_plus")  (G4S.LowerD "list")  [G4S.GNonTerm G4S.NoAnnot nt]
+      [ withAlphas (nt ++ "_plus")  (G4S.HaskellD "(:)")  [G4S.GNonTerm G4S.NoAnnot nt, G4S.GNonTerm G4S.NoAnnot (nt ++ "_plus")]
+      , withAlphas (nt ++ "_plus")  (G4S.HaskellD "\\x -> [x]")  [G4S.GNonTerm G4S.NoAnnot nt]
       ]
     gTAP (G4S.GNonTerm G4S.NoAnnot nt) = []
     gTAP (G4S.GTerm _ t) = []
@@ -582,13 +584,14 @@ a2d ast nameAST G4S.Prod{G4S.pName = _A, G4S.patterns = ps} = let
         | (i, a) <- zip [0 .. length as] as
         ]
 
-  astAppRec b (alpha, varName, recName) = case G4S.annot alpha of
+  astAppRec b (alpha, varName, recName) = appE b (appE recName $ varE varName)
+  {- case G4S.annot alpha of
       G4S.NoAnnot       -> appE b (appE recName $ varE varName)
       (G4S.Regular '?') -> appE b (appE recName $ varE varName)
       -- TODO: Below two cases:
       (G4S.Regular '*') -> appE b (appE recName $ varE varName)
       (G4S.Regular '+') -> appE b (appE recName $ varE varName)
-      otherwise         -> error $ show alpha
+      otherwise         -> error $ show alpha -}
 
   clauses = [ clause  [ [p| AST $(conP (mkName $ "NT_" ++ _A) [])
                              $(listP $ map mkConP as)
@@ -633,115 +636,6 @@ a2d ast nameAST G4S.Prod{G4S.pName = _A, G4S.patterns = ps} = let
               (astFncnName _A, clauses)
             ]
 a2d ast nameAST _ = Nothing
-
--- ast2* functions necessary to support '?', '+', and '*' in G4 syntax.
--- This assumes productions look like how LL.removeEpsilons generates
--- them
---regex_a2d :: G4S.G4 -> [DecQ]
-regex_a2d :: G4S.G4 -> [(Name, [ClauseQ])]
-regex_a2d G4S.Prod{G4S.pName = _A, G4S.patterns = ps} = let
-
-    clauses = [ clause [ [p| ast2 |] ] (normalB [| error (show ast2) |]) [] ]
-
-
-    eachAlpha (G4S.GNonTerm (G4S.Regular '?') s) = let -- "_quest"
-        ntName = "NT_" ++ s
-      in
-      [( astFncnName $ s ++ "_quest",
-        [ -- First, the "zero or more" base case (returns a singleton list):
-          do  let n      = mkName ntName
-                  nQuest = mkName $ ntName ++ "_quest"
-                  base   = varE $ astFncnName s
-              param <- newName "param"
-              clause [ [p| AST $(conP nQuest []) [NT $(conP n [])] [$(varP param)] |] ]
-                (normalB [| Just ($(base) $(varE param)) |])
-                []
-        , do  param <- newName "param"
-              clause [ [p| $(varP param) |] ]
-                (normalB [| error $ $(litE $ stringL ntName) ++ ": " ++ show $(varE param) |])
-                []
-        ]
-      )]
-      {-
-      [( astFncnName $ s ++ "_quest",
-        [ do  param <- newName "param"
-              let base = varE $ astFncnName s
-              clause [ [p| $(varP param) |] ] (normalB [| Just $ $(base) ($(varE param) :: $(conT nameAST))|]) []
-        ])]
-      -}
-    eachAlpha (G4S.GNonTerm (G4S.Regular '*') s) = let -- "_star"
-        ntName = "NT_" ++ s
-
-      in
-      [( astFncnName $ s ++ "_star",
-        [ -- First, the "zero or more" base case (returns a singleton list):
-          do  let n     = mkName ntName
-                  nStar = mkName $ ntName ++ "_star"
-                  base  = varE $ astFncnName s
-              param <- newName "param"
-              clause [ [p| AST $(conP nStar []) [NT $(conP n [])] [$(varP param)] |] ]
-                (normalB [| [$(base) $(varE param)] |])
-                []
-          -- Second, the "zero or more" recursive case (cons the current
-          -- thing onto a recursive call)
-        , do  let n     = mkName ntName
-                  nStar = mkName $ ntName ++ "_star"
-              first <- newName "x"
-              rest  <- newName "xs"
-              let me   = varE $ astFncnName $ s ++ "_star"
-                  base = varE $ astFncnName s
-              clause [ [p| AST $(conP nStar []) [NT $(conP n []), NT $(conP nStar [])] [ $(varP first), $(varP rest) ] |] ]
-                (normalB [| ($(base) $(varE first)) : ($(me) $(varE rest)) |])
-                []
-        , do  param <- newName "param"
-              clause [ [p| $(varP param) |] ]
-                (normalB [| error $ $(litE $ stringL ntName) ++ ": " ++ show $(varE param) |])
-                []
-        ])]
-    eachAlpha (G4S.GNonTerm (G4S.Regular '+') s) = let -- "_plus"
-        ntName = "NT_" ++ s
-
-      in
-      [( astFncnName $ s ++ "_plus",
-        [ -- First, the "zero or more" base case (returns a singleton list):
-          do  let n     = mkName ntName
-                  nPlus = mkName $ ntName ++ "_plus"
-                  base  = varE $ astFncnName s
-              param <- newName "param"
-              clause [ [p| AST $(conP nPlus []) [NT $(conP n [])] [$(varP param)] |] ]
-                (normalB [| [$(base) $(varE param)] |])
-                []
-          -- Second, the "zero or more" recursive case (cons the current
-          -- thing onto a recursive call)
-        , do  let n     = mkName ntName
-                  nPlus = mkName $ ntName ++ "_plus"
-              first <- newName "x"
-              rest  <- newName "xs"
-              let me   = varE $ astFncnName $ s ++ "_plus"
-                  base = varE $ astFncnName s
-              clause [ [p| AST $(conP nPlus []) [NT $(conP n []), NT $(conP nPlus [])] [ $(varP first), $(varP rest) ] |] ]
-                (normalB [| ($(base) $(varE first)) : ($(me) $(varE rest)) |])
-                []
-        , do  param <- newName "param"
-              clause [ [p| $(varP param) |] ]
-                (normalB [| error $ $(litE $ stringL ntName) ++ ": " ++ show $(varE param) |])
-                []
-        ])]
-    eachAlpha (G4S.GNonTerm G4S.NoAnnot s) = []
-    eachAlpha (G4S.GTerm annot s) = []
-
-    mkFncn s = map (\c -> (astFncnName s, [c])) clauses
-
-    -- TODO
-    makeEpsilonClauses _ = []
-
-    -- List of unique elements (remove duplicates):
-    uniq [] = []
-    uniq (x:xs) = x : filter (/= x) (uniq xs)
-
-  in (concatMap eachAlpha . uniq . concatMap G4S.alphas) ps
-  --in concatMap makeEpsilonClauses ps
-regex_a2d _ = []
 
 a2d_error_clauses G4S.Prod{G4S.pName = _A} =
   [(astFncnName _A, [ clause [ [p| ast2 |] ] (normalB [| error (show ast2) |]) [] ])]
@@ -866,8 +760,8 @@ astRemoveEpsilons ast = ast
 
 --allClauses :: Grammar s nts t -> G4AST -> [(Name, [ClauseQ])]
 allClauses gr ast nameAST =
-             (concat . catMaybes . map (a2d ast nameAST)) ast -- standard clauses ignoring optionals (?,+,*) syntax
-          ++ (concatMap regex_a2d) ast          -- Epsilon-removed optional ast conversion functions
+             (concat . catMaybes . map (a2d ast nameAST)) (genTermAnnotProds ast ++ ast) -- standard clauses ignoring optionals (?,+,*) syntax
+{-          ++ (concatMap regex_a2d) ast          -- Epsilon-removed optional ast conversion functions -}
           ++ (concatMap (epsilon_a2d ast)) ast        -- Clauses for productions with epsilons
           ++ (concatMap a2d_error_clauses) ast  -- Catch-all error clauses
 

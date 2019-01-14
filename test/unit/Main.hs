@@ -17,17 +17,8 @@ import qualified Test.QuickCheck.Monadic as TQM
 import Language.Haskell.TH.Syntax (lift)
 import qualified Text.ANTLR.LR as LR
 
-data Plus = Plus [String] | NotPlus [String]
-  deriving (Eq, Show)
-
-[g4|
-  grammar PlusBug0;
-
-  plus : LowerID+ -> Plus ;
-
-  LowerID : [a-z][a-zA-Z0-9_]* -> String;
-  WS      : [ \t\n\r\f\v]+     -> String;
-|]
+import PlusBug0
+$(g4_parsers plusBug0Grammar plusBug0AST)
 
 test_plusBug0 = case glrParse (== T_WS) "foo bar baz" of
   (ResultAccept ast) -> ast2plus ast @?= Plus [ "foo", "bar", "baz" ]
