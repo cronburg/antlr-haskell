@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Main where
-import Text.ANTLR.Example.Grammar
+import Example.Grammar
 import Text.ANTLR.Grammar
 import Text.ANTLR.Parser
 import Text.ANTLR.Pretty

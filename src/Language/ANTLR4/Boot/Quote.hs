@@ -813,14 +813,17 @@ removeEpsilonsAST ast = let
 
         -- Reconstruct the directive such that we drop one symbol (NT or T) between ys xs
         -- (starting with ys, ending with xs)
-        dropOne ys xs dir =
-          let params_ys = map (\i -> " p" ++ show i ++ " ") [0 .. length ys - 1]
+        dropOne ys' xs' dir =
+          let ys = filter G4S.isGNonTerm ys'
+              xs = filter G4S.isGNonTerm xs'
+          
+              params_ys = map (\i -> " p" ++ show i ++ " ") [0 .. length ys - 1]
               params_xs = map (\i -> " p" ++ show i ++ " ") [length ys .. length ys + length xs - 1]
               
               s_dir = case dir of
-                Just (G4S.UpperD s) -> s
-                Just (G4S.LowerD s) -> s
-                Just (G4S.HaskellD s) -> s
+                Just (G4S.UpperD s) -> "(" ++ s ++ ")"
+                Just (G4S.LowerD s) -> "(" ++ s ++ ")"
+                Just (G4S.HaskellD s) -> "(" ++ s ++ ")"
                 Nothing -> ""
               
               s_dflt = case dflt of
@@ -830,9 +833,9 @@ removeEpsilonsAST ast = let
                 Nothing -> "()"
 
               ret
-                | length params_ys + length params_xs == 0 = Just $ G4S.HaskellD $ s_dflt
-                | otherwise = Just $ G4S.HaskellD $ "(\\" ++ concat params_ys ++ concat params_xs ++ " -> (" ++ s_dir
-                                ++ ") " ++ concat params_ys ++ " " ++ s_dflt ++ " " ++ concat params_xs ++ ")"
+                | length params_ys + length params_xs == 0 = Just $ G4S.HaskellD $ "(" ++ s_dir ++ " " ++ s_dflt ++ ")"
+                | otherwise = Just $ G4S.HaskellD $ "(\\" ++ concat params_ys ++ concat params_xs ++ " -> " ++ s_dir
+                                ++ " " ++ concat params_ys ++ " " ++ s_dflt ++ " " ++ concat params_xs ++ ")"
             
             in ret
  

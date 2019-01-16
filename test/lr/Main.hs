@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric, TypeSynonymInstances #-}
 module Main where
-import Text.ANTLR.Example.Grammar
+import Example.Grammar
 import Text.ANTLR.Grammar
 import Text.ANTLR.LR
 import Text.ANTLR.Parser

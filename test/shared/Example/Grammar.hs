@@ -1,6 +1,6 @@
 {-# LANGUAGE ExplicitForAll, DeriveAnyClass, DeriveGeneric, TypeFamilies
  , DeriveDataTypeable #-}
-module Text.ANTLR.Example.Grammar where
+module Example.Grammar where
 import Text.ANTLR.Set (fromList, member, (\\), empty, Generic(..), Hashable(..))
 import Text.ANTLR.Grammar
 import Text.ANTLR.Pretty

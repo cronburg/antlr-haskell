@@ -1,8 +1,8 @@
-module Text.ANTLR.Allstar.Example.ATN where
+module ATN where
 
 import Text.ANTLR.Grammar
 import Text.ANTLR.Allstar.ATN
-import Text.ANTLR.Example.Grammar
+import Example.Grammar
 import Text.ANTLR.Set (fromList, union)
 import System.IO.Unsafe (unsafePerformIO)
 

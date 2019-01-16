@@ -1,6 +1,5 @@
 module Main where
 import Language.ANTLR4
---import Grammar
 import Parser
 import qualified Text.ANTLR.Set as S
 

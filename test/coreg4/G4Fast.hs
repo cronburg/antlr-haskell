@@ -1,8 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
-module G4 where
+module G4Fast where
 import Language.ANTLR4
-import Language.ANTLR4.Example.G4
-import Language.ANTLR4.Example.G4Parser
+import G4
+import G4Parser
 
 $(mkLRParser g4BasicAST g4BasicGrammar)
 

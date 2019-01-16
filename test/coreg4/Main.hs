@@ -10,16 +10,18 @@ import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
 import Language.ANTLR4 hiding (tokenize, Regex(..))
-import qualified Language.ANTLR4.Example.G4Parser as G4P
-import qualified Language.ANTLR4.Example.G4 as G4
-import Language.ANTLR4.Example.Hello
-import Language.ANTLR4.Example.HelloParser
+import qualified G4Parser as G4P
+import qualified G4 as G4
+import Hello
+import HelloParser
 import Text.ANTLR.Parser (AST(..))
 import qualified Text.ANTLR.LR as LR
 import Language.ANTLR4.Boot.Syntax (Regex(..))
 --import Language.ANTLR4.Regex (parseRegex)
 
 import qualified Language.ANTLR4.G4 as P -- Parser
+
+import qualified G4Fast as Fast
 
 test_g4_basic_type_check = do
   let _ = G4.g4BasicGrammar
@@ -49,7 +51,7 @@ test_g4 =
   G4P.slrParse (G4P.tokenize "1")
   @?=
   LR.ResultAccept (AST G4.NT_exp [T G4.T_0] [Leaf _1])
- 
+
 test_hello =
   slrParse (tokenize "hello Matt")
   @?=
@@ -61,6 +63,18 @@ test_hello =
         ]
   )
 
+test_hello_allstar =
+  allstarParse (tokenize "hello Matt")
+  @?=
+  Right (AST NT_r [] [Leaf (Token T_0 V_0 5),Leaf (Token T_WS (V_WS " ") 1),Leaf
+  (Token T_ID (V_ID "Matt") 4)])
+  --Right (AST NT_r [] [])
+
+testFastGLR =
+  Fast.glrParseFast (const False) "3"
+  @?=
+  G4P.glrParse (const False) "3"
+
 main :: IO ()
 main = defaultMainWithOpts
   [ testCase "g4_basic_compilation_type_check" test_g4_basic_type_check
@@ -68,5 +82,7 @@ main = defaultMainWithOpts
 --  , testCase "regex_test" regex_test
   , testCase "test_g4" test_g4
   , testCase "test_hello" test_hello
+  , testCase "test_hello_allstar" test_hello_allstar
+  , testCase "testFastGLR" testFastGLR
   ] mempty
 
