@@ -81,9 +81,9 @@ instance Prettify PRHS where
 -- | Antiquoted (or g4-embedded) string that goes to the right of an arrow in
 --   a g4 production rule. This specifies how to construct a Haskell type.
 data Directive =
-    UpperD String   -- ^ Probably a Haskell data constructor
-  | LowerD String   -- ^ Probably just a Haskell function to call
-  | HaskellD String -- ^ Arbitrary antiquoted Haskell code embedded in the G4 grammar
+    UpperD String       -- ^ Probably a Haskell data constructor
+  | LowerD String       -- ^ Probably just a Haskell function to call
+  | HaskellD String     -- ^ Arbitrary antiquoted Haskell code embedded in the G4 grammar
   deriving (Show, Eq, Ord, Lift, Generic, Hashable)
 
 instance Prettify Directive where prettify = rshow

@@ -85,6 +85,8 @@ dQual xs = case last xs of
 
 qDir l u = [l,u]
 
+haskellD = G4S.HaskellD
+
 -- Force the above declarations (and their types) into scope:
 $( return [] )
 
@@ -116,7 +118,7 @@ $( return [] )
   directive : qDirective          -> dQual
             | UpperID             -> G4S.UpperD
             | LowerID             -> G4S.LowerD
-            | '${' HaskellExp '}' -> G4S.HaskellD
+            | '${' HaskellExp '}' -> haskellD
             ;
 
   qDirective  : UpperID '.' qDot -> qDir

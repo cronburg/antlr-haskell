@@ -321,12 +321,12 @@ genTermAnnotProds (G4S.Prod {G4S.pName = n, G4S.patterns = ps}:xs) = let
       ]
     gTAP (G4S.GNonTerm (G4S.Regular '*') nt) =
       [ withAlphas (nt ++ "_star")  (G4S.HaskellD "(:)")  [G4S.GNonTerm G4S.NoAnnot nt, G4S.GNonTerm G4S.NoAnnot (nt ++ "_star")]
-      , withAlphas (nt ++ "_star")  (G4S.HaskellD "\\x -> [x]")  [G4S.GNonTerm G4S.NoAnnot nt]
+      , withAlphas (nt ++ "_star")  (G4S.HaskellD "(\\x -> [x])")  [G4S.GNonTerm G4S.NoAnnot nt]
       , withAlphas (nt ++ "_star")  (G4S.HaskellD "[]")  []
       ]
     gTAP (G4S.GNonTerm (G4S.Regular '+') nt) =
       [ withAlphas (nt ++ "_plus")  (G4S.HaskellD "(:)")  [G4S.GNonTerm G4S.NoAnnot nt, G4S.GNonTerm G4S.NoAnnot (nt ++ "_plus")]
-      , withAlphas (nt ++ "_plus")  (G4S.HaskellD "\\x -> [x]")  [G4S.GNonTerm G4S.NoAnnot nt]
+      , withAlphas (nt ++ "_plus")  (G4S.HaskellD "(\\x -> [x])")  [G4S.GNonTerm G4S.NoAnnot nt]
       ]
     gTAP (G4S.GNonTerm G4S.NoAnnot nt) = []
     gTAP (G4S.GTerm _ t) = []
@@ -829,9 +829,13 @@ removeEpsilonsAST ast = let
                 Just (G4S.HaskellD s) -> s
                 Nothing -> "()"
 
-          in  Just $ G4S.HaskellD $ "(\\" ++ concat params_ys ++ concat params_xs ++ " -> " ++ s_dir
-              ++ concat params_ys ++ " " ++ s_dflt ++ " " ++ concat params_xs ++ ")"
-
+              ret
+                | length params_ys + length params_xs == 0 = Just $ G4S.HaskellD $ s_dflt
+                | otherwise = Just $ G4S.HaskellD $ "(\\" ++ concat params_ys ++ concat params_xs ++ " -> (" ++ s_dir
+                                ++ ") " ++ concat params_ys ++ " " ++ s_dflt ++ " " ++ concat params_xs ++ ")"
+            
+            in ret
+ 
         rDF prhs ys [] = [ updatePRHS prhs $ reverse ys ]
         rDF prhs ys (x:xs) = let
 
