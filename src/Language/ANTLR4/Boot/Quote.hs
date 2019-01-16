@@ -58,9 +58,10 @@ trace s x = x
 traceM s x = x
 
 haskellParseExp :: (Monad m) => String -> m TH.Exp
-haskellParseExp s = case LHM.parseExp s of
-  Left err    -> error err
-  Right expTH -> return expTH
+haskellParseExp s = --D.trace ("PARSING: " ++ show s) $
+  case LHM.parseExp s of
+    Left err    -> error err
+    Right expTH -> return expTH
 
 haskellParseType :: (Monad m) => String -> m TH.Type
 haskellParseType s = case LHM.parseType s of
@@ -758,17 +759,32 @@ epsilon_a2d ast (G4S.Prod{G4S.pName = _A, G4S.patterns = ps}) = let
 epsilon_a2d ast _ = []
 -}
 
--- | Post-condition: all TermAnnots in this production are NoAnnots.
+mkTupler n = let
+    xs = ["p" ++ show i | i <- [0 .. n - 1]]
+    xs_comma = intersperse "," xs
+  in "(\\" ++ concat (intersperse " " xs) ++ " -> (" ++ concat xs_comma ++ "))"
+
+-- | Post-condition: all TermAnnots in this production are NoAnnots,
+--   and all directives are not Nothing (Nothings turn into Unit, identity function, or tupler).
 wipeOutAnnots p@(G4S.Prod{G4S.pName = _A, G4S.patterns = ps}) = let
 
-    wOA prhs@(G4S.PRHS { G4S.alphas = as0 }) = let
+    wOA prhs@(G4S.PRHS { G4S.alphas = as0, G4S.pDirective = dir }) = let
         
         repAnnots pe@(G4S.GTerm G4S.NoAnnot _) = pe
         repAnnots pe@(G4S.GNonTerm G4S.NoAnnot _) = pe
         repAnnots (G4S.GTerm a s) = G4S.GTerm G4S.NoAnnot (annotName a s)
         repAnnots (G4S.GNonTerm a s) = G4S.GNonTerm G4S.NoAnnot (annotName a s)
 
-      in prhs { G4S.alphas = map repAnnots as0 }
+        dir' = let
+            as0' = filter G4S.isGNonTerm as0
+          in case dir of
+            Just x  -> Just x
+            Nothing
+              | length as0' == 0 -> Just $ G4S.HaskellD "()"
+              | length as0' == 1 -> Just $ G4S.HaskellD "(\\x -> x)"
+              | otherwise       -> Just $ G4S.HaskellD $ mkTupler (length as0')
+
+      in prhs { G4S.alphas = map repAnnots as0, G4S.pDirective = dir' }
 
   in p { G4S.patterns = map wOA ps }
 wipeOutAnnots x = x
@@ -831,8 +847,11 @@ removeEpsilonsAST ast = let
                 Just (G4S.LowerD s)     -> "(" ++ ifNull s ++ ")"
                 Just (G4S.HaskellD s)   -> "(" ++ ifNull s ++ ")"
                 -- tuple-er:
-                Nothing -> "(\\" ++ concat params_ys ++ concat params_xs ++ " -> ("
-                            ++  both ++ ")"
+                Nothing
+                  | length (params_ys ++ params_xs) == 0 -> "()"
+                  | length (params_ys ++ params_xs) == 1 -> "(\\x -> x)"
+                  | otherwise -> "(\\" ++ concat params_ys ++ concat params_xs ++ " -> ("
+                                  ++  both ++ "))"
               
               s_dflt = case dflt of
                 Just (G4S.UpperD s) -> s
