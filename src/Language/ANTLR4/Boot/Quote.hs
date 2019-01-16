@@ -379,7 +379,7 @@ getProds ast (G4S.Prod {G4S.pName = n, G4S.patterns = ps}:xs) = let
       | otherwise = toElem (G4S.GTerm G4S.NoAnnot s)
 
     mkProd :: Maybe G4S.Directive -> [TH.ExpQ] -> TH.ExpQ
-    mkProd dir [] = [| $(mkCon "Production") $(conE $ mkName $ "NT_" ++ n) ($(mkCon "Prod") $(mkCon "Pass") [Eps]) $(lift dir) |]
+    mkProd dir [] = [| $(mkCon "Production") $(conE $ mkName $ "NT_" ++ n) ($(mkCon "Prod") $(mkCon "Pass") []) $(lift dir) |]
     mkProd dir es = [| $(mkCon "Production") $(conE $ mkName $ "NT_" ++ n) ($(mkCon "Prod") $(mkCon "Pass") $(listE es)) $(lift dir) |]
 
   in map (\p -> mkProd (G4S.pDirective p) (map toElem $ G4S.alphas p)) ps ++ ((getProds ast) xs)
@@ -643,6 +643,7 @@ a2d_error_clauses _ = []
 
   --concat $ (concatMap eachAlpha . map G4S.alphas) ps
 
+{-
 epsilon_a2d ast (G4S.Prod{G4S.pName = _A, G4S.patterns = ps}) = let
 
     mkConP (G4S.GNonTerm annot nt)
@@ -703,7 +704,7 @@ epsilon_a2d ast (G4S.Prod{G4S.pName = _A, G4S.patterns = ps}) = let
     catLefts (((Left x)):rst) = x : catLefts rst
     catLefts (_:rst) = catLefts rst
 
-    pats as = [ [p| AST  $(conP (mkName $ "NT_" ++ _A) [])
+    pats as =  [ [p| AST  $(conP (mkName $ "NT_" ++ _A) [])
                           $(listP $ map mkConP $ catLefts as)
                           $(astListPattern as)
                  |]
@@ -755,14 +756,32 @@ epsilon_a2d ast (G4S.Prod{G4S.pName = _A, G4S.patterns = ps}) = let
 
   in concatMap e_a2d ps
 epsilon_a2d ast _ = []
+-}
 
-astRemoveEpsilons ast = ast
+-- | Post-condition: all TermAnnots in this production are NoAnnots.
+wipeOutAnnots p@(G4S.Prod{G4S.pName = _A, G4S.patterns = ps}) = let
+
+    wOA prhs@(G4S.PRHS { G4S.alphas = as0 }) = let
+        
+        repAnnots pe@(G4S.GTerm G4S.NoAnnot _) = pe
+        repAnnots pe@(G4S.GNonTerm G4S.NoAnnot _) = pe
+        repAnnots (G4S.GTerm a s) = G4S.GTerm G4S.NoAnnot (annotName a s)
+        repAnnots (G4S.GNonTerm a s) = G4S.GNonTerm G4S.NoAnnot (annotName a s)
+
+      in prhs { G4S.alphas = map repAnnots as0 }
+
+  in p { G4S.patterns = map wOA ps }
+wipeOutAnnots x = x
 
 --allClauses :: Grammar s nts t -> G4AST -> [(Name, [ClauseQ])]
-allClauses gr ast nameAST =
-             (concat . catMaybes . map (a2d ast nameAST)) (genTermAnnotProds ast ++ ast) -- standard clauses ignoring optionals (?,+,*) syntax
-{-          ++ (concatMap regex_a2d) ast          -- Epsilon-removed optional ast conversion functions -}
-          ++ (concatMap (epsilon_a2d ast)) ast        -- Clauses for productions with epsilons
+allClauses gr ast' nameAST = let
+
+    ast = genTermAnnotProds ast' ++ ast'
+
+  in 
+             (concat . catMaybes . map (a2d ast nameAST)) ast -- standard clauses ignoring optionals (?,+,*) syntax
+{-          ++ (concatMap regex_a2d) ast        -- Epsilon-removed optional ast conversion functions -}
+{-          ++ (concatMap (epsilon_a2d ast)) ast  -- Clauses for productions with epsilons -}
           ++ (concatMap a2d_error_clauses) ast  -- Catch-all error clauses
 
 funDecls lst@((name, _):_) = Just $ funD name $ concatMap snd lst
@@ -774,12 +793,123 @@ ast2DTFncnsQ gr ast nameAST =
 
 unitTy = [t| () |]
 
+removeEpsilonsAST :: [G4S.G4] -> [G4S.G4]
+removeEpsilonsAST ast = let
+    
+    getPRHS (G4S.Prod { G4S.pName = s, G4S.patterns = ps }) = map (\as -> (s, as)) ps
+    getPRHS _ = []
+
+    epsNT (_A, G4S.PRHS { G4S.alphas = [], G4S.pDirective = dir}) = (:) (_A, dir)
+    epsNT _ = id
+
+    epsNTs = foldr epsNT [] (concatMap getPRHS ast)
+
+    -- Maintains order with a foldr
+    orderNub ast0 asts
+      | ast0 `elem` asts = asts
+      | otherwise        = ast0 : asts
+
+    replicateDeclFor (nts0, dflt) (G4S.Prod { G4S.pName = nt1, G4S.patterns = ps }) = let
+
+        -- Reconstruct the directive such that we drop one symbol (NT or T) between ys xs
+        -- (starting with ys, ending with xs)
+        dropOne ys xs dir =
+          let params_ys = map (\i -> " p" ++ show i ++ " ") [0 .. length ys - 1]
+              params_xs = map (\i -> " p" ++ show i ++ " ") [length ys .. length ys + length xs - 1]
+              
+              s_dir = case dir of
+                Just (G4S.UpperD s) -> s
+                Just (G4S.LowerD s) -> s
+                Just (G4S.HaskellD s) -> s
+                Nothing -> ""
+              
+              s_dflt = case dflt of
+                Just (G4S.UpperD s) -> s
+                Just (G4S.LowerD s) -> s
+                Just (G4S.HaskellD s) -> s
+                Nothing -> "()"
+
+          in  Just $ G4S.HaskellD $ "(\\" ++ concat params_ys ++ concat params_xs ++ " -> " ++ s_dir
+              ++ concat params_ys ++ " " ++ s_dflt ++ " " ++ concat params_xs ++ ")"
+
+        rDF prhs ys [] = [ updatePRHS prhs $ reverse ys ]
+        rDF prhs ys (x:xs) = let
+
+          newPRHS = prhs { G4S.pDirective = dropOne ys xs (G4S.pDirective prhs) }
+
+          result
+            | G4S.prodElemSymbol x == nts0 -- String equality
+                = updatePRHS newPRHS (reverse ys ++ xs)
+                : updatePRHS prhs    (reverse ys ++ x:xs)
+                : (  rDF newPRHS ys     xs  -- Recursively with nts0 removed
+                  ++ rDF prhs    (x:ys) xs) -- Recursively without nts0 removed
+            | otherwise = rDF prhs (x:ys) xs
+       
+          in result
+
+        updatePRHS prhs xs = prhs { G4S.alphas = xs }
+
+      in  ( G4S.Prod
+             { G4S.pName    = nt1
+             -- TODO: nub by ignoring directives? Really the directives need to be types not strings...
+             , G4S.patterns = nub $ concatMap 
+                              (\prhs -> rDF prhs [] (G4S.alphas prhs))
+                              ps
+             }
+          )
+    replicateDeclFor _ p = p
+
+    eliminate nts prod@(G4S.Prod { G4S.pName = _A, G4S.patterns = ps }) =
+      if _A == nts
+        then prod { G4S.patterns = filter (not . null . G4S.alphas) ps }
+        else prod
+    eliminate nts prod = prod
+
+    ast' = case D.trace ("epsNTs: " ++ show epsNTs) epsNTs of
+      [] -> ast
+      ((nts, dflt):ntss) -> removeEpsilonsAST $
+        map (eliminate nts) (foldr orderNub [] (map (replicateDeclFor (nts, dflt)) ast))
+
+  in foldr orderNub [] ast'
+
+{-
+    epsNT (_A, G4S.PRHS { G4S.alphas = [] }) = (:) _A
+    epsNT prod                               = id
+
+    ps_init = concatMap (\
+
+    epsNTs = foldr epsNT [] (map (second (filter (not . isEps))) ps_init)
+
+    orderNub ps p1
+      | p1 `elem` ps = ps
+      | otherwise    = p1 : ps
+
+    replicateProd nts0 (nt1, es) = let
+      
+        rP ys [] = [(nt1, reverse ys)]
+        rP
+
+      in rP [] es
+
+    ps' = case epsNTs of
+      []          -> ps_init
+      (nts:ntss)  -> removeEpsilonsAST $
+                      foldl orderNub [
+                            [ p'
+                            | (_A, as) <- ps_init
+                            , p' <- replicateProd nts (_A, as)
+                            , (not . null) as
+                            ]
+
+
+  in ps'
+-}
+
 -- | This function does the heavy-lifting of Haskell code generation, most notably
 --   generating non-terminal, terminal, and grammar data types as well as accompanying
 --   parsing functions.
 g4_decls :: [G4S.G4] -> TH.Q [TH.Dec] -- exp :: G4
-g4_decls ast =
-
+g4_decls ast' =
   -- terminaLiterals, lexemeNames
 
   -- IMPORTANT: Creating type variables in two different haskell type
@@ -787,7 +917,9 @@ g4_decls ast =
   -- variables. In order to achieve the same type variable you need to run one
   -- in the Q monad first then pass the resulting type to other parts of the
   -- code that need it (thus capturing the type variable).
-  do  let tokVal    = mkName "TokenValue"
+  do  let ast       = removeEpsilonsAST $ map wipeOutAnnots (ast' ++ genTermAnnotProds ast') -- Order of '++' matters here
+
+          tokVal    = mkName "TokenValue"
           tokName   = mkName "TokenName"
           ntSym     = mkName $ ntDataName ast
           tSym      = mkName $ tDataName ast
@@ -798,6 +930,8 @@ g4_decls ast =
           nameUnit  = mkName $ mkLower (gName ast ++ "Grammar")
           lowerASTName = mkName (mkLower $ gName ast ++ "AST")
       
+      D.traceM $ "AST=" ++ pshowList' ast
+
       prettyTFncnName <- newName "prettifyT"
       prettyValueFncnName <- newName "prettifyValue"
 
@@ -805,7 +939,8 @@ g4_decls ast =
       let stateType = varT stateTypeName
 
       gTyUnit <- justGrammarTy ast unitTy
-      gUnitFunD <- funD nameUnit [clause [] (normalB $ [| LL.removeEpsilons $(varE name) |]) []]
+      --gUnitFunD <- funD nameUnit [clause [] (normalB $ [| LL.removeEpsilons $(varE name) |]) []]
+      gUnitFunD <- funD nameUnit [clause [] (normalB $ [| $(varE name) |]) []]
       gTySigUnit <- sigD nameUnit (return gTyUnit)
 
       ntDataDecl <- ntDataDeclQ ast

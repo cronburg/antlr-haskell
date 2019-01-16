@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveLift, DeriveAnyClass, DeriveGeneric #-}
+{-# LANGUAGE DeriveLift, DeriveAnyClass, DeriveGeneric, OverloadedStrings #-}
 {-|
   Module      : Language.ANTLR4.Boot.Syntax
   Description : Both the boot and core syntax data types for G4
@@ -13,6 +13,7 @@ module Language.ANTLR4.Boot.Syntax
   , Directive(..)
   , LRHS(..), Regex(..), isGTerm, isGNonTerm
   , TermAnnot(..), isMaybeAnnot, isNoAnnot, annot
+  , prodElemSymbol
   ) where
 import Text.ANTLR.Grammar ()
 import Language.Haskell.TH.Lift (Lift(..))
@@ -21,7 +22,7 @@ import Language.Haskell.TH.Syntax (Exp)
 import qualified Language.Haskell.TH.Syntax as S
 
 import Text.ANTLR.Set ( Hashable(..), Generic(..) )
-import Text.ANTLR.Pretty (rshow, Prettify(..))
+import Text.ANTLR.Pretty -- (rshow, Prettify(..), pStr, pshow, pStr')
 
 -- | .g4 style syntax representation
 data G4 = -- | Grammar name declaration in g4
@@ -38,6 +39,27 @@ data G4 = -- | Grammar name declaration in g4
                }
   deriving (Show, Eq, Lift, Generic, Hashable)
 
+instance Prettify G4 where
+  prettify (Grammar gn) = do
+    pStr "grammar "
+    pStr' gn
+  prettify (Prod n ps) = do
+    pStr' n
+    pStr " -> "
+    incrIndent $ length n + 4
+    pListLines ps
+    incrIndent $ 0 - (length n + 4)
+  prettify (Lex annot ln (LRHS regex dir)) = do
+    pStr' ln
+    pStr " -> "
+    incrIndent $ length ln + 4
+    prettify regex
+    incrIndent $ 0 - (length ln + 4)
+    pStr "("
+    prettify dir
+    pStr ")"
+
+
 instance Lift Exp
 
 -- | The right-hand side of a G4 production rule.
@@ -47,6 +69,14 @@ data PRHS = PRHS
   , mutator     :: Maybe Exp  -- ^ Arbitrary mutator to run when this rule fires
   , pDirective  :: Maybe Directive -- ^ How to construct a Haskell type when this rules fires
   } deriving (Show, Eq, Lift, Generic)
+
+instance Prettify PRHS where
+  prettify (PRHS as pred mut pDir) = do
+    prettify as
+    pStr "("
+    pStr' $ show pred; pStr ","
+    pStr' $ show mut;  pStr ","
+    prettify pDir; pStr ")"
 
 -- | Antiquoted (or g4-embedded) string that goes to the right of an arrow in
 --   a g4 production rule. This specifies how to construct a Haskell type.
@@ -68,6 +98,10 @@ data TermAnnot =
   | NoAnnot      -- ^ Term is not annotated with anything
   deriving (Show, Eq, Ord, Lift, Generic, Hashable)
 
+instance Prettify TermAnnot where
+  prettify NoAnnot = return ()
+  prettify (Regular c) = pStr' [c]
+
 -- | Get the annotation from a 'ProdElem'
 annot :: ProdElem -> TermAnnot
 annot (GTerm a _) = a
@@ -88,6 +122,17 @@ data ProdElem =
     GTerm     TermAnnot String -- ^ G4 terminal
   | GNonTerm  TermAnnot String -- ^ G4 nonterminal
   deriving (Show, Eq, Ord, Lift, Generic, Hashable)
+
+instance Prettify ProdElem where
+  prettify (GTerm annot s) = do
+    pStr' s
+    prettify annot
+  prettify (GNonTerm annot s) = do
+    pStr' s
+    prettify annot
+
+prodElemSymbol (GTerm _ s) = s
+prodElemSymbol (GNonTerm _ s) = s
 
 -- | Is this a terminal G4 element?
 isGTerm (GTerm _ _) = True
@@ -123,4 +168,12 @@ data Regex s =
   deriving (Lift, Eq, Show, Generic, Hashable)
 -- TODO: Lex regexs (e.g. complement sets, escape chars, ...)
 -- TODO: Set s, and ranges of characters
+
+instance (Show s, Prettify s) => Prettify (Regex s) where
+  prettify Epsilon = pStr "ε"
+  prettify (Literal ss) = do
+    pStr "\""
+    mapM prettify ss
+    pStr "\""
+  prettify rest = pStr' $ show rest
 

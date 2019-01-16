@@ -34,6 +34,8 @@ module Language.ANTLR4 (
   , Hashable(..), Generic(..), Data(..), Lift(..)
   -- | Parser interface data types:
   , S.Set(..), T.Token(..), LRResult(..)
+  -- | Grammar interface data types:
+  , Directive(..), PRHS(..), TermAnnot(..)
   )
 where
 
@@ -55,4 +57,7 @@ import Language.ANTLR4.Boot.Quote (mkLRParser, g4_parsers)
 
 import Data.Data (Data(..))
 import Language.Haskell.TH.Lift (Lift(..))
+
+import Language.ANTLR4.Boot.Syntax
+  (Directive(..), PRHS(..), TermAnnot(..), ProdElem(..))
 

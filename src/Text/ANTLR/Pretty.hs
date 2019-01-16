@@ -139,6 +139,12 @@ pshow t = str $ execState (prettify t) initPState
 pshow' :: (Prettify t) => t -> String
 pshow' = T.unpack . pshow
 
+pshowList :: (Prettify t) => [t] -> T.Text
+pshowList t = str $ execState (prettifyList t) initPState
+
+pshowList' :: (Prettify t) => [t] -> String
+pshowList' = T.unpack . pshowList
+
 -- | Run the pretty-printer with a specific indentation level.
 pshowIndent :: (Prettify t) => Int -> t -> T.Text
 pshowIndent i t = str $ execState (prettify t) $ initPState { indent = i }
