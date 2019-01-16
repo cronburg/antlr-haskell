@@ -17,7 +17,7 @@ module Language.ANTLR4.Boot.Quote
   ) where
 import Prelude hiding (exp, init)
 import System.IO.Unsafe (unsafePerformIO)
-import Data.List (nub, elemIndex, groupBy, sortBy, sort)
+import Data.List (nub, elemIndex, groupBy, sortBy, sort, intersperse)
 import Data.Ord (comparing)
 import Data.Char (toLower, toUpper, isLower, isUpper)
 import Data.Maybe (fromJust, catMaybes)
@@ -820,17 +820,25 @@ removeEpsilonsAST ast = let
               params_ys = map (\i -> " p" ++ show i ++ " ") [0 .. length ys - 1]
               params_xs = map (\i -> " p" ++ show i ++ " ") [length ys .. length ys + length xs - 1]
               
+              both = concat (intersperse "," $ params_ys ++ params_xs)
+
+              ifNull s
+                | null s    = "id"
+                | otherwise = s
+
               s_dir = case dir of
-                Just (G4S.UpperD s) -> "(" ++ s ++ ")"
-                Just (G4S.LowerD s) -> "(" ++ s ++ ")"
-                Just (G4S.HaskellD s) -> "(" ++ s ++ ")"
-                Nothing -> ""
+                Just (G4S.UpperD s)     -> "(" ++ ifNull s ++ ")"
+                Just (G4S.LowerD s)     -> "(" ++ ifNull s ++ ")"
+                Just (G4S.HaskellD s)   -> "(" ++ ifNull s ++ ")"
+                -- tuple-er:
+                Nothing -> "(\\" ++ concat params_ys ++ concat params_xs ++ " -> ("
+                            ++  both ++ ")"
               
               s_dflt = case dflt of
                 Just (G4S.UpperD s) -> s
                 Just (G4S.LowerD s) -> s
                 Just (G4S.HaskellD s) -> s
-                Nothing -> "()"
+                Nothing -> "    ()    "
 
               ret
                 | length params_ys + length params_xs == 0 = Just $ G4S.HaskellD $ "(" ++ s_dir ++ " " ++ s_dflt ++ ")"
