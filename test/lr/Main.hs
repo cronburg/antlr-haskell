@@ -30,6 +30,8 @@ import qualified Debug.Trace as D
 import qualified GLRInc
 import qualified GLRPartial as GP
 
+import qualified EOF
+
 uPIO = unsafePerformIO
 
 grm = dragonBook41
@@ -384,5 +386,6 @@ main = defaultMainWithOpts
   , testCase "testGLR" testGLRParse
   , testCase "test_GLRInc" GLRInc.test_GLRInc
   , testCase "test_GLRPartial" GP.test_GLRPartial
+  , testCase "eof_bug" EOF.test_eof
   ] mempty
 
