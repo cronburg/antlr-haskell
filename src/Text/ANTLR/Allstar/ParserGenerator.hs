@@ -11,7 +11,7 @@
 
 -}
 module Text.ANTLR.Allstar.ParserGenerator
-  ( GrammarSymbol(..), Token(..), ATNEnv(..)
+  ( GrammarSymbol(..), ATNEnv(..)
   , AST(..), ATNState(..), ATNEdge(..)
   , ATNEdgeLabel(..)
   , parse
@@ -20,6 +20,10 @@ module Text.ANTLR.Allstar.ParserGenerator
 import Data.List
 import qualified Data.Set as DS
 import Debug.Trace
+import Data.Maybe (fromJust)
+
+import Text.ANTLR.Parser (HasEOF(..))
+import Text.ANTLR.Grammar (Ref(..))
 
 --------------------------------TYPE DEFINITIONS--------------------------------
 
@@ -92,12 +96,18 @@ type DFAEdge nt t   = (DFAState nt, t, DFAState nt)
 data DFAState nt    = Dinit [ATNConfig nt] | D [ATNConfig nt] | F Int | Derror deriving (Eq, Ord, Show)
 type DFAEnv nt t    = [(GrammarSymbol nt t, DFA nt t)]
 
+getLabel :: (Ref v, HasEOF (Sym v)) => v -> StripEOF (Sym v)
+getLabel = fromJust . stripEOF . getSymbol
+
+type Label tok = StripEOF (Sym tok)
+
 -- | Input sequence type
-class Token t where
+{-class Token t where
   type Label t :: *
   type Literal t :: *
   getLabel   :: t -> Label t
   getLiteral :: t -> Literal t
+-}
 
 -- | Return type of parse function
 data AST nt tok = Node nt [AST nt tok] | Leaf tok deriving (Eq, Show)
@@ -171,7 +181,8 @@ bind k v ((k', v') : al') = if k == k' then (k, v) : al' else (k', v') : bind k 
 
 -- | ALL(*) parsing algorithm. This is __not__ the entrypoint as used by
 --   user-facing code. See 'Text.ANTLR.Allstar.parse' instead.
-parse :: (Eq nt, Show nt, Ord nt, Eq (Label tok), Show (Label tok), Ord (Label tok), Token tok, Show tok) =>
+parse :: (Eq nt, Show nt, Ord nt, Eq (Label tok), Show (Label tok), Ord (Label tok), Show tok
+         , Ref tok, HasEOF (Sym tok)) =>
          [tok] -> GrammarSymbol nt (Label tok) -> ATNEnv nt (Label tok) -> Bool -> Either String (AST nt tok)
 parse input startSym atnEnv useCache =
   let parseLoop input currState stack dfaEnv subtrees astStack =

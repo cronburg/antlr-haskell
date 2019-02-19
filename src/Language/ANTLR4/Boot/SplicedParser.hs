@@ -378,12 +378,12 @@ glrParse_aLE5 ::
 glrParse_aLE5 filterF_aLE8
   = ((LR.glrParseInc g4Grammar) event2ast)
       (((tokenizeInc filterF_aLE8) g4DFAs) lexeme2value)
-instance ALL.Token G4Token where
+{- instance ALL.Token G4Token where
   type Label G4Token = StripEOF (Sym G4Token)
   type Literal G4Token = TokenValue
   getLabel
     = (Data.Maybe.fromJust . (stripEOF . getSymbol))
-  getLiteral = tokenValue
+  getLiteral = tokenValue -}
 allstarParse_aLE4 :: [G4Token] -> Either String G4AST
 allstarParse_aLE4 inp_aLE9
   = (((Text.ANTLR.Allstar.parse inp_aLE9)

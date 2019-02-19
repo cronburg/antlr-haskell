@@ -14,7 +14,6 @@
 -}
 module Text.ANTLR.Allstar
   ( parse, atnOf
-  , ALL.Token(..)
   , ALL.GrammarSymbol(..)
   , ALL.ATNEnv
   ) where

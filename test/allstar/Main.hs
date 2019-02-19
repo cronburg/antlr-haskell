@@ -9,8 +9,10 @@ import Test.HUnit
 import Test.QuickCheck (Property, quickCheck, (==>))
 import qualified Test.QuickCheck.Monadic as TQM
 
+import qualified AllStarTests
+
 main :: IO ()
 main = defaultMainWithOpts
-  [
-  ] mempty
+  AllStarTests.tests
+  mempty
 

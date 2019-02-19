@@ -319,6 +319,7 @@ tests:
     source-dirs:
       - test/allstar
       - test/shared
+      - test/shared-hunit
     ghc-options:
     - -threaded
     - -rtsopts

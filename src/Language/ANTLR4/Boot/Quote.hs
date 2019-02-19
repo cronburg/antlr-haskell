@@ -1055,12 +1055,12 @@ g4_parsers ast gr = do
                       $(conT nameAST)
       glrParse filterF = (LR.glrParseInc2 $(varE nameUnit) event2ast (T.tokenizeInc filterF $(varE nameDFAs) lexeme2value))
 
-      instance ALL.Token $(conT nameToken) where
+      {- instance ALL.Token $(conT nameToken) where
         type Label $(conT nameToken) = StripEOF (Sym $(conT nameToken))
         getLabel = fromJust . stripEOF . getSymbol
 
         type Literal $(conT nameToken) = $(conT tokVal)
-        getLiteral = T.tokenValue
+        getLiteral = T.tokenValue -}
 
       allstarParse :: [$(conT nameToken)] -> Either String $(conT nameAST)
       allstarParse inp = ALL.parse inp (ALL.NT $(s0 ast)) (ALL.atnOf ($(varE nameUnit) :: $(justGrammarTy ast unitTy))) True
