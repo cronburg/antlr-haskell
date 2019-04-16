@@ -19,31 +19,36 @@ Haskell we have followed the following principles:
     embedding of arbitrary (including IO) actions without breaking the predictive
     parsing abstraction.
 
+More info can be found here:
+[https://www.cronburg.com/2018/antlr-haskell-project/](https://www.cronburg.com/2018/antlr-haskell-project/)
+
 ## Build instructions
 
 The library can be built with:
 
-```
-stack build # stack version 1.9.1.1
-stack test antlr-haskell:simpl
+```bash
+stack build # stack version 1.9.3
+stack test :simple
 ```
 
 Or with cabal-2.4.0.1 like:
 
-```
+```bash
 cabal configure
 cabal install --only-dependencies --enable-tests
 cabal build
 cabal test sexpression
 ```
 
-### sample grammar for ALL(\*)
+## Sample grammar for ALL(\*)
 
+```
 S -> Ac | Ad
 
 A -> aA | b
+```
 
-#### ALL(\*) Input/output examples
+### ALL(\*) Input/output examples
 
 ```haskell
 *Test.AllStarTests> parse ['a', 'b', 'c'] (NT 'S') atnEnv

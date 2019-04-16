@@ -338,6 +338,30 @@ tests:
     - DeriveGeneric
     - DeriveAnyClass
   
+  c:
+    main:                Main.hs
+    source-dirs:
+      - test/c
+      - test/shared
+      - test/shared-hunit
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - antlr-haskell
+    - test-framework >= 0.8
+    - test-framework-hunit >= 0.3
+    - test-framework-quickcheck2 >= 0.3
+    - QuickCheck >= 2.11
+    - HUnit >= 1.6
+    - call-stack >= 0.1
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
+  
   unit:
     main:                Main.hs
     source-dirs:

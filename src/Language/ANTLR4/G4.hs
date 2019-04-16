@@ -58,6 +58,8 @@ literalRegex = G4S.Literal
 
 prodDirective as d = G4S.PRHS as Nothing Nothing (Just d)
 prodNoDir     as   = G4S.PRHS as Nothing Nothing Nothing
+prodNoAlphas     d = G4S.PRHS [] Nothing Nothing (Just d)
+prodNothing        = G4S.PRHS [] Nothing Nothing Nothing
 
 list2 a b = [a,b]
 range a b = [a .. b]
@@ -113,6 +115,8 @@ $( return [] )
 
   prodRHS : alphas '->' directive   -> prodDirective
           | alphas                  -> prodNoDir
+          |        '->' directive   -> prodNoAlphas
+          |                         -> prodNothing
           ;
 
   directive : qDirective          -> dQual

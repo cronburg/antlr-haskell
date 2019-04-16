@@ -47,6 +47,8 @@ literalRegex = G4S.Literal
 
 prodDirective as d = G4S.PRHS as Nothing Nothing (Just d)
 prodNoDir     as   = G4S.PRHS as Nothing Nothing Nothing
+prodNoAlphas     d = G4S.PRHS [] Nothing Nothing (Just d)
+prodNothing        = G4S.PRHS [] Nothing Nothing Nothing
 
 list2 a b = [a,b]
 range a b = [a .. b]
@@ -114,24 +116,21 @@ g4Grammar'
     {ns = S.fromList [minBound .. maxBound :: G4NTSymbol],
      ts = S.fromList [minBound .. maxBound :: G4TSymbol],
      ps = [(Production NT_decls) ((Prod Pass) [NT NT_decl1, T T_0]) (Just ""),
-           (Production NT_decls)
-             ((Prod Pass) [NT NT_decl1, T T_0, NT NT_decls]) (Just ""),
+           (Production NT_decls) ((Prod Pass) [NT NT_decl1, T T_0, NT NT_decls]) (Just ""),
            (Production NT_decl1) ((Prod Pass) [T T_1, T T_UpperID]) (Just ""),
-           (Production NT_decl1)
-             ((Prod Pass) [T T_LowerID, T T_2, NT NT_prods]) (Just ""),
-           (Production NT_decl1)
-             ((Prod Pass) [T T_UpperID, T T_2, NT NT_lexemeRHS]) (Just ""),
-           (Production NT_decl1)
-             ((Prod Pass) [T T_3, T T_UpperID, T T_2, NT NT_lexemeRHS]) (Just ""),
+           (Production NT_decl1) ((Prod Pass) [T T_LowerID, T T_2, NT NT_prods]) (Just ""),
+           (Production NT_decl1) ((Prod Pass) [T T_UpperID, T T_2, NT NT_lexemeRHS]) (Just ""),
+           (Production NT_decl1) ((Prod Pass) [T T_3, T T_UpperID, T T_2, NT NT_lexemeRHS]) (Just ""),
            (Production NT_prods) ((Prod Pass) [NT NT_prodRHS]) (Just ""),
-           (Production NT_prods)
-             ((Prod Pass) [NT NT_prodRHS, T T_4, NT NT_prods]) (Just ""),
-           (Production NT_lexemeRHS)
-             ((Prod Pass) [NT NT_regexes1, T T_5, NT NT_directive]) (Just ""),
+           (Production NT_prods) ((Prod Pass) [NT NT_prodRHS, T T_4, NT NT_prods]) (Just ""),
+           (Production NT_lexemeRHS) ((Prod Pass) [NT NT_regexes1, T T_5, NT NT_directive]) (Just ""),
            (Production NT_lexemeRHS) ((Prod Pass) [NT NT_regexes1]) (Just ""),
-           (Production NT_prodRHS)
-             ((Prod Pass) [NT NT_alphas, T T_5, NT NT_directive]) (Just ""),
+           (Production NT_prodRHS) ((Prod Pass) [NT NT_alphas, T T_5, NT NT_directive]) (Just ""),
            (Production NT_prodRHS) ((Prod Pass) [NT NT_alphas]) (Just ""),
+           -- Can leave prodRHS empty (epsilon) with *no* directive:
+           (Production NT_prodRHS) ((Prod Pass) []) (Just ""),
+           -- Can leave prodRHS empty (epsilon) *with* a directive:
+           (Production NT_prodRHS) ((Prod Pass) [T T_5, NT NT_directive]) (Just ""),
            (Production NT_directive) ((Prod Pass) [T T_UpperID]) (Just ""),
            (Production NT_directive) ((Prod Pass) [T T_LowerID]) (Just ""),
            (Production NT_directive) ((Prod Pass) [T T_UpperID, T T_14, NT NT_directive]) (Just ""),
@@ -157,23 +156,17 @@ g4Grammar'
            (Production NT_regex) ((Prod Pass) [NT NT_regex1, T T_8]) (Just ""),
            (Production NT_regex) ((Prod Pass) [T T_9, NT NT_regex1]) (Just ""),
            (Production NT_regex) ((Prod Pass) [NT NT_regex1]) (Just ""),
-           (Production NT_regex1)
-             ((Prod Pass) [T T_10, NT NT_charSet, T T_11]) (Just ""),
+           (Production NT_regex1) ((Prod Pass) [T T_10, NT NT_charSet, T T_11]) (Just ""),
            (Production NT_regex1) ((Prod Pass) [T T_Literal]) (Just ""),
            (Production NT_regex1) ((Prod Pass) [T T_UpperID]) (Just ""),
-           (Production NT_regex1)
-             ((Prod Pass) [T T_12, NT NT_regexes1, T T_13]) (Just ""),
+           (Production NT_regex1) ((Prod Pass) [T T_12, NT NT_regexes1, T T_13]) (Just ""),
            (Production NT_regex1) ((Prod Pass) [NT NT_unionR]) (Just ""),
            (Production NT_regex1) ((Prod Pass) [T T_14]) (Just ""),
-           (Production NT_unionR)
-             ((Prod Pass) [NT NT_regex, T T_4, NT NT_regex]) (Just ""),
-           (Production NT_unionR)
-             ((Prod Pass) [NT NT_regex, T T_4, NT NT_unionR]) (Just ""),
+           (Production NT_unionR) ((Prod Pass) [NT NT_regex, T T_4, NT NT_regex]) (Just ""),
+           (Production NT_unionR) ((Prod Pass) [NT NT_regex, T T_4, NT NT_unionR]) (Just ""),
            (Production NT_charSet) ((Prod Pass) [NT NT_charSet1]) (Just ""),
-           (Production NT_charSet)
-             ((Prod Pass) [NT NT_charSet1, NT NT_charSet]) (Just ""),
-           (Production NT_charSet1)
-             ((Prod Pass) [T T_SetChar, T T_15, T T_SetChar]) (Just ""),
+           (Production NT_charSet) ((Prod Pass) [NT NT_charSet1, NT NT_charSet]) (Just ""),
+           (Production NT_charSet1) ((Prod Pass) [T T_SetChar, T T_15, T T_SetChar]) (Just ""),
            (Production NT_charSet1) ((Prod Pass) [T T_SetChar]) (Just ""),
            (Production NT_charSet1) ((Prod Pass) [T T_EscapedChar]) (Just "")]}
 g4Grammar :: Grammar () G4NTSymbol G4TSymbol String
@@ -498,6 +491,10 @@ ast2prodRHS
       (ast2directive v2_directive)
 ast2prodRHS (AST NT_prodRHS [NT NT_alphas] [v0_alphas])
   = prodNoDir (ast2alphas v0_alphas)
+-- (Production NT_prodRHS) ((Prod Pass) []) (Just ""),
+ast2prodRHS (AST NT_prodRHS [] []) = prodNothing
+-- (Production NT_prodRHS) ((Prod Pass) [T T_5, NT NT_directive]) (Just ""),
+ast2prodRHS (AST NT_prodRHS [T T_5, NT NT_directive] [_, v1_directive]) = prodNoAlphas (ast2directive v1_directive)
 ast2prodRHS ast2 = error (show ast2)
 ast2prods (AST NT_prods [NT NT_prodRHS] [v0_prodRHS])
   = list (ast2prodRHS v0_prodRHS)

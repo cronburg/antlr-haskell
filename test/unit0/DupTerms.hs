@@ -2,7 +2,7 @@
     , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
     , FlexibleInstances, UndecidableInstances, FlexibleContexts, TemplateHaskell
     , DeriveDataTypeable #-}
-module Main where
+module DupTerms where
 import Language.ANTLR4
 
 import System.IO.Unsafe (unsafePerformIO)
@@ -17,14 +17,11 @@ import qualified Test.QuickCheck.Monadic as TQM
 import Language.Haskell.TH.Syntax (lift)
 import qualified Text.ANTLR.LR as LR
 
-import Star0
-import Star1
-import DupTerms
+import DupTermsGrammar
 
-main :: IO ()
-main = defaultMainWithOpts
-  [ testCase "test_star0" test_star0
-  , testCase "test_star1" test_star1
-  , testCase "duplicate_terminals" test_dup_terms
-  ] mempty
+$(g4_parsers dupTermsAST dupTermsGrammar)
+
+test_dup_terms = case glrParse (== T_WS) "page page" of
+  (ResultAccept ast) -> ast2words ast @?= ["page", "page"]
+  rest -> assertFailure $ "Did not parse: " ++ pshow' rest
 

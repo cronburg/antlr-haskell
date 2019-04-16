@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies, FlexibleContexts, BangPatterns #-}
 {-|
   Module      : Text.ANTLR.Allstar.ParserGenerator
   Description : ALL(*) parsing algorithm
@@ -19,7 +19,7 @@ module Text.ANTLR.Allstar.ParserGenerator
 
 import Data.List
 import qualified Data.Set as DS
-import Debug.Trace
+import Debug.Trace as D
 import Data.Maybe (fromJust)
 
 import Text.ANTLR.Parser (HasEOF(..))
