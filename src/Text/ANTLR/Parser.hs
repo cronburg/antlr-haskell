@@ -84,6 +84,12 @@ data TokenSymbol n =
   | EOFSymbol      -- ^ End-of-file symbol
   deriving (Eq, Ord, Show, Hashable, Generic)
 
+instance (Prettify n) => Prettify (TokenSymbol n) where
+  prettify (TokenSymbol n) = do
+    pStr "TokenSymbol "
+    prettify n
+  prettify EOFSymbol = pStr "EOFSymbol"
+
 -- | A data type with an EOF constructor. There are two things you can do with a
 --   data type that has an EOF:
 --

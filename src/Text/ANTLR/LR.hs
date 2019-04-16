@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, ExplicitForAll, DeriveGeneric, DeriveAnyClass
   , FlexibleContexts, StandaloneDeriving, OverloadedStrings, MonadComprehensions
-  , InstanceSigs, DeriveDataTypeable, DeriveLift #-}
+  , InstanceSigs, DeriveDataTypeable, DeriveLift, ConstraintKinds #-}
 {-|
   Module      : Text.ANTLR.LR
   Description : Entrypoint for all parsing algorithms based on LR
@@ -208,11 +208,7 @@ instance  ( Prettify t, Prettify ast, Prettify lrstate
   prettify (ResultAccept ast)             = pStr "ResultAccept: " >> prettify ast
 
 -- | Algorithm for computing an SLR closure.
-slrClosure ::
-  forall nts sts dt.
-  ( Eq sts
-  , Ord nts, Ord sts
-  , Hashable sts, Hashable nts)
+slrClosure :: forall nts sts dt. ( CanParse' nts sts dt )
   => Grammar () nts sts dt -> SLRClosure (CoreSLRState nts sts)
 slrClosure g is' = let
 
@@ -232,11 +228,7 @@ slrClosure g is' = let
   in closure' is'
 
 -- | Algorithm for computing an LR(1) closure.
-lr1Closure ::
-  forall nts sts dt.
-  ( Eq nts, Eq sts
-  , Ord nts, Ord sts, Ord sts
-  , Hashable sts, Hashable sts, Hashable nts)
+lr1Closure :: forall nts sts dt. ( Tabular nts, Tabular sts )
   => Grammar () nts sts dt -> Closure (CoreLR1State nts sts)
 lr1Closure g is' = let
 
@@ -268,10 +260,7 @@ convAction _ Accept = Accept
 convAction _ Error = Error
 
 -- | fmap over @lrstate@s of a 'LRTable'.
-convTable ::
-  ( Ord lrstate, Ord lrstate', Ord sts
-  , Hashable nts, Hashable sts, Hashable lrstate, Hashable lrstate'
-  , Eq nts)
+convTable :: ( IsState lrstate, IsState lrstate', Tabular nts, Tabular sts )
   => (lrstate -> lrstate') -> LRTable nts sts lrstate -> LRTable nts sts lrstate'
 convTable fncn tbl = M.fromList'
   [ ((fncn state, icon), S.map (convAction fncn) action)
@@ -279,46 +268,36 @@ convTable fncn tbl = M.fromList'
   ]
 
 -- | Convert the states in a 'LRTable' into integers.
-convTableInt :: forall lrstate nts sts.
-  ( Ord lrstate, Ord sts
-  , Hashable nts, Hashable sts, Hashable lrstate
-  , Eq nts, Show lrstate)
+convTableInt :: forall lrstate nts sts. ( IsState lrstate, Tabular nts, Tabular sts )
   => LRTable nts sts lrstate -> [lrstate] -> LRTable nts sts Int
 convTableInt tbl ss = convTable (convStateInt $ ss) tbl
 
 -- | fmap over @lrstate@s of a 'Goto'.
-convGotoStates ::
-  ( Ord lrstate, Ord lrstate', Ord sts, Ord nts
-  , Hashable nts, Hashable sts, Hashable lrstate
-  , Eq nts)
+convGotoStates :: ( IsState lrstate, IsState lrstate', Tabular nts, Tabular sts )
   => (lrstate -> lrstate') -> Goto nts sts lrstate -> Goto nts sts lrstate'
 convGotoStates fncn goto = M1.fromList [ ((fncn st0, e), fncn st1) | ((st0, e), st1) <- M1.toList goto ]
 
 -- | Convert the states in a goto to integers.
-convGotoStatesInt :: forall lrstate nts sts.
-  ( Ord lrstate, Ord sts, Ord nts
-  , Hashable nts, Hashable sts, Hashable lrstate
-  , Eq nts, Show lrstate)
+convGotoStatesInt :: forall lrstate nts sts. ( IsState lrstate, Tabular sts, Tabular nts )
   => Goto nts sts lrstate -> [lrstate] -> Goto nts sts Int
 convGotoStatesInt goto ss = convGotoStates (convStateInt ss) goto
 
 -- | Create a function that, given the list of all possible @lrstate@ elements,
 --   converts an @lrstate@ into a unique integer.
-convStateInt :: forall lrstate.
-  (Ord lrstate, Show lrstate)
+convStateInt :: forall lrstate. ( IsState lrstate )
   => [lrstate] -> (lrstate -> Int)
 convStateInt ss = let
     statemap :: M1.Map lrstate Int
     statemap = M1.fromList $ zip ss [0 .. ]
 
-    fromJust' st Nothing = error $ "woops: " ++ show st
+    fromJust' st Nothing = error $ "woops: " ++ pshow' st
     fromJust' _ (Just x) = x
 
   in (\st -> fromJust' st (st `M1.lookup` statemap))
 
 -- | Convert a function-based goto to a map-based one once we know the set of
 -- all lrstates (sets of items for LR1) and all the production elements
-convGoto :: (Hashable lrstate, Ord lrstate, Ord sts, Ord nts)
+convGoto :: ( IsState lrstate, Ord sts, Ord nts)
   => Grammar () nts sts dt -> Goto' nts sts lrstate -> [lrstate] -> Goto nts sts lrstate
 convGoto g goto states = M1.fromList
   [ ((st0, e), goto st0 e)
@@ -340,9 +319,7 @@ allProdElems' =
 
 -- | Compute the set of states we would go to by traversing the
 --   given nonterminal symbol @_X@.
-goto ::
-  ( Ord a, Ord nts, Ord sts
-  , Hashable sts, Hashable nts, Hashable a)
+goto :: ( CanParse' nts sts dt, Ord a, Hashable a )
   => Grammar () nts sts dt -> Closure (CoreLRState a nts sts) -> Goto' nts sts (CoreLRState a nts sts)
 goto g closure is _X = closure $ fromList
   [ Item _A (_X : α) β  a
@@ -351,21 +328,13 @@ goto g closure is _X = closure $ fromList
   ]
 
 -- | Goto with an SLR closure, 'slrClosure'.
-slrGoto ::
-  forall nts sts dt.
-  ( Eq nts, Eq sts
-  , Ord nts, Ord sts
-  , Hashable sts, Hashable nts)
+slrGoto :: forall nts sts dt. ( CanParse' nts sts dt )
   => Grammar () nts sts dt -> Goto' nts sts (CoreSLRState nts sts)
 slrGoto g = goto g (slrClosure g)
 
 -- | Compute all possible LR items for a grammar by iteratively running
 --   goto until reaching a fixed point.
-items ::
-  forall a nts sts dt.
-  ( Ord a, Ord nts, Ord sts
-  , Eq nts, Eq sts
-  , Hashable a, Hashable sts, Hashable nts)
+items :: forall nts sts dt a. ( CanParse' nts sts dt, Ord a, Hashable a )
   => Grammar () nts sts dt -> Goto' nts sts (CoreLRState a nts sts) -> CoreLRState a nts sts -> Set (CoreLRState a nts sts)
 items g goto s0 = let
     items' :: Set (CoreLRState a nts sts) -> Set (CoreLRState a nts sts)
@@ -385,9 +354,7 @@ items g goto s0 = let
 -- | The kernel of a set items, namely the items where the dot is
 --   not at the left-most position of the RHS (also excluding the
 --   starting symbol).
-kernel ::
-  ( Ord a, Ord sts, Ord nts
-  , Hashable a, Hashable sts, Hashable nts)
+kernel :: ( Tabular nts, Tabular sts, Ord a, Hashable a )
   => Set (Item a nts sts) -> Set (Item a nts sts)
 kernel = let
     kernel' (Item (Init   _) _  _ _) = True
@@ -396,11 +363,7 @@ kernel = let
   in S.filter kernel'
 
 -- | Generate the set of all possible Items for a given grammar:
-allSLRItems ::
-  forall nts sts dt.
-  ( Eq nts, Eq sts
-  , Ord nts, Ord sts
-  , Hashable sts, Hashable nts)
+allSLRItems :: forall nts sts dt. ( CanParse' nts sts dt )
   => Grammar () nts sts dt -> Set (SLRItem nts sts)
 allSLRItems g = fromList
     [ Item (Init $ s0 g) [] [NT $ s0 g] ()
@@ -415,34 +378,22 @@ allSLRItems g = fromList
     ]
 
 -- | The starting LR state of a grammar.
-lrS0 ::
-  ( Ord a, Ord sts, Ord nts
-  , Hashable a, Hashable sts, Hashable nts)
+lrS0 :: ( Tabular nts, Tabular sts, Ord a, Hashable a )
   => a -> Grammar () nts sts dt -> CoreLRState a nts sts
 lrS0 a g = singleton $ Item (Init $ s0 g) [] [NT $ s0 g] a
 
 -- | SLR starting state.
-slrS0 ::
-  ( Ord sts, Ord nts
-  , Hashable sts, Hashable nts)
+slrS0 :: ( Tabular sts, Tabular nts )
   => Grammar () nts sts dt -> CoreLRState () nts sts
 slrS0 = lrS0 ()
 
 -- | Compute SLR table with appropriate 'slrGoto' and 'slrClosure'.
-slrItems ::
-  forall nts sts dt.
-  ( Eq nts, Eq sts
-  , Ord nts, Ord sts
-  , Hashable sts, Hashable nts)
+slrItems :: forall nts sts dt. (Tabular nts, Tabular sts )
   => Grammar () nts sts dt -> Set (Set (SLRItem nts sts))
 slrItems g = items g (slrGoto g) (slrClosure g $ slrS0 g)
 
 -- | Algorithm for computing the SLR table.
-slrTable ::
-  forall nts sts dt.
-  ( Eq nts, Eq sts
-  , Ord nts, Ord sts
-  , Hashable nts, Hashable sts)
+slrTable :: forall nts sts dt. ( Tabular nts, Tabular sts )
   => Grammar () nts sts dt -> SLRTable nts sts (CoreSLRState nts sts)
 slrTable g = let
 
@@ -465,10 +416,7 @@ slrTable g = let
   in M.fromList $ concat $ S.map slr' $ slrItems g
 
 -- | Algorithm for computing the LR(1) table.
-lr1Table :: forall nts sts dt.
-  ( Eq nts, Eq sts
-  , Ord nts, Ord sts
-  , Hashable sts, Hashable nts)
+lr1Table :: forall nts sts dt. ( Tabular nts, Tabular sts )
   => Grammar () nts sts dt -> LRTable nts sts (CoreLR1State nts sts)
 lr1Table g = let
     --lr1' :: LR1State nts sts -> LRTable nts sts
@@ -485,10 +433,7 @@ lr1Table g = let
   in M.fromList $ concat (S.map lr1' $ lr1Items g)
 
 -- | Lookup a value in an 'LRTable'.
-look ::
-  ( Ord lrstate, Ord nts, Ord sts
-  , Eq sts
-  , Hashable lrstate, Hashable sts, Hashable nts)
+look :: ( IsState lrstate, Tabular nts, Tabular sts )
   => (lrstate, Icon sts) -> LRTable nts sts lrstate -> Set (LRAction nts sts lrstate)
 look (s,a) tbl = --uPIO (prints ("lookup:", s, a, M.lookup (s, a) act)) `seq`
     M.lookup (s, a) tbl
@@ -504,15 +449,31 @@ isError _                = True
 -- | Get just the LR results which accepted.
 getAccepts xs = fromList [x | x <- toList xs, isAccept x]
 
+-- | Nonterminals in a grammar are tabular, terminal symbols are tabular (as are
+--   the EOF-stripped version), terminals are referenceable (can be symbolized),
+--   and terminals are also tabular.
+type CanParse nts t dt =
+  ( Tabular nts
+  , Tabular (Sym t)
+  , Tabular (StripEOF (Sym t))
+  , HasEOF (Sym t)
+  , Ref t
+  , Tabular t)
+
+-- | Same as 'CanParse' but with second formal parameter representing (StripEOF (Sym t))
+--   aka "sts" (stripped terminal symbol).
+type CanParse' nts sts dt = ( Tabular nts, Tabular sts )
+
+type IsAST ast = ( Ord ast, Eq ast, Hashable ast )
+
+type IsState st  = ( Ord st, Hashable st, Prettify st )
+type Tabular sym = ( Ord sym, Hashable sym, Prettify sym, Eq sym )
+
 -- | The core LR parsing algorithm, parametrized for different variants
 --   (SLR, LR(1), ...).
 lrParse ::
-  forall ast a nts t lrstate dt.
-  ( Ord lrstate, Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t))
-  , Eq nts, Eq (Sym t), Eq (StripEOF (Sym t))
-  , Ref t, HasEOF (Sym t)
-  , Hashable (Sym t), Hashable t, Hashable lrstate, Hashable nts, Hashable (StripEOF (Sym t))
-  , Prettify lrstate, Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
+  forall nts t dt ast lrstate.
+  ( CanParse nts t dt, IsState lrstate, IsAST ast )
   => Grammar () nts (StripEOF (Sym t)) dt -> LRTable nts (StripEOF (Sym t)) lrstate -> Goto nts (StripEOF (Sym t)) lrstate
   -> lrstate -> Action ast nts t
   -> [t] -> LRResult lrstate t ast
@@ -548,85 +509,53 @@ lrParse g tbl goto s_0 act w = let
 
 -- | Entrypoint for SLR parsing.
 slrParse ::
-  ( Eq (Sym nts), Eq (Sym t), Eq (StripEOF (Sym t))
-  , Ref t, HasEOF (Sym t)
-  , Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t))
-  , Hashable nts, Hashable (Sym t), Hashable t, Hashable (StripEOF (Sym t))
-  , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
+  forall nts t dt ast. ( CanParse nts t dt, IsAST ast )
   => Grammar () nts (StripEOF (Sym t)) dt -> Action ast nts t -> [t]
   -> LRResult (CoreSLRState nts (StripEOF (Sym t))) t ast
 slrParse g = lrParse g (slrTable g) (convGoto g (slrGoto g) (sort $ S.toList $ slrItems g)) (slrClosure g $ slrS0 g)
 
 -- | SLR language recognizer.
-slrRecognize ::
-  ( Eq (Sym nts), Eq (Sym t), Eq (StripEOF (Sym t))
-  , Ref t, HasEOF (Sym t)
-  , Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t))
-  , Hashable nts, Hashable (Sym t), Hashable t, Hashable (StripEOF (Sym t))
-  , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
+slrRecognize :: forall nts t dt. ( CanParse nts t dt )
   => Grammar () nts (StripEOF (Sym t)) dt -> [t] -> Bool
-slrRecognize g w = isAccept $ slrParse g (const 0) w
+slrRecognize g w = isAccept $ slrParse g (const ()) w
 
 -- | LR(1) language recognizer.
-lr1Recognize ::
-  ( Eq (Sym nts), Eq (Sym t), Eq (StripEOF (Sym t))
-  , Ref t, HasEOF (Sym t)
-  , Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t))
-  , Hashable nts, Hashable (Sym t), Hashable t, Hashable (StripEOF (Sym t))
-  , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
+lr1Recognize :: forall nts t dt. ( CanParse nts t dt )
   => Grammar () nts (StripEOF (Sym t)) dt -> [t] -> Bool
-lr1Recognize g w = isAccept $ lr1Parse g (const 0) w
+lr1Recognize g w = isAccept $ lr1Parse g (const ()) w
 
 -- | Get just the lookahead symbols for a set of LR(1) items.
-getLookAheads :: (Hashable sts, Hashable nts, Eq sts, Eq nts) => Set (LR1Item nts sts) -> Set sts
+getLookAheads :: ( Tabular sts, Tabular nts ) => Set (LR1Item nts sts) -> Set sts
 getLookAheads = let
     gLA (Item _ _ _ IconEOF)    = Nothing
     gLA (Item _ _ _ (Icon sts)) = Just sts
   in S.fromList . catMaybes . S.toList . S.map gLA
 
 -- | LR(1) goto table (function) of a grammar.
-lr1Goto ::
-  ( Eq nts, Eq sts
-  , Ord nts, Ord sts
-  , Hashable sts, Hashable nts)
+lr1Goto :: ( Tabular nts, Tabular sts )
   => Grammar () nts sts dt -> Goto' nts sts (CoreLR1State nts sts)
 lr1Goto g = goto g (lr1Closure g)
 
 -- | LR(1) start state of a grammar.
-lr1S0 ::
-  ( Eq sts
-  , Ord sts, Ord nts
-  , Hashable sts, Hashable nts)
+lr1S0 :: ( Tabular sts, Tabular nts )
   => Grammar () nts sts dt -> CoreLRState (LR1LookAhead sts) nts sts
 lr1S0 = lrS0 IconEOF
 
 -- | Items computed for LR(1) with an 'lr1Goto' and an 'lr1Closure'.
-lr1Items ::
-  ( Eq sts, Eq sts
-  , Ord nts, Ord sts
-  , Hashable sts, Hashable nts)
+lr1Items :: ( CanParse' nts sts dt )
   => Grammar () nts sts dt -> Set (CoreLRState (LR1LookAhead sts) nts sts)
 lr1Items g = items g (lr1Goto g) (lr1Closure g $ lr1S0 g)
 
 -- | Entrypoint for LR(1) parser.
-lr1Parse ::
-  ( Eq (Sym nts), Eq (Sym t), Eq (StripEOF (Sym t))
-  , Ref t, HasEOF (Sym t)
-  , Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t))
-  , Hashable nts, Hashable (Sym t), Hashable t, Hashable (StripEOF (Sym t))
-  , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
+lr1Parse :: forall nts t dt ast. ( CanParse nts t dt, IsAST ast )
   => Grammar () nts (StripEOF (Sym t)) dt -> Action ast nts t -> [t]
   -> LRResult (CoreLR1State nts (StripEOF (Sym t))) t ast
 lr1Parse g = lrParse g (lr1Table g) (convGoto g (lr1Goto g) (sort $ S.toList $ lr1Items g)) (lr1Closure g $ lr1S0 g)
 
 -- | Non-incremental GLR parsing algorithm.
 glrParse' ::
-  forall ast nts t lrstate dt.
-  ( Ord lrstate, Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t)), Ord ast
-  , Eq nts, Eq (Sym t), Eq (StripEOF (Sym t)), Eq ast
-  , Ref t, HasEOF (Sym t)
-  , Hashable (Sym t), Hashable t, Hashable lrstate, Hashable nts, Hashable (StripEOF (Sym t)), Hashable ast
-  , Prettify lrstate, Prettify t, Prettify nts, Prettify (StripEOF (Sym t)))
+  forall nts t dt ast lrstate.
+  ( CanParse nts t dt, IsState lrstate, IsAST ast )
   => Grammar () nts (StripEOF (Sym t)) dt -> LRTable nts (StripEOF (Sym t)) lrstate -> Goto nts (StripEOF (Sym t)) lrstate
   -> lrstate -> Action ast nts t
   -> [t] -> LRResult lrstate t ast
@@ -670,15 +599,9 @@ glrParse' g tbl goto s_0 act w = let
 -- | Entrypoint for GLR parsing algorithm.
 glrParse g = glrParse' g (lr1Table g) (convGoto g (lr1Goto g) (sort $ S.toList $ lr1Items g)) (lr1Closure g $ lr1S0 g)
 
--- | Internal algorithm for incremental GLR parser.
 glrParseInc' ::
-  forall ast nts t c lrstate dt.
-  ( Ord nts, Ord (Sym t), Ord t, Ord (StripEOF (Sym t)), Ord ast, Ord lrstate
-  , Eq nts, Eq (Sym t), Eq (StripEOF (Sym t)), Eq ast
-  , Ref t, HasEOF (Sym t)
-  , Hashable (Sym t), Hashable t, Hashable nts, Hashable (StripEOF (Sym t)), Hashable ast, Hashable lrstate
-  , Prettify t, Prettify nts, Prettify (StripEOF (Sym t)), Prettify lrstate
-  , Eq c, Ord c, Hashable c)
+  forall nts t dt ast lrstate c.
+  ( CanParse nts t dt, IsState lrstate, IsAST ast, Tabular c )
   => Grammar () nts (StripEOF (Sym t)) dt -> LRTable nts (StripEOF (Sym t)) lrstate -> Goto nts (StripEOF (Sym t)) lrstate
   -> lrstate -> M1.Map lrstate (Set (StripEOF (Sym t))) -> Action ast nts t
   -> Tokenizer t c -> [c] -> LR1Result lrstate c ast
@@ -773,11 +696,8 @@ glrParseInc2 g = let
 -- | Returns the disambiguated LRTable, as well as the number of conflicts
 --   (Shift/Reduce, Reduce/Reduce, etc...) reported.
 disambiguate ::
-  ( Prettify lrstate, Prettify nts, Prettify sts
-  , Ord lrstate, Ord nts, Ord sts
-  , Hashable lrstate, Hashable nts, Hashable sts
-  , Data lrstate, Data nts, Data sts
-  , Show lrstate, Show nts, Show sts)
+  ( IsState lrstate, Tabular nts, Tabular sts
+  , Data lrstate, Data nts, Data sts)
   => LRTable nts sts lrstate -> (LRTable' nts sts lrstate, Int)
 disambiguate tbl = let
 
