@@ -21,7 +21,7 @@ import Text.ANTLR.Common
 import Text.ANTLR.Grammar
 import Text.ANTLR.Parser
 import qualified Text.ANTLR.LR as LR
-import Text.ANTLR.Lex.Tokenizer as T
+import Text.ANTLR.Lex.Tokenizer as T hiding (tokenize)
 import qualified Text.ANTLR.Set as S
 import Text.ANTLR.Set (Hashable(..), Generic(..))
 import Text.ANTLR.Pretty
@@ -42,6 +42,11 @@ import Debug.Trace as D
 -- Splice the parsers for the grammar we defined in Language.ANTLR4.G4
 $(g4_parsers g4AST g4Grammar)
 
+{- isWhitespace (Just T_LineComment) = True
+isWhitespace (Just T_WS) = True
+isWhitespace Nothing = True
+isWhitespace _ = False -}
+
 isWhitespace T_LineComment = True
 isWhitespace T_WS = True
 isWhitespace _ = False
@@ -52,18 +57,23 @@ g4_codeGen input = do
   let fileName = TH.loc_filename loc
   let (line,column) = TH.loc_start loc
 
+  {- case allstarParse (filter (not . isWhitespace . stripEOF . getSymbol) (tokenize input)) of
+    Left err -> error err
+    Right ast -> codeGen ast -}
   case glrParse isWhitespace input of
-    r@(LR.ResultAccept ast) -> codeGen r
+    (LR.ResultAccept ast) -> codeGen ast
     LR.ResultSet    s   ->
       if S.size s == 1
-        then codeGen (S.findMin s)
-        else D.trace (pshow' s) $ codeGen (S.findMin s)
-    err                 -> error $ pshow' err
+        then codeGen $ fromAccept (S.findMin s)
+        else D.trace (pshow' s) $ codeGen $ fromAccept (S.findMin s)
+    err -> error $ pshow' err
 
--- TODO: Convert a Universal AST into a [G4S.G4]
-codeGen (LR.ResultAccept ast) = G4Q.g4_decls $ ast2decls ast
+fromAccept (LR.ResultAccept ast) = ast
+fromAccept err = error $ pshow' err
 
--- | Entrypoint to the G4 quasiquoer. Currently only supports declaration-level
+codeGen ast = G4Q.g4_decls $ ast2decls ast
+
+-- | Entrypoint to the G4 quasiquoter. Currently only supports declaration-level
 --   Haskell generation of G4 grammars using a GLR parser. The output grammars
 --   need not use a GLR parser themselves.
 g4 :: QuasiQuoter

@@ -96,8 +96,8 @@ type DFAEdge nt t   = (DFAState nt, t, DFAState nt)
 data DFAState nt    = Dinit [ATNConfig nt] | D [ATNConfig nt] | F Int | Derror deriving (Eq, Ord, Show)
 type DFAEnv nt t    = [(GrammarSymbol nt t, DFA nt t)]
 
-getLabel :: (Ref v, HasEOF (Sym v)) => v -> StripEOF (Sym v)
-getLabel = fromJust . stripEOF . getSymbol
+getLabel :: (Ref v, HasEOF (Sym v), Show v) => v -> (StripEOF (Sym v))
+getLabel v = D.trace (show v) $ (fromJust . stripEOF . getSymbol) v
 
 type Label tok = StripEOF (Sym tok)
 

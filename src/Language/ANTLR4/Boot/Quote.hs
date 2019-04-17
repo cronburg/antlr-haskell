@@ -486,10 +486,11 @@ convertRegex getNamedR = let
     cR (G4S.PosClos r)   = R.PosClos $ cR r
     cR (G4S.Question r)  = R.Question $ cR r
     cR (G4S.CharSet cs)  = R.Class cs
+    cR (G4S.Named n)     = convertRegex getNamedR $ getNamedR n
     cR (G4S.Negation (G4S.CharSet cs)) = R.NotClass cs
     cR (G4S.Negation (G4S.Literal s)) = R.NotClass s
+    cR (G4S.Negation (G4S.Concat [G4S.Literal s])) = R.NotClass s
     cR r@(G4S.Negation _) = error $ "unimplemented: " ++ show r
-    cR (G4S.Named n)    = convertRegex getNamedR $ getNamedR n
   in cR
 
 getNamedRegex :: G4AST -> String -> G4S.Regex Char
@@ -1043,15 +1044,21 @@ g4_parsers ast gr = do
       tokenize :: String -> [$(conT nameToken)] --Token $(conT tokName) $(conT tokVal)]
       tokenize = T.tokenize $(varE nameDFAs) lexeme2value
 
-      slrParse :: [$(conT nameToken)] -> LR.LRResult (LR.CoreSLRState $(conT ntSym) (StripEOF (Sym $(conT nameToken)))) $(conT nameToken) $(conT nameAST)
+      slrParse :: [$(conT nameToken)]
+                  -> LR.LRResult
+                    (LR.CoreSLRState $(conT ntSym) (StripEOF (Sym $(conT nameToken))))
+                    $(conT nameToken)
+                    $(conT nameToken)
+                    $(conT nameAST)
       slrParse = (LR.slrParse $(varE nameUnit) event2ast)
 
       --glrParse :: [$(conT nameToken)] -> LR.LRResult $(conT ntSym) (StripEOF (Sym $(conT nameToken))) $(conT nameToken) $(conT nameAST)
       glrParse :: ($(conT tokName) -> Bool) -> [Char]
-                  -> LR.LR1Result
+                  -> LR.GLRResult
                       --(LR.CoreLR1State $(conT ntSym) (StripEOF (Sym $(conT nameToken))))
                       Int
                       Char
+                      $(conT nameToken)
                       $(conT nameAST)
       glrParse filterF = (LR.glrParseInc2 $(varE nameUnit) event2ast (T.tokenizeInc filterF $(varE nameDFAs) lexeme2value))
 

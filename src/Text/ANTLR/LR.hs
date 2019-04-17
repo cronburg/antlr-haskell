@@ -18,7 +18,7 @@ module Text.ANTLR.LR
   , lr1Closure, lr1Goto, lr1Items, lr1Table, lr1Parse, lr1Recognize
   , LR1LookAhead
   , CoreLRState, CoreLR1State, CoreSLRState, LRTable, LRTable', LRAction(..)
-  , lrParse, LRResult(..), LR1Result(..), glrParse, glrParseInc, isAccept, isError
+  , lrParse, GLRResult(..), LRResult(..), LR1Result(..), glrParse, glrParseInc, isAccept, isError
   , lr1S0, glrParseInc', glrParseInc2
   , convGoto, convStateInt, convGotoStatesInt, convTableInt, tokenizerFirstSets
   , disambiguate
@@ -84,8 +84,10 @@ type CoreLRState a nts sts = Set (Item a nts sts)
 type LR1Action nts sts lrstate  = LRAction nts sts lrstate
 -- | An LR1 closure is just a regular LR 'Closure'.
 type LR1Closure lrstate         = Closure lrstate
--- | LR1 results are just 'LRResult's
-type LR1Result lrstate t ast    = LRResult lrstate t ast
+-- | LR1 results are just 'LRResult's with identical tokens and characters
+type LR1Result lrstate t ast    = LRResult lrstate t t ast
+-- | GLR results are just 'LRResult's
+type GLRResult lrstate c t ast  = LRResult lrstate c t ast
 -- | An LR1 item is an 'Item' with one lookahead symbol.
 type LR1Item  nts sts           = Item    (LR1LookAhead sts) nts sts
 -- | An LR1 table is just an 'LRTable' in disguise.
@@ -117,12 +119,12 @@ data LRAction nts sts lrstate =
 type Config lrstate t = ([lrstate], [t])
 
 -- | The different kinds of results an LR parser can return.
-data LRResult lrstate t ast =
-    ErrorNoAction (Config lrstate t) [ast]       -- ^ Parser got stuck (no action performable).
-  | ErrorAccept   (Config lrstate t) [ast]       -- ^ Parser accepted but still has @ast@s to consume.
-  | ResultSet     (Set (LRResult lrstate t ast)) -- ^ The grammar / parse was ambiguously accepted.
-  | ResultAccept  ast                            -- ^ Parse accepted and produced a single @ast@.
-  | ErrorTable    (Config lrstate t) [ast]       -- ^ The goto table was missing an entry.
+data LRResult lrstate c t ast =
+    ErrorNoAction t (Config lrstate c) [ast]        -- ^ Parser got stuck (no action performable).
+  | ErrorAccept     (Config lrstate c) [ast]        -- ^ Parser accepted but still has @ast@s to consume.
+  | ResultSet     (Set (LRResult lrstate c t ast))  -- ^ The grammar / parse was ambiguously accepted.
+  | ResultAccept  ast                               -- ^ Parse accepted and produced a single @ast@.
+  | ErrorTable    (Config lrstate c) [ast]          -- ^ The goto table was missing an entry.
   deriving (Eq, Ord, Show, Generic, Hashable)
 
 -- | A tokenizer is a function that, given a set of DFA names to try tokenizing,
@@ -156,15 +158,16 @@ instance
   prettify Accept     = pStr "Accept"
   prettify Error      = pStr "Error"
 
-instance  ( Prettify t, Prettify ast, Prettify lrstate
-          , Eq t, Eq ast, Eq lrstate
-          , Hashable ast, Hashable t, Hashable lrstate)
-  => Prettify (LRResult lrstate t ast) where
+instance  ( Prettify c, Prettify t, Prettify ast, Prettify lrstate
+          , Eq c, Eq t, Eq ast, Eq lrstate
+          , Hashable c, Hashable ast, Hashable t, Hashable lrstate)
+  => Prettify (LRResult lrstate c t ast) where
   
-  prettify (ErrorNoAction (s:states, ws) asts) = do
-    pStr "ErrorNoAction: Current input = '"
-    if null ws then return () else prettify (head ws)
-    pLine "'"
+  prettify (ErrorNoAction t (s:states, ws) asts) = do
+    pStr "ErrorNoAction: Current input token = <"
+    prettify t
+    --if null ws then return () else prettify (head ws)
+    pLine ">"
     incrIndent 7
     
     pStr "Current state = <"
@@ -176,9 +179,9 @@ instance  ( Prettify t, Prettify ast, Prettify lrstate
     pLine "'"
   
   prettify (ErrorTable (s:states, ws) asts) = do
-    pStr "ErrorTable: Current input = '"
+    pStr "ErrorTable: Current input character = <"
     if null ws then return () else prettify (head ws)
-    pLine "'"
+    pLine ">"
     incrIndent 7
     
     pStr "Current state = <"
@@ -190,9 +193,9 @@ instance  ( Prettify t, Prettify ast, Prettify lrstate
     pLine "'"
     
   prettify (ErrorAccept   (s:states, ws) asts) = do
-    pStr "ErrorAccept: Current input = "
+    pStr "ErrorAccept: Current input character = <"
     (if null ws then return () else prettify (head ws))
-    pLine ""
+    pLine ">"
     incrIndent 7
     
     pStr "Current state = "
@@ -476,17 +479,17 @@ lrParse ::
   ( CanParse nts t dt, IsState lrstate, IsAST ast )
   => Grammar () nts (StripEOF (Sym t)) dt -> LRTable nts (StripEOF (Sym t)) lrstate -> Goto nts (StripEOF (Sym t)) lrstate
   -> lrstate -> Action ast nts t
-  -> [t] -> LRResult lrstate t ast
+  -> [t] -> LRResult lrstate t t ast
 lrParse g tbl goto s_0 act w = let
   
-    lr :: Config lrstate t -> [ast] -> LRResult lrstate t ast
+    lr :: Config lrstate t -> [ast] -> LRResult lrstate t t ast
     lr (s:states, a:ws) asts = let
         
-        lr' :: LRAction nts (StripEOF (Sym t)) lrstate -> LRResult lrstate t ast
+        lr' :: LRAction nts (StripEOF (Sym t)) lrstate -> LRResult lrstate t t ast
         lr' Accept = case length asts of
               1 -> ResultAccept $ head asts
               _ -> ErrorAccept (s:states, a:ws) asts
-        lr' Error     = ErrorNoAction (s:states, a:ws) asts
+        lr' Error     = ErrorNoAction a (s:states, ws) asts
         lr' (Shift t) = trace ("Shift: " ++ pshow' t) $ lr (t:s:states, ws) $ act (TermE a) : asts
         lr' (Reduce p@(Production _A (Prod _ β) _)) = let
               ss'@(t:_) = drop (length β) (s:states)
@@ -502,7 +505,7 @@ lrParse g tbl goto s_0 act w = let
                     Nothing  -> look (s, IconEOF)  tbl
 
       in if S.null lookVal
-          then ErrorNoAction (s:states, a:ws) asts
+          then ErrorNoAction a (s:states, ws) asts
           else lr' $ (head . S.toList) lookVal
 
   in lr ([s_0], w) []
@@ -511,7 +514,7 @@ lrParse g tbl goto s_0 act w = let
 slrParse ::
   forall nts t dt ast. ( CanParse nts t dt, IsAST ast )
   => Grammar () nts (StripEOF (Sym t)) dt -> Action ast nts t -> [t]
-  -> LRResult (CoreSLRState nts (StripEOF (Sym t))) t ast
+  -> LRResult (CoreSLRState nts (StripEOF (Sym t))) t t ast
 slrParse g = lrParse g (slrTable g) (convGoto g (slrGoto g) (sort $ S.toList $ slrItems g)) (slrClosure g $ slrS0 g)
 
 -- | SLR language recognizer.
@@ -549,7 +552,7 @@ lr1Items g = items g (lr1Goto g) (lr1Closure g $ lr1S0 g)
 -- | Entrypoint for LR(1) parser.
 lr1Parse :: forall nts t dt ast. ( CanParse nts t dt, IsAST ast )
   => Grammar () nts (StripEOF (Sym t)) dt -> Action ast nts t -> [t]
-  -> LRResult (CoreLR1State nts (StripEOF (Sym t))) t ast
+  -> LRResult (CoreLR1State nts (StripEOF (Sym t))) t t ast
 lr1Parse g = lrParse g (lr1Table g) (convGoto g (lr1Goto g) (sort $ S.toList $ lr1Items g)) (lr1Closure g $ lr1S0 g)
 
 -- | Non-incremental GLR parsing algorithm.
@@ -558,17 +561,17 @@ glrParse' ::
   ( CanParse nts t dt, IsState lrstate, IsAST ast )
   => Grammar () nts (StripEOF (Sym t)) dt -> LRTable nts (StripEOF (Sym t)) lrstate -> Goto nts (StripEOF (Sym t)) lrstate
   -> lrstate -> Action ast nts t
-  -> [t] -> LRResult lrstate t ast
+  -> [t] -> LRResult lrstate t t ast
 glrParse' g tbl goto s_0 act w = let
   
-    lr :: Config lrstate t -> [ast] -> LRResult lrstate t ast
+    lr :: Config lrstate t -> [ast] -> LRResult lrstate t t ast
     lr (s:states, a:ws) asts = let
         
-        lr' :: LRAction nts (StripEOF (Sym t)) lrstate -> LRResult lrstate t ast
+        lr' :: LRAction nts (StripEOF (Sym t)) lrstate -> LRResult lrstate t t ast
         lr' Accept    = case length asts of
               1 -> ResultAccept $ head asts
               _ -> ErrorAccept (s:states, a:ws) asts
-        lr' Error     = ErrorNoAction (s:states, a:ws) asts
+        lr' Error     = ErrorNoAction a (s:states, ws) asts
         lr' (Shift t) = trace ("Shift: " ++ pshow' t) $ lr (t:s:states, ws) $ act (TermE a) : asts
         lr' (Reduce p@(Production _A (Prod _ β) _)) = let
               ss'@(t:_) = drop (length β) (s:states)
@@ -586,7 +589,7 @@ glrParse' g tbl goto s_0 act w = let
         justAccepts  = getAccepts parseResults
 
       in if S.null lookVal
-          then ErrorNoAction (s:states, a:ws) asts
+          then ErrorNoAction a (s:states, ws) asts
           else (if S.null justAccepts
                   then (case S.size parseResults of
                           0 -> undefined
@@ -604,10 +607,10 @@ glrParseInc' ::
   ( CanParse nts t dt, IsState lrstate, IsAST ast, Tabular c )
   => Grammar () nts (StripEOF (Sym t)) dt -> LRTable nts (StripEOF (Sym t)) lrstate -> Goto nts (StripEOF (Sym t)) lrstate
   -> lrstate -> M1.Map lrstate (Set (StripEOF (Sym t))) -> Action ast nts t
-  -> Tokenizer t c -> [c] -> LR1Result lrstate c ast
+  -> Tokenizer t c -> [c] -> GLRResult lrstate c t ast
 glrParseInc' g tbl goto s_0 tokenizerFirstSets act tokenizer w = let
     
-    lr :: Config lrstate c -> [ast] -> LR1Result lrstate c ast
+    lr :: Config lrstate c -> [ast] -> GLRResult lrstate c t ast
     lr (s:states, cs) asts = let
 
         -- The set of token symbols that are feasible to be seen next given the
@@ -621,11 +624,11 @@ glrParseInc' g tbl goto s_0 tokenizerFirstSets act tokenizer w = let
         
         (a, ws) = tokenizer dfaNames cs
         
-        lr' :: LR1Action nts (StripEOF (Sym t)) lrstate -> LR1Result lrstate c ast
+        lr' :: LR1Action nts (StripEOF (Sym t)) lrstate -> GLRResult lrstate c t ast
         lr' Accept    = case length asts of
               1 -> ResultAccept $ head asts
               _ -> ErrorAccept (s:states, cs) asts
-        lr' Error     = ErrorNoAction (s:states, cs) asts
+        lr' Error     = ErrorNoAction a (s:states, cs) asts
         lr' (Shift t) = trace ("Shift: " ++ pshow' t) $ lr (t:s:states, ws) $ act (TermE a) : asts
         lr' (Reduce p@(Production _A (Prod _ β) _)) = let
               ss'@(t:_) = drop (length β) (s:states)
@@ -646,7 +649,7 @@ glrParseInc' g tbl goto s_0 tokenizerFirstSets act tokenizer w = let
         justAccepts  = getAccepts parseResults
 
       in if S.null lookVal
-          then ErrorNoAction (s:states, cs) asts
+          then ErrorNoAction a (s:states, cs) asts
           else (if S.null justAccepts
                   then (case S.size parseResults of
                           0 -> undefined

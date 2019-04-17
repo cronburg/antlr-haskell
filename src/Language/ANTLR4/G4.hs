@@ -132,8 +132,6 @@ $( return [] )
         | LowerID
         ;
 
-  HaskellExp : ( ~ '}' )+ -> String;
-
   alphas : alpha                    -> list
          | alpha alphas             -> cons
          | '(' alphas ')'
@@ -195,8 +193,10 @@ $( return [] )
 
   UpperID : [A-Z][a-zA-Z0-9_]*      -> String;
   LowerID : [a-z][a-zA-Z0-9_]*      -> String;
-  Literal     : '\'' (~ '\'')+ '\'' -> stripQuotesReadEscape;
+  Literal     : '\'' ( ( '\\\'' ) | (~ ( '\'' ) ) )+ '\'' -> stripQuotesReadEscape;
   LineComment : '//' (~ '\n')* '\n' -> String;
+
+  HaskellExp : ( ~ '}' )+ -> String;
 
   SetChar     : ~ ']'               -> char ;
   WS          : [ \t\n\r\f\v]+      -> String;

@@ -362,12 +362,12 @@ tokenize_aLE7 :: String -> [G4Token]
 tokenize_aLE7 = (tokenize g4DFAs) lexeme2value
 slrParse_aLE6 ::
   [G4Token]
-  -> LR.LRResult (LR.CoreSLRState G4NTSymbol (StripEOF (Sym G4Token))) G4Token G4AST
+  -> LR.LRResult (LR.CoreSLRState G4NTSymbol (StripEOF (Sym G4Token))) G4Token G4Token G4AST
 slrParse_aLE6 = (LR.slrParse g4Grammar) event2ast
 glrParse_aLE5 ::
   (TokenName -> Bool)
   -> [Char]
-     -> LR.LR1Result (LR.CoreLR1State G4NTSymbol (StripEOF (Sym G4Token))) Char G4AST
+     -> LR.GLRResult (LR.CoreLR1State G4NTSymbol (StripEOF (Sym G4Token))) Char G4Token G4AST
 glrParse_aLE5 filterF_aLE8
   = ((LR.glrParseInc g4Grammar) event2ast)
       (((tokenizeInc filterF_aLE8) g4DFAs) lexeme2value)
