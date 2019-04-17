@@ -640,7 +640,7 @@ a2d ast nameAST G4S.Prod{G4S.pName = _A, G4S.patterns = ps} = let
 a2d ast nameAST _ = Nothing
 
 a2d_error_clauses G4S.Prod{G4S.pName = _A} =
-  [(astFncnName _A, [ clause [ [p| ast2 |] ] (normalB [| error (show ast2) |]) [] ])]
+  [(astFncnName _A, [ clause [ [p| ast2 |] ] (normalB [| error $ "Failed pattern match on " ++ (show ast2) |]) [] ])]
 a2d_error_clauses _ = []
 
   --concat $ (concatMap eachAlpha . map G4S.alphas) ps
@@ -1069,8 +1069,15 @@ g4_parsers ast gr = do
         type Literal $(conT nameToken) = $(conT tokVal)
         getLiteral = T.tokenValue -}
 
-      allstarParse :: [$(conT nameToken)] -> Either String $(conT nameAST)
-      allstarParse inp = ALL.parse inp (ALL.NT $(s0 ast)) (ALL.atnOf ($(varE nameUnit) :: $(justGrammarTy ast unitTy))) True
+      allstarParse :: ($(conT tokName) -> Bool) -> String -- [$(conT nameToken)]
+                      -> Either String $(conT nameAST)
+      allstarParse filterF inp =
+        ALL.parse'
+          (T.tokenizeIncAll filterF $(varE nameDFAs) lexeme2value (Set.fromList $ map fst $(varE nameDFAs)))
+          inp 
+          (ALL.NT $(s0 ast))
+          (ALL.atnOf ($(varE nameUnit) :: $(justGrammarTy ast unitTy)))
+          True
 
       |]
   return $ decls ++ ast2DTFncns

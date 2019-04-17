@@ -38,6 +38,9 @@ instance HasEOF Char where
   isEOF c = False
   stripEOF c = Just c
 
+dumbTokenizer [] = []
+dumbTokenizer (t:ts) = [(t,ts)]
+
 atnEnv = DS.fromList [ -- First path through the 'S' ATN
                        (Init 'S', GS EPS, Middle 'S' 0 0),
                        (Middle 'S' 0 0, GS (NT 'A'), Middle 'S' 0 1),
@@ -65,33 +68,33 @@ atnEnv = DS.fromList [ -- First path through the 'S' ATN
 -- For now, I'm only checking whether the input was accepted--not checking the derivation.
 
 -- Example from the manual trace of ALL(*)'s execution
-parseTest1 = ((@?=) --"for parse [a, b, c],"
+parseTest1 = ((@=?) --"for parse dumbTokenizer [a, b, c],"
                                    (Right (Node 'S'
                                             [Node 'A'
                                               [Leaf 'a',
                                                Node 'A'
                                                 [Leaf 'b']],
                                              Leaf 'c']))
-                                   (parse ['a', 'b', 'c'] (NT 'S') atnEnv True))
+                                   (parse dumbTokenizer ['a', 'b', 'c'] (NT 'S') atnEnv True))
                                    
 -- Example #1 from the ALL(*) paper
-parseTest2 = ((@?=) --"for parse [b, c],"
+parseTest2 = ((@=?) --"for parse dumbTokenizer [b, c],"
                                     (Right (Node 'S'
                                              [Node 'A'
                                                [Leaf 'b'],
                                               Leaf 'c']))
-                                    (parse ['b', 'c'] (NT 'S') atnEnv True))
+                                    (parse dumbTokenizer ['b', 'c'] (NT 'S') atnEnv True))
                                     
 -- Example #2 from the ALL(*) paper
-parseTest3 = ((@?=) --"for parse [b, d],"
+parseTest3 = ((@=?) --"for parse dumbTokenizer [b, d],"
                                    (Right (Node 'S'
                                             [Node 'A'
                                               [Leaf 'b'],
                                              Leaf 'd']))
-                                   (parse ['b', 'd'] (NT 'S') atnEnv True))
+                                   (parse dumbTokenizer ['b', 'd'] (NT 'S') atnEnv True))
                                     
 -- Input that requires more recursive traversals of the A ATN
-parseTest4 = ((@?=) --"for parse [a a a b c],"
+parseTest4 = ((@=?) --"for parse dumbTokenizer [a a a b c],"
                                    (Right (Node 'S'
                                             [Node 'A'
                                               [Leaf 'a',
@@ -102,12 +105,12 @@ parseTest4 = ((@?=) --"for parse [a a a b c],"
                                                    Node 'A'
                                                     [Leaf 'b']]]],
                                              Leaf 'c']))
-                                   (parse ['a', 'a', 'a', 'b', 'c'] (NT 'S') atnEnv True))
+                                   (parse dumbTokenizer ['a', 'a', 'a', 'b', 'c'] (NT 'S') atnEnv True))
 
 -- Make sure that the result of parsing an out-of-language string has a Left tag.             
-parseTest5 = ((@?=) --"for parse [a b a c],"
+parseTest5 = ((@=?) --"for parse dumbTokenizer [a b a c],"
                                    True
-                                   (let parseResult = parse ['a', 'b', 'a', 'c'] (NT 'S') atnEnv True
+                                   (let parseResult = parse dumbTokenizer ['a', 'b', 'a', 'c'] (NT 'S') atnEnv True
                                         isLeft pr = case pr of
                                                       Left _ -> True
                                                       _ -> False
@@ -116,7 +119,7 @@ parseTest5 = ((@?=) --"for parse [a b a c],"
 -- To do: Update these tests so that they use the new ATN state representation.
 {-
 
-conflictsTest = ((@?=) --"for getConflictSetsPerLoc()"
+conflictsTest = ((@=?) --"for getConflictSetsPerLoc()"
                          
                                       ([[(MIDDLE 5, 1, []), (MIDDLE 5, 2, []),(MIDDLE 5, 3, [])],
                                         [(MIDDLE 5, 1, [MIDDLE 1]), (MIDDLE 5, 2, [MIDDLE 1])],
@@ -129,7 +132,7 @@ conflictsTest = ((@?=) --"for getConflictSetsPerLoc()"
                                                                  (MIDDLE 5, 2, [MIDDLE 1]),
                                                                  (MIDDLE 7, 2, [MIDDLE 6, MIDDLE 1])])))
 
-prodsTest = ((@?=) --"for getProdSetsPerState()"
+prodsTest = ((@=?) --"for getProdSetsPerState()"
                      
                                   ([[(MIDDLE 5, 1, []),
                                      (MIDDLE 5, 2, []),
@@ -162,19 +165,19 @@ ambigATNEnv = DS.fromList [(Init 'S', GS EPS, Middle 'S' 0 0),
                            (Middle 'S' 2 1, GS (T 'b'), Middle 'S' 2 2),
                            (Middle 'S' 2 2, GS EPS, Final 'S')]
 
-ambigParseTest1 = ((@?=) --"for parse [a],"
+ambigParseTest1 = ((@=?) --"for parse dumbTokenizer [a],"
                                         True
-                                        (let parseResult = parse ['a'] (NT 'S') ambigATNEnv True
+                                        (let parseResult = parse dumbTokenizer ['a'] (NT 'S') ambigATNEnv True
                                              isLeft pr = case pr of
                                                            Left _ -> True
                                                            _ -> False
                                          in  isLeft parseResult))
 
-ambigParseTest2 = ((@?=) --"for parse [a b],"
+ambigParseTest2 = ((@=?) --"for parse dumbTokenizer [a b],"
                                         (Right (Node 'S'
                                                  [Leaf 'a',
                                                   Leaf 'b']))
-                                        (parse ['a', 'b'] (NT 'S') ambigATNEnv True))
+                                        (parse dumbTokenizer ['a', 'b'] (NT 'S') ambigATNEnv True))
 
         
 tests = [testCase "parseTest1"    parseTest1,

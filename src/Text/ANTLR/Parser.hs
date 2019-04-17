@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass, FlexibleContexts, InstanceSigs
            , UndecidableInstances, StandaloneDeriving, TypeFamilies
            , ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses
-           , OverloadedStrings, DeriveDataTypeable #-}
+           , OverloadedStrings, DeriveDataTypeable, ConstraintKinds #-}
 {-|
   Module      : Text.ANTLR.Parser
   Description : Parsing API for constructing Haskell data types from lists of tokens
@@ -20,6 +20,26 @@ import Text.ANTLR.Lex.Tokenizer (Token(..))
 import Data.Data (Data(..))
 import Language.Haskell.TH.Lift (Lift(..))
 import Text.ANTLR.Set (Hashable)
+
+-- | Nonterminals in a grammar are tabular, terminal symbols are tabular (as are
+--   the EOF-stripped version), terminals are referenceable (can be symbolized),
+--   and terminals are also tabular.
+type CanParse nts t =
+  ( Tabular nts
+  , Tabular (Sym t)
+  , Tabular (StripEOF (Sym t))
+  , HasEOF (Sym t)
+  , Ref t
+  , Tabular t)
+
+-- | Same as 'CanParse' but with second formal parameter representing (StripEOF (Sym t))
+--   aka "sts" (stripped terminal symbol).
+type CanParse' nts sts = ( Tabular nts, Tabular sts )
+
+type IsAST ast = ( Ord ast, Eq ast, Hashable ast )
+
+type IsState st  = ( Ord st, Hashable st, Prettify st )
+type Tabular sym = ( Ord sym, Hashable sym, Prettify sym, Eq sym )
 
 -- | Action functions triggered during parsing are given the nonterminal we just matched on, the
 --   corresponding list of production elements (grammar symbols) in the RHS of the matched production
@@ -115,7 +135,7 @@ instance HasEOF (TokenSymbol n) where
 
 instance HasEOF String where
   type StripEOF String = String
-  
+
   isEOF "" = True
   isEOF _  = False
 

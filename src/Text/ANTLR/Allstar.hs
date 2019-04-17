@@ -13,7 +13,7 @@
   this package.
 -}
 module Text.ANTLR.Allstar
-  ( parse, atnOf
+  ( parse, parse', atnOf
   , ALL.GrammarSymbol(..)
   , ALL.ATNEnv
   ) where
@@ -27,6 +27,8 @@ import qualified Text.ANTLR.Allstar.ATN as ATN
 import qualified Data.Set as DS
 import qualified Text.ANTLR.Set as S
 
+import Text.ANTLR.Pretty (Prettify(..))
+
 -- | Go from an Allstar AST to the AST type used internally in this package
 fromAllstarAST :: ALL.AST nts t -> P.AST nts t
 fromAllstarAST (ALL.Node nt asts) = P.AST nt [] (map fromAllstarAST asts)
@@ -34,7 +36,7 @@ fromAllstarAST (ALL.Leaf tok)     = P.Leaf tok
 
 --   TODO: Handle predicate and mutator state during the conversion
 -- | Go from an antlr-haskell Grammar to an Allstar ATNEnv. ALL(*) does not
---   current support predicates and mutators.
+--   currently support predicates and mutators.
 atnOf :: (Ord nt, Ord t, S.Hashable nt, S.Hashable t) => G.Grammar s nt t dt -> ALL.ATNEnv nt t
 atnOf g = DS.fromList (map convTrans (S.toList (ATN._Δ (ATN.atnOf g))))
 
@@ -54,7 +56,28 @@ convEdge (ATN.ME m)   = ALL.PRED True -- TODO
 convEdge ATN.Epsilon  = ALL.GS ALL.EPS
 
 -- | Entrypoint to the ALL(*) parsing algorithm.
-parse inp s0 atns cache = fromAllstarAST <$> ALL.parse inp s0 atns cache
+parse'
+  :: ( P.CanParse nts tok, Prettify chr )
+  => ALL.Tokenizer chr tok
+  -> [chr]
+  -> ALL.GrammarSymbol nts (ALL.Label tok)
+  -> ALL.ATNEnv nts (ALL.Label tok)
+  -> Bool
+  -> Either String (P.AST nts tok)
+parse' tokenizer inp s0 atns cache = fromAllstarAST <$> ALL.parse tokenizer inp s0 atns cache
+
+-- | No tokenizer required (chr == tok):
+parse
+  :: ( P.CanParse nts tok )
+  => [tok]
+  -> ALL.GrammarSymbol nts (ALL.Label tok)
+  -> ALL.ATNEnv nts (ALL.Label tok)
+  -> Bool
+  -> Either String (P.AST nts tok)
+parse = let
+    tokenizer [] = []
+    tokenizer (t:ts) = [(t,ts)]
+  in parse' tokenizer
 
 convSymbol s = ALL.NT s
 

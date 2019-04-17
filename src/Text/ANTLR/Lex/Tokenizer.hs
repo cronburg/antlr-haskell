@@ -138,3 +138,36 @@ tokenizeInc filterF dfaTuples fncn = let
       in (next, drop (sum $ map tokenSize $ next : ignored) input)
   in tI
 
+tokenizeIncAll
+  :: forall s i n v. (Eq i, Ord s, Eq n, Eq s, Show s, Show i, Show n, Show v, Hashable i, Hashable s, Hashable n)
+  => (n -> Bool)                         -- ^ Function that returns True on DFA names we wish to filter __out__ of the results.
+  -> [(n, DFA s i)]
+  -> (Lexeme s -> n -> v)
+  -> (Set n -> [s] -> [(Token n v, [s])])
+tokenizeIncAll filterF dfaTuples fncn = let
+    
+    tI :: Set n -> [s] -> [(Token n v, [s])]
+    tI ns input = let
+        
+        dfaTuples'  = filter (\(n,_) -> n `Set.member` ns || filterF n) dfaTuples
+        tokenized   = tokenize dfaTuples' fncn input
+        
+        filterF' (Token n _ _) = filterF n
+        filterF' _             = False
+        
+        ignored     = takeWhile filterF' tokenized
+        nextTokens  = dropWhile filterF' tokenized
+        -- Yayy lazy function evaluation.
+        next = case nextTokens of
+                []     -> EOF
+                (t:_)  -> t --D.traceShowId t
+      
+        input' = drop (sum $ map tokenSize $ next : ignored) input
+      
+        ns' = case next of
+                Token n _ _ -> n `Set.delete` ns
+                _ -> Set.empty
+
+      in (next, input') : tI ns' input'
+  in tI
+

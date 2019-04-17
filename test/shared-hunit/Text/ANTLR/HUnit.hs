@@ -5,7 +5,7 @@ import           Control.Monad
 import           Data.List
 import           Data.Typeable
 import           Data.CallStack
-import Test.HUnit.Lang hiding (assertEqual, (@?=))
+import Test.HUnit.Lang hiding (assertEqual, (@?=), (@=?))
 
 import Text.ANTLR.Pretty
 import qualified Data.Text as T
@@ -43,4 +43,6 @@ assertEqual preface expected actual =
                         -> a -- ^ The expected value
                         -> Assertion
 actual @?= expected = assertEqual "" expected actual
+
+(@=?) a b = (@?=) b a
 
