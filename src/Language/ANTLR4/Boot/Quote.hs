@@ -1092,6 +1092,7 @@ mkLRParser ast g =
     nameDFAs  = mkName (mkLower $ gName ast ++ "DFAs")
     tokName   = mkName "TokenName"
     nameAST   = mkName (mkUpper $ grammarName ast ++ "AST")
+    nameToken = mkName (mkUpper $ gName ast ++ "Token")
     name = mkName $ mkLower (grammarName ast ++ "Grammar")
     is = sort $ S.toList $ LR.lr1Items g
     tbl       = LR.lr1Table g
@@ -1120,10 +1121,11 @@ mkLRParser ast g =
             convState   = LR.convStateInt lr1ItemsList
 
             glrParseFast :: ($(conT tokName) -> Bool) -> [Char]
-                        -> LR.LR1Result
+                        -> LR.GLRResult
                             --(LR.CoreLR1State $(conT ntSym) (StripEOF (Sym $(conT nameToken))))
                             Int
                             Char
+                            $(conT nameToken)
                             $(conT nameAST)
             glrParseFast filterF =
               LR.glrParseInc'

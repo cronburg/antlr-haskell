@@ -8,8 +8,8 @@ import Language.ANTLR4
 doesThisFire :: Int
 doesThisFire = 3
 
-orDoesThisFire :: Int
-orDoesThisFire = 4
+orDoesThisFire :: String -> Int
+orDoesThisFire _ = 4
 
 $( return [] )
 

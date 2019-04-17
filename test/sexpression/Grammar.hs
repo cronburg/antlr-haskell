@@ -62,11 +62,11 @@ data Item
      | NUMBER -> Number
      ;
 
-  STRING : '"' ( ('\\' .) | ~ ["\\] )* '"' -> String;
+  STRING : ["] ( ('\\' .) | ~ ["\\] )* ["] -> String;
 
   WHITESPACE : [ \n\t\r]+ -> String;
 
-  NUMBER : ('+' | '-')? DIGIT+ ('.' DIGIT+)? -> Double;
+  NUMBER : [-+]? DIGIT+ ([\.] DIGIT+)? -> Double;
 
   SYMBOL : SYMBOL_START (SYMBOL_START | DIGIT)* -> String;
 

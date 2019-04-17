@@ -64,7 +64,7 @@ test_hello =
   )
 
 test_hello_allstar =
-  allstarParse (tokenize "hello Matt")
+  allstarParse (const False) ("hello Matt")
   @?=
   Right (AST NT_r [] [Leaf (Token T_0 V_0 5),Leaf (Token T_WS (V_WS " ") 1),Leaf
   (Token T_ID (V_ID "Matt") 4)])

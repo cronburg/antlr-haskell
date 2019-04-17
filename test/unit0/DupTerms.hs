@@ -21,7 +21,7 @@ import DupTermsGrammar
 
 $(g4_parsers dupTermsAST dupTermsGrammar)
 
-test_dup_terms = case glrParse (== T_WS) "page page" of
-  (ResultAccept ast) -> ast2words ast @?= ["page", "page"]
+test_dup_terms = case glrParse (== T_WS) "(" of
+  (ResultAccept ast) -> ast2justParen ast @?= 3
   rest -> assertFailure $ "Did not parse: " ++ pshow' rest
 

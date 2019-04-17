@@ -23,8 +23,8 @@ import GLRPartialGrammar
 $(g4_parsers gLRPartialAST gLRPartialGrammar)
 
 test_GLRPartial = case glrParse (== T_WS) "word\nword\nword\nw0rd" of
-  (ResultAccept ast)        -> assertFailure $ "Was not suppose to parse: " ++ pshow' (ast2words ast)
-  (ResultSet xs)            -> assertFailure $ "Ambiguous parse: " ++ pshow' xs                    
-  (ErrorNoAction cfg asts)  -> return () -- Correct, should not have parsed
-  rest                      -> assertFailure $ stripQuotesReadEscape $ "\"" ++ pshow' rest ++ "\""
+  (ResultAccept ast)         -> assertFailure $ "Was not suppose to parse: " ++ pshow' (ast2words ast)
+  (ResultSet xs)             -> assertFailure $ "Ambiguous parse: " ++ pshow' xs                    
+  (ErrorNoAction cfg asts _) -> return () -- Correct, should not have parsed
+  rest                       -> assertFailure $ stripQuotesReadEscape $ "\"" ++ pshow' rest ++ "\""
 

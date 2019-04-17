@@ -33,6 +33,7 @@ import Language.ANTLR4
 /** C 2011 grammar built from the C11 Spec */
 -}
 
+{-
 [g4|
 grammar C;
 
@@ -979,4 +980,5 @@ LineComment
         -> skip
     ;
 |]
+-}
 
