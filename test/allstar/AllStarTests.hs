@@ -69,40 +69,40 @@ atnEnv = DS.fromList [ -- First path through the 'S' ATN
 
 -- Example from the manual trace of ALL(*)'s execution
 parseTest1 = ((@=?) --"for parse dumbTokenizer [a, b, c],"
-                                   (Right (Node 'S'
-                                            [Node 'A'
+                                   (Right (Node 'S' [NT 'A', T 'c']
+                                            [Node 'A' [T 'a', NT 'A']
                                               [Leaf 'a',
-                                               Node 'A'
+                                               Node 'A' [T 'b']
                                                 [Leaf 'b']],
                                              Leaf 'c']))
                                    (parse dumbTokenizer ['a', 'b', 'c'] (NT 'S') atnEnv True))
                                    
 -- Example #1 from the ALL(*) paper
 parseTest2 = ((@=?) --"for parse dumbTokenizer [b, c],"
-                                    (Right (Node 'S'
-                                             [Node 'A'
+                                    (Right (Node 'S' [NT 'A', T 'c']
+                                             [Node 'A' [T 'b']
                                                [Leaf 'b'],
                                               Leaf 'c']))
                                     (parse dumbTokenizer ['b', 'c'] (NT 'S') atnEnv True))
                                     
 -- Example #2 from the ALL(*) paper
 parseTest3 = ((@=?) --"for parse dumbTokenizer [b, d],"
-                                   (Right (Node 'S'
-                                            [Node 'A'
+                                   (Right (Node 'S' [NT 'A', T 'd']
+                                            [Node 'A' [T 'b']
                                               [Leaf 'b'],
                                              Leaf 'd']))
                                    (parse dumbTokenizer ['b', 'd'] (NT 'S') atnEnv True))
                                     
 -- Input that requires more recursive traversals of the A ATN
 parseTest4 = ((@=?) --"for parse dumbTokenizer [a a a b c],"
-                                   (Right (Node 'S'
-                                            [Node 'A'
+                                   (Right (Node 'S' [NT 'A', T 'c']
+                                            [Node 'A' [T 'a', NT 'A']
                                               [Leaf 'a',
-                                               Node 'A'
+                                               Node 'A' [T 'a', NT 'A']
                                                 [Leaf 'a',
-                                                 Node 'A'
+                                                 Node 'A' [T 'a', NT 'A']
                                                   [Leaf 'a',
-                                                   Node 'A'
+                                                   Node 'A' [T 'b']
                                                     [Leaf 'b']]]],
                                              Leaf 'c']))
                                    (parse dumbTokenizer ['a', 'a', 'a', 'b', 'c'] (NT 'S') atnEnv True))
@@ -174,7 +174,7 @@ ambigParseTest1 = ((@=?) --"for parse dumbTokenizer [a],"
                                          in  isLeft parseResult))
 
 ambigParseTest2 = ((@=?) --"for parse dumbTokenizer [a b],"
-                                        (Right (Node 'S'
+                                        (Right (Node 'S' [T 'a', T 'b']
                                                  [Leaf 'a',
                                                   Leaf 'b']))
                                         (parse dumbTokenizer ['a', 'b'] (NT 'S') ambigATNEnv True))

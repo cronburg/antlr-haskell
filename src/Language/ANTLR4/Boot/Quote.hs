@@ -390,7 +390,7 @@ getProds ast (_:xs) = (getProds ast) xs
 s0 :: G4AST -> TH.ExpQ
 s0 ast = conE $ mkName $ "NT_" ++ head (nonterms ast)
 
-grammarProds ast = getProds ast (ast ++ (D.traceShowId (genTermAnnotProds ast)))
+grammarProds ast = getProds ast (ast ++ ({- D.traceShowId -} (genTermAnnotProds ast)))
 
 grammar ast gTy = [| (defaultGrammar $(s0 ast) :: $(return gTy))
   { ns = Set.fromList [minBound .. maxBound :: $(ntConT ast)]
@@ -900,7 +900,7 @@ removeEpsilonsAST ast = let
         else prod
     eliminate nts prod = prod
 
-    ast' = case D.trace ("epsNTs: " ++ show epsNTs) epsNTs of
+    ast' = case {- D.trace ("epsNTs: " ++ show epsNTs) -} epsNTs of
       [] -> ast
       ((nts, dflt):ntss) -> removeEpsilonsAST $
         map (eliminate nts) (foldr orderNub [] (map (replicateDeclFor (nts, dflt)) ast))
@@ -965,7 +965,7 @@ g4_decls ast' =
           nameUnit  = mkName $ mkLower (gName ast ++ "Grammar")
           lowerASTName = mkName (mkLower $ gName ast ++ "AST")
       
-      D.traceM $ "AST=" ++ pshowList' ast
+      --D.traceM $ "AST=" ++ pshowList' ast
 
       prettyTFncnName <- newName "prettifyT"
       prettyValueFncnName <- newName "prettifyValue"
@@ -1034,7 +1034,7 @@ g4_parsers ast gr = do
       name      = mkName $ mkLower (gName ast ++ "Grammar'")
       nameUnit  = mkName $ mkLower (gName ast ++ "Grammar")
   
-  D.traceM $ "This is the grammar: " ++ pshow' gr
+  --D.traceM $ "This is the grammar: " ++ pshow' gr
   ast2DTFncns <- sequence $ ast2DTFncnsQ gr ast nameAST
   decls <- [d|
       instance Ref $(conT ntSym) where

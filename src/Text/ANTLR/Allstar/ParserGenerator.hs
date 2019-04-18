@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeFamilies, FlexibleContexts, BangPatterns, ScopedTypeVariables
-   , OverloadedStrings #-}
+   , OverloadedStrings, StandaloneDeriving, UndecidableInstances #-}
 {-|
   Module      : Text.ANTLR.Allstar.ParserGenerator
   Description : ALL(*) parsing algorithm
@@ -117,7 +117,7 @@ instance (Prettify nt) => Prettify (DFAState nt) where
   prettify (Derror) = pStr "Derror"
 
 getLabel :: (Ref v, HasEOF (Sym v), Prettify v) => v -> (StripEOF (Sym v))
-getLabel v = D.trace (pshow' v) $ (fromJust . stripEOF . getSymbol) v
+getLabel v = {- D.trace (pshow' v) $ -} (fromJust . stripEOF . getSymbol) v
 
 type Label tok = StripEOF (Sym tok)
 
@@ -130,13 +130,19 @@ type Label tok = StripEOF (Sym tok)
 -}
 
 -- | Return type of parse function
-data AST nt tok = Node nt [AST nt tok] | Leaf tok deriving (Eq, Show)
+data AST nt tok = Node nt [GrammarSymbol nt (Label tok)] [AST nt tok] | Leaf tok
+--deriving (Eq, Show)
 
-instance (Prettify nt, Prettify tok) => Prettify (AST nt tok) where
-  prettify (Node nt asts) = do
+deriving instance (Eq nt, Eq tok, Eq (Label tok)) => Eq (AST nt tok)
+deriving instance (Show nt, Show tok, Show (Label tok)) => Show (AST nt tok)
+
+instance (Prettify nt, Prettify tok, Prettify (Label tok)) => Prettify (AST nt tok) where
+  prettify (Node nt ruleFired asts) = do
     pStr "Node "
     prettify nt
-    pStr " "
+    pStr " <"
+    prettify ruleFired
+    pStr "> "
     prettify asts
   prettify (Leaf tok) = prettify tok
 
@@ -209,9 +215,13 @@ type Tokenizer chr tok = [chr] -> [(tok, [chr])]
 --------------------------------ALL(*) FUNCTIONS--------------------------------
 -- should parse() also return residual input sequence?
 
+getMe :: (Ref tok, HasEOF (Sym tok), Prettify tok) => AST nt tok -> GrammarSymbol nt (Label tok)
+getMe (Leaf tok) = T $ getLabel tok
+getMe (Node nt _ _) = NT nt
+
 -- | ALL(*) parsing algorithm. This is __not__ the entrypoint as used by
 --   user-facing code. See 'Text.ANTLR.Allstar.parse' instead.
-parse :: ( CanParse nt tok, Prettify chr ) =>
+parse :: forall chr tok nt. ( CanParse nt tok, Prettify chr ) =>
 --(Eq nt, Show nt, Ord nt, Eq (Label tok), Show (Label tok), Ord (Label tok), Show tok
 --         , Ref tok, HasEOF (Sym tok), Show chr) =>
          Tokenizer chr tok ->
@@ -219,16 +229,24 @@ parse :: ( CanParse nt tok, Prettify chr ) =>
 parse tokenizer input startSym atnEnv useCache =
   let 
       --parseLoop :: (tok, [chr]) -> GrammarSymbol nt (Label tok) -> ATNEnv nt (Label tok) -> Bool -> Either String (AST nt tok)
+      parseLoop
+        :: (tok, [chr])
+        -> ATNState nt 
+        -> [ATNState nt]
+        -> DFAEnv nt (Label tok) -- [(GrammarSymbol nt (Label tok), DFA nt (Label tok))] --ATNEnv nt (Label tok)
+        -> [AST nt tok]
+        -> [[AST nt tok]]
+        -> Either String (AST nt tok)
       parseLoop (t, chrs) currState stack dfaEnv subtrees astStack =
-        D.trace (pshow' (t,chrs) ++ ", " ++ pshow' currState ++ ", " ++ pshow' stack ++ ", " ++ pshow' subtrees ++ ", " ++ pshow' astStack) $
+        --D.trace (pshow' (t,chrs) ++ ", " ++ pshow' currState ++ ", " ++ pshow' stack ++ ", " ++ pshow' subtrees ++ ", " ++ pshow' astStack) $
         case (currState, startSym) of
           (Final c, NT c') ->
             if c == c' then
-              Right (Node c subtrees)
+              Right (Node c (map getMe subtrees) subtrees)
             else
               case (stack, astStack) of
                 (q : stack', leftSiblings : astStack') ->
-                  parseLoop (t, chrs) q stack' dfaEnv (leftSiblings ++ [Node c subtrees]) astStack'
+                  parseLoop (t, chrs) q stack' dfaEnv (leftSiblings ++ [Node c (map getMe subtrees) subtrees]) astStack'
                 _ -> error ("Reached a final ATN state, but parse is incomplete " ++
                             "and there's no ATN state to return to")
           (_, _) ->

@@ -31,7 +31,7 @@ import Text.ANTLR.Pretty (Prettify(..))
 
 -- | Go from an Allstar AST to the AST type used internally in this package
 fromAllstarAST :: ALL.AST nts t -> P.AST nts t
-fromAllstarAST (ALL.Node nt asts) = P.AST nt [] (map fromAllstarAST asts)
+fromAllstarAST (ALL.Node nt ruleFired asts) = P.AST nt (map fromAllstarSymbol ruleFired) (map fromAllstarAST asts)
 fromAllstarAST (ALL.Leaf tok)     = P.Leaf tok
 
 --   TODO: Handle predicate and mutator state during the conversion
@@ -85,4 +85,9 @@ toAllstarSymbol :: G.ProdElem nts ts -> ALL.GrammarSymbol nts ts
 toAllstarSymbol (G.NT nts) = ALL.NT nts
 toAllstarSymbol (G.T  ts)  = ALL.T  ts
 toAllstarSymbol (G.Eps)    = ALL.EPS
+
+fromAllstarSymbol :: ALL.GrammarSymbol nts ts -> G.ProdElem nts ts
+fromAllstarSymbol (ALL.NT nts) = (G.NT nts)
+fromAllstarSymbol (ALL.T ts) = (G.T  ts)
+fromAllstarSymbol ALL.EPS = G.Eps
 

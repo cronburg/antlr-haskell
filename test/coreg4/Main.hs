@@ -66,7 +66,7 @@ test_hello =
 test_hello_allstar =
   allstarParse (const False) ("hello Matt")
   @?=
-  Right (AST NT_r [] [Leaf (Token T_0 V_0 5),Leaf (Token T_WS (V_WS " ") 1),Leaf
+  Right (AST NT_r [T T_0, T T_WS, T T_ID] [Leaf (Token T_0 V_0 5),Leaf (Token T_WS (V_WS " ") 1),Leaf
   (Token T_ID (V_ID "Matt") 4)])
   --Right (AST NT_r [] [])
 
