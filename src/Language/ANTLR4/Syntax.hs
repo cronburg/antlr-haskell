@@ -9,6 +9,7 @@
 -}
 module Language.ANTLR4.Syntax where
 import Language.ANTLR4.Boot.Syntax
+import Data.Char (readLitChar)
 
 import qualified Debug.Trace as D
 
@@ -45,6 +46,10 @@ stripQuotesReadEscape s = let
     eC ('"':xs)   = "\"" ++ sQRE xs
     eC ('\'':xs)  = "\'" ++ sQRE xs
     eC ('\\':xs)  = "\\" ++ sQRE xs
+    eC ('u':a:b:c:d:xs) =
+      case (readLitChar $ '\\' : 'x' : a : b : c : d : []) of
+        ((hex, "") : []) -> hex : sQRE xs
+        _ -> error $ "Invalid unicode character '\\u" ++ [a,b,c,d] ++ "' in string '" ++ s ++ "'"
     eC (x:xs)     = error $ "Invalid escape character '" ++ [x] ++ "' in string '" ++ s ++ "'"
 
     sQRE [] = []

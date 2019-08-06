@@ -36,6 +36,8 @@ data Decl = Foo | Bar
   decl  : 'foo' -> Foo
         | 'bar' -> Bar
         ;
+  
+  UNICODE : '\u0008' -> String ;
 
 |]
 

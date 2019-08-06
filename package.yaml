@@ -292,6 +292,22 @@ tests:
     - DeriveGeneric
     - DeriveAnyClass
   
+  swift:
+    main:                swift.hs
+    source-dirs:
+      - test/swift
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - antlr-haskell
+    default-extensions:
+    - DeriveLift
+    - DeriveDataTypeable
+    - DeriveGeneric
+    - DeriveAnyClass
+  
   simple:
     main:                Main.hs
     source-dirs:
