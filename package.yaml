@@ -24,13 +24,13 @@ dependencies:
 - base                 >= 4.11 && < 5
 - containers           >= 0.6  && < 0.7
 - mtl                  >= 2.2  && < 2.3
-- template-haskell     >= 2.14 && < 2.15
+- template-haskell     >= 2.14
 - text                 >= 1.2  && < 1.3
 - transformers         >= 0.5  && < 0.6
 - deepseq              >= 1.4  && < 1.5   # NFData
-- hashable             >= 1.2  && < 1.3
+- hashable             >= 1.2
 - unordered-containers >= 0.2  && < 0.3
-- th-lift              >= 0.7.11 && < 0.8   # Language.Haskell.TH.Lift
+- th-lift              >= 0.7.11  # Language.Haskell.TH.Lift
 - haskell-src-meta     >= 0.8  && < 0.9   # Parsing of G4 directives to TH
 
 #- ghc-prim
