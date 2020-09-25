@@ -5,8 +5,8 @@ GITDIR="$(dirname "$SCRIPTDIR")"
 # =============================================================================
 # MODIFY THESE PARAMETERS EACH TIME YOU PUBLISH A NEW VERSION:
 arch=x86_64-linux-tinfo6
-cVersion=2.4.0.1
-pVersion=0.1.0.0
+cVersion=3.0.1.0
+pVersion=0.1.0.1
 # =============================================================================
 
 gzDir=$GITDIR/.stack-work/dist/$arch/Cabal-$cVersion

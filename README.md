@@ -27,11 +27,11 @@ More info can be found here:
 The library can be built with:
 
 ```bash
-stack build # stack version 1.9.3
+stack build # stack version 2.3.3
 stack test :simple
 ```
 
-Or with cabal-2.4.0.1 like:
+Or with cabal-3.0.1.0 like:
 
 ```bash
 cabal configure
@@ -40,28 +40,19 @@ cabal build
 cabal test sexpression
 ```
 
-## Sample grammar for ALL(\*)
+Here's a good one to run when making changes to the library, and you're unsure
+of what may become affected by those changes:
 
-```
-S -> Ac | Ad
-
-A -> aA | b
-```
-
-### ALL(\*) Input/output examples
-
-```haskell
-*Test.AllStarTests> parse ['a', 'b', 'c'] (NT 'S') atnEnv
-(Just True, Node 'S' [Node 'A' [Leaf 'a', Node 'A' [Leaf 'b']], Leaf 'c'])
+```bash
+stack test :simple :atn :ll :lr :sexpression :allstar :c
 ```
 
-```haskell
-*Test.AllStarTests> parse ['b', 'd'] (NT 'S') atnEnv
-(Just True, Node 'S' [Node 'A' [Leaf 'b'], Leaf 'd'])
-```
+And then compare the results with that of this upstream branch. Some of the
+GLR features (incremental and partial tokenization, notably) are still experimental,
+and so there are known test cases which currently fail.
 
-```haskell
-*Test.AllStarTests> parse ['a', 'a', 'a', 'a', 'b', 'c'] (NT 'S') atnEnv
-(Just True, Node 'S' [Node 'A' [Leaf 'a', Node 'A' [Leaf 'a', Node 'A' [Leaf 'a', Node 'A' [Leaf 'a', Node 'A' [Leaf 'b']]]]], Leaf 'c'])
-```
+## Version History
+
+- September 25th, 2020. Released version 0.1.0.1: bug fixes, documentation, and
+  library versioning updates.
 
