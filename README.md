@@ -27,17 +27,24 @@ More info can be found here:
 The library can be built with:
 
 ```bash
-stack build # stack version 2.3.3
-stack test :simple
+$ stack build # stack version 2.3.3
+$ stack test :simple
 ```
 
-Or with cabal-3.0.1.0 like:
+Or with cabal (tested on 3.0.0.0) like so:
 
 ```bash
-cabal configure
-cabal install --only-dependencies --enable-tests
-cabal build
-cabal test sexpression
+$ hpack
+$ cabal update
+$ cabal configure
+$ cabal new-build
+$ cabal test sexpression
+...
+Test suite sexpression: RUNNING...
+Test suite sexpression: PASS
+Test suite logged to:
+/antlr-haskell/dist-newstyle/build/x86_64-linux/ghc-8.6.5/antlr-haskell-0.1.0.1/t/sexpression/test/antlr-haskell-0.1.0.1-sexpression.log
+1 of 1 test suites (1 of 1 test cases) passed.
 ```
 
 Here's a good one to run when making changes to the library, and you're unsure
