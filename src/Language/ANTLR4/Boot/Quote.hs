@@ -292,8 +292,10 @@ lookupTName ast pfx s = pfx ++
     Nothing -> s
     Just i  -> show i)
 
+defBang :: Q Bang
 defBang = bang noSourceUnpackedness noSourceStrictness
 
+strBangType :: (Q Bang, Q Type)
 strBangType = (defBang, conT $ mkName "String")
 
 mkCon   = conE . mkName . mkUpper
@@ -612,8 +614,9 @@ a2d ast nameAST G4S.Prod{G4S.pName = _A, G4S.patterns = ps} = let
             ]
 
   retType = let
+    rT :: G4S.PRHS -> Q Type
     rT G4S.PRHS{G4S.alphas = as, G4S.pDirective = dir}
-      = case (dir, vars as) of
+      = case (dir, (vars as :: [(G4S.ProdElem, Name, Q Exp)])) of
           (Just (G4S.UpperD d), vs) ->
               (do  i <- reify $ mkName d
                    (case i of
@@ -1102,8 +1105,8 @@ mkLRParser ast g =
     lr1Table' = M.toList tblInt -- _lr1Table'
     lr1S0'    = LR.convStateInt is $ LR.lr1Closure g $ LR.lr1S0 g
 
-    unitTy = [t| () |]
-    name' = [e| $(varE name) |] -- :: $(justGrammarTy' ast unitTy) |]
+    unitTy = [t| () |] :: Q Type
+    name' = [e| $(varE name) |] :: Q Exp -- :: $(justGrammarTy' ast unitTy) |]
   in do --D.traceM $ pshow' is
         D.traceM $ "lr1S0 = " ++ (pshow' $ LR.lr1S0 g)
         --D.traceM $ "lr1Table = " ++ (pshow' $ LR.lr1Table g)

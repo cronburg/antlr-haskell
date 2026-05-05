@@ -27,12 +27,12 @@ import qualified Data.Functor         as F
 import qualified Control.Applicative  as A
 import qualified Data.Foldable        as Foldable
 
-import Data.Map ( Map(..) )
+import Data.Map ( Map )
 import qualified Data.Map as M
 
 import qualified Data.HashSet as S
 import Data.HashSet as S
-  ( HashSet(..), member, toList, union
+  ( HashSet, member, toList, union
   , null, empty, map, size, singleton, insert
   , delete, unions, difference, intersection, foldl'
   , fromList
@@ -69,11 +69,8 @@ infixl 9 \\
 (\\) :: (Hashable a, Eq a) => Set a -> Set a -> Set a
 m1 \\ m2 = difference m1 m2
 
-instance (Hashable a, Eq a, Lift a) => Lift (S.HashSet a) where
-  lift set = [| fromList $(lift $ toList set) |]
-
-instance (Hashable k, Hashable v) => Hashable (Map k v) where
-  hashWithSalt salt mp = salt `hashWithSalt` M.toList mp
+-- Lift (HashSet a) provided by unordered-containers >= 0.2.20
+-- Hashable (Map k v) provided by hashable >= 1.3.4
 
 instance (Prettify a, Hashable a, Eq a) => Prettify (S.HashSet a) where
   prettify s = do
