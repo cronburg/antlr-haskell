@@ -22,6 +22,16 @@ The test was added as part of issue #34 (regex annotation syntactic sugar) but t
 underlying naming bug was not fully resolved. This is a quasiquoter correctness issue
 unrelated to the GHC version upgrade.
 
+## `:chisel` — compile failure, missing test fixture
+
+**Status**: Pre-existing. `test/chisel/Main.hs` references
+`[open| test/chisel/Language/Chisel/Examples/GHC.chi |]` via the `FileOpener`
+quasiquoter, which reads the file at compile time. The file and its parent
+directory (`Language/Chisel/Examples/`) were never committed to the repository,
+so the test suite does not compile in a clean checkout.
+
+**Excluded from CI** until the fixture file is restored or the test is rewritten.
+
 ## Notes on `hashable` and `HashSet` ordering
 
 The `hashable` library changed its hashing algorithm between 1.3.x (GHC 8.x) and 1.4.x
