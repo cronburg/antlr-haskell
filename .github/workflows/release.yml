@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache stack dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml', 'package.yaml') }}
+          restore-keys: ${{ runner.os }}-stack-
+
+      - name: Run tests
+        run: stack test
+
+      - name: Build sdist
+        run: stack sdist --pvp-bounds both
+
+      - name: Find sdist tarball
+        id: sdist
+        run: |
+          TARBALL=$(find .stack-work -name "antlr-haskell-*.tar.gz" | head -1)
+          echo "path=$TARBALL" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename $TARBALL)" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            "${{ steps.sdist.outputs.path }}#${{ steps.sdist.outputs.name }}" \
+            --title "${{ github.ref_name }}" \
+            --notes "See [ChangeLog.md](https://github.com/cronburg/antlr-haskell/blob/master/ChangeLog.md) for details."

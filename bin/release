@@ -1,0 +1,20 @@
+#!/bin/bash
+# Tags the current version and pushes to GitHub, triggering the release workflow.
+set -euo pipefail
+
+SCRIPTDIR="$(cd "$(dirname "$0")"; pwd)"
+GITDIR="$(dirname "$SCRIPTDIR")"
+cd "$GITDIR"
+
+VERSION=$(grep '^version:' package.yaml | awk '{print $2}')
+TAG="v$VERSION"
+
+if git rev-parse "$TAG" >/dev/null 2>&1; then
+  echo "Tag $TAG already exists. Bump version in package.yaml first."
+  exit 1
+fi
+
+echo "Creating tag $TAG"
+git tag "$TAG"
+git push origin "$TAG"
+echo "Pushed $TAG — GitHub Actions will build and publish the release."

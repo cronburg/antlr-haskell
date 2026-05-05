@@ -1,5 +1,5 @@
 name:                antlr-haskell
-version:             0.1.0.1
+version:             0.1.0.2
 github:              "cronburg/antlr-haskell"
 license:             BSD3
 author:              "Karl Cronburg & Matthew Ahrens"
