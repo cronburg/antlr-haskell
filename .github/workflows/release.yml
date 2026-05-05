@@ -16,6 +16,7 @@ jobs:
         with:
           enable-stack: true
           stack-version: 'latest'
+          enable-cabal: true
 
       - name: Cache stack dependencies
         uses: actions/cache@v4
@@ -45,3 +46,9 @@ jobs:
             "${{ steps.sdist.outputs.path }}#${{ steps.sdist.outputs.name }}" \
             --title "${{ github.ref_name }}" \
             --notes "See [ChangeLog.md](https://github.com/cronburg/antlr-haskell/blob/master/ChangeLog.md) for details."
+
+      - name: Upload to Hackage
+        if: ${{ secrets.HACKAGE_TOKEN != '' }}
+        env:
+          HACKAGE_TOKEN: ${{ secrets.HACKAGE_TOKEN }}
+        run: cabal upload --publish --token="$HACKAGE_TOKEN" "${{ steps.sdist.outputs.path }}"
