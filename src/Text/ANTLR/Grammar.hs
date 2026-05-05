@@ -32,7 +32,9 @@ import Data.List (nub, sort)
 import System.IO.Unsafe (unsafePerformIO)
 import qualified Debug.Trace as D
 import Data.Data (Data(..), Typeable(..))
+import Data.Kind (Type)
 import Language.Haskell.TH.Lift (Lift(..))
+import Language.Haskell.TH.Syntax (liftData)
 
 import qualified Text.ANTLR.Set as S
 import Text.ANTLR.Set
@@ -54,7 +56,7 @@ uPIO = unsafePerformIO
 --   Eq-able (best if finite) set of things.
 class Ref v where
   -- | One symbol type for every value type v.
-  type Sym v :: *
+  type Sym v :: Type
   -- | Compute (or extract) the symbol for some concrete value.
   getSymbol :: v -> Sym v
 
@@ -218,8 +220,10 @@ prodsFor g nts = let
 data Predicate p = Predicate String p
   deriving (Data)
 
-instance (Data s, Typeable s) => Lift (Predicate s)
-instance (Data s, Typeable s) => Lift (Mutator s)
+instance (Data s, Typeable s) => Lift (Predicate s) where
+  lift = liftData
+instance (Data s, Typeable s) => Lift (Mutator s) where
+  lift = liftData
 
 instance Eq (Predicate s) where
   Predicate p1 _ == Predicate p2 _ = p1 == p2
