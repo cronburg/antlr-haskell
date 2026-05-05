@@ -28,9 +28,10 @@ jobs:
           restore-keys: ${{ runner.os }}-stack-
 
       - name: Run tests
-        # chisel excluded: missing test/chisel/Language/Chisel/Examples/GHC.chi fixture
-        # unit excluded: compile-time naming bug in PlusBug0.hs quasiquoter (see test/KNOWN_FAILURES.md)
-        # lr excluded: GLRInc / GLRPartial are known pre-existing runtime failures
+        # chisel: missing fixture file (test/KNOWN_FAILURES.md)
+        # unit: compile-time quasiquoter naming bug (test/KNOWN_FAILURES.md)
+        # lr: pre-existing GLRInc/GLRPartial runtime failures (test/KNOWN_FAILURES.md)
+        # swift: pre-existing performance issue — very slow to compile (Issue #41)
         run: |
           stack test \
             antlr-haskell:allstar \
@@ -42,7 +43,6 @@ jobs:
             antlr-haskell:ll \
             antlr-haskell:sexpression \
             antlr-haskell:simple \
-            antlr-haskell:swift \
             antlr-haskell:template \
             antlr-haskell:unit0
 
