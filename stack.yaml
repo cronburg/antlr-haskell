@@ -1,5 +1,6 @@
 # resolver: nightly-2019-04-10
-resolver: lts-16.15
+# resolver: lts-16.15  (GHC 8.8.4 — original)
+resolver: lts-22.43    # GHC 9.6.6
 
 packages:
 - .

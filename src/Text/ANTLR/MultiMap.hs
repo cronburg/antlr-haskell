@@ -21,8 +21,6 @@ import Text.ANTLR.Pretty
 import Data.Data (Data(..))
 import Language.Haskell.TH.Syntax (Lift(..))
 
-instance (Lift k, Lift v, Data k, Data v, Ord k, Ord v) => Lift (M.Map k v)
-
 -- | A multi 'Map' is a mapping from keys @k@ to sets of values @v@. A nice
 --   invariant to maintain while using a multi-map is to never have empty
 --   sets mapped to by some key.

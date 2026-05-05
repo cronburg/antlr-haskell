@@ -212,7 +212,6 @@ instance Semigroup (Set a) where
 
 instance (Ord a) => Monoid (Set a) where
   mempty  = empty
-  mappend = union
   mconcat = unions
 
 instance Foldable Set where

@@ -419,16 +419,13 @@ leftFactor = let
       | otherwise = []
 
     lcps :: [(Prime nts, ProdElems (Prime nts) t)]
-    lcps = [ (nts0, maximumBy (comparing length)
-                   [ lcp xs ys
-                   | Production _ (Prod _ xs) _ <- filter ((== nts0) . getLHS) (ps g)
-                   , Production _ (Prod _ ys) _ <- filter ((== nts0) . getLHS) (ps g)
-                   , xs /= ys
-                   ])
-           | nts0 <- toList $ ns g ]
-
-    --longest_lcps :: [(nts, ProdElems nts t)]
-    --longest_lcps = filter (not . null . snd) lcps
+    lcps = [ (nts0, maximumBy (comparing length) lcp_list)
+           | nts0 <- toList $ ns g
+           , let lcp_list = [ lcp xs ys
+                             | Production _ (Prod _ xs) _ <- filter ((== nts0) . getLHS) (ps g)
+                             , Production _ (Prod _ ys) _ <- filter ((== nts0) . getLHS) (ps g)
+                             , xs /= ys ]
+           , not (null lcp_list) ]
 
     incr :: Prime nts -> Prime nts
     incr (Prime (nts, i)) = Prime (nts, i + 1)
