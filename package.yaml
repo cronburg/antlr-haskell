@@ -40,6 +40,9 @@ dependencies:
 
 library:
   source-dirs: src
+  ghc-options:
+  - -Wall
+  - -Wno-unused-top-binds
   exposed-modules:
     - Text.ANTLR.Allstar
     - Text.ANTLR.Grammar
@@ -80,7 +83,7 @@ library:
     - DeriveDataTypeable
     - DeriveGeneric
     - DeriveAnyClass
-    - StarIsType
+    - NoStarIsType
 
   # LANGUAGE extensions used by modules in this package.
   other-extensions:

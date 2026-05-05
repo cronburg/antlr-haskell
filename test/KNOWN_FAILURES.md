@@ -22,6 +22,14 @@ The test was added as part of issue #34 (regex annotation syntactic sugar) but t
 underlying naming bug was not fully resolved. This is a quasiquoter correctness issue
 unrelated to the GHC version upgrade.
 
+## `:swift` — very slow compilation / performance
+
+**Status**: Pre-existing. The Swift grammar (`test/swift/`) exercises a large G4
+grammar that is known to cause performance issues with the G4 parser (Issue #41).
+Compilation and test execution are extremely slow, making it impractical for CI.
+
+**Excluded from CI.** Can still be run locally with `stack test antlr-haskell:swift`.
+
 ## `:chisel` — compile failure, missing test fixture
 
 **Status**: Pre-existing. `test/chisel/Main.hs` references

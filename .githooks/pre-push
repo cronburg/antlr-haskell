@@ -1,0 +1,21 @@
+#!/bin/bash
+# Run before every git push. Activate with: git config core.hooksPath .githooks
+set -euo pipefail
+
+SCRIPTDIR="$(cd "$(dirname "$0")"; pwd)"
+GITDIR="$(dirname "$SCRIPTDIR")"
+cd "$GITDIR"
+
+echo "[pre-push] Building library with -Wall..."
+stack build antlr-haskell:lib --fast --ghc-options "-Wall"
+
+echo "[pre-push] Running core test suites..."
+stack test \
+  antlr-haskell:simple \
+  antlr-haskell:atn \
+  antlr-haskell:ll \
+  antlr-haskell:lexer \
+  antlr-haskell:unit0 \
+  --fast
+
+echo "[pre-push] All checks passed."

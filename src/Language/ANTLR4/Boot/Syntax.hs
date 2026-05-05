@@ -18,7 +18,7 @@ module Language.ANTLR4.Boot.Syntax
 import Text.ANTLR.Grammar ()
 import Language.Haskell.TH.Lift (Lift(..))
 
-import Language.Haskell.TH.Syntax (Exp)
+import Language.Haskell.TH.Syntax (Exp, liftData)
 import qualified Language.Haskell.TH.Syntax as S
 
 import Text.ANTLR.Set ( Hashable(..), Generic(..) )
@@ -60,7 +60,8 @@ instance Prettify G4 where
     pStr ")"
 
 
-instance Lift Exp
+instance Lift Exp where
+  lift = liftData
 
 -- | The right-hand side of a G4 production rule.
 data PRHS = PRHS

@@ -192,7 +192,7 @@ instance F.Functor Set where
   fmap = liftM
 
 instance A.Applicative Set where
-  pure  = return
+  pure  = Return
   (<*>) = ap
 
 instance A.Alternative Set where
@@ -200,8 +200,7 @@ instance A.Alternative Set where
   (<|>) = Plus
 
 instance Monad Set where
-  return = Return
-  (>>=)  = Bind
+  (>>=) = Bind
 
 instance MonadPlus Set where
   mzero = Zero
