@@ -8,6 +8,8 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      HACKAGE_TOKEN: ${{ secrets.HACKAGE_TOKEN }}
 
     steps:
       - uses: actions/checkout@v4
@@ -48,7 +50,5 @@ jobs:
             --notes "See [ChangeLog.md](https://github.com/cronburg/antlr-haskell/blob/master/ChangeLog.md) for details."
 
       - name: Upload to Hackage
-        if: ${{ secrets.HACKAGE_TOKEN != '' }}
-        env:
-          HACKAGE_TOKEN: ${{ secrets.HACKAGE_TOKEN }}
+        if: ${{ env.HACKAGE_TOKEN != '' }}
         run: cabal upload --publish --token="$HACKAGE_TOKEN" "${{ steps.sdist.outputs.path }}"
