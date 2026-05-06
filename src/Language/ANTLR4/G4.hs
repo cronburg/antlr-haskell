@@ -107,7 +107,7 @@ $( return [] )
         ;
 
   prods : prodRHS                   -> list
-        | prods '|' prodRHS         -> snoc
+        | prodRHS '|' prods         -> cons
         ;
 
   lexemeRHS : regexes1 '->' directive  -> lexemeDirective

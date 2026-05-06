@@ -54,14 +54,12 @@ isWhitespace T_LineComment = True
 isWhitespace T_WS = True
 isWhitespace _ = False
 
--- | Cached G4 parser: O(n) disambiguation using shift preference.
--- After fixing unionR and prods to be left-recursive, the G4 grammar has ZERO
--- Reduce/Reduce conflicts. All remaining conflicts are Shift/Reduce, resolved
--- correctly by shift preference (S.findMin picks Shift < Reduce by derived Ord).
--- Tables computed once as a CAF across all [g4|...|] splices in a build.
+-- | Cached G4 parser: full GLR with error-pruning (glrParseInc2). The left-
+-- recursive unionR G4 grammar fix eliminates the dominant Reduce/Reduce source,
+-- making error-pruned GLR practical. Tables computed once as a CAF.
 {-# NOINLINE g4ParseCached #-}
 g4ParseCached :: LR.Tokenizer G4Token Char -> [Char] -> LR.GLRResult Int Char G4Token G4AST
-g4ParseCached = LR.disambiguatedGlrParseInc2 g4Grammar event2ast
+g4ParseCached = LR.glrParseInc2 g4Grammar event2ast
 
 showTime :: Integer -> Integer -> String
 showTime t0 t1 = show (fromIntegral (t1 - t0) / 1e12 :: Double) ++ "s"
