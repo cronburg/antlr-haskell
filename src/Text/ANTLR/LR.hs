@@ -19,7 +19,7 @@ module Text.ANTLR.LR
   , LR1LookAhead
   , CoreLRState, CoreLR1State, CoreSLRState, LRTable, LRTable', LRAction(..)
   , lrParse, GLRResult(..), LRResult(..), LR1Result(..), glrParse, glrParseInc, isAccept, isError
-  , lr1S0, glrParseInc', glrParseInc2
+  , lr1S0, glrParseInc', glrParseInc2, disambiguatedGlrParseInc2
   , convGoto, convStateInt, convGotoStatesInt, convTableInt, tokenizerFirstSets
   , disambiguate
   , SLRClosure, SLRItem, SLRTable, Closure, LR1Item, Goto, Goto', Config, Tokenizer
@@ -708,6 +708,20 @@ glrParseInc2 g = let
       (convState $ lr1Closure g $ lr1S0 g)
       (tokenizerFirstSets convState g)
 
+-- | Like 'glrParseInc2' but resolves Shift/Reduce and Reduce/Reduce conflicts
+-- using 'disambiguate' (Shift < Reduce by derived Ord — shift preference).
+-- This gives O(n) deterministic parsing instead of O(n^3) GLR exploration.
+-- Safe to use when only one parse result is needed (caller takes S.findMin anyway).
+disambiguatedGlrParseInc2 g = let
+    is = sort $ S.toList $ lr1Items g
+    convState = convStateInt is
+    (tbl', _) = disambiguate (convTableInt (lr1Table g) is)
+    tbl = M.fromList' [(k, singleton v) | (k, v) <- M1.toList tbl']
+  in glrParseInc' g
+      tbl
+      (convGotoStatesInt (convGoto g (lr1Goto g) is) is)
+      (convState $ lr1Closure g $ lr1S0 g)
+      (tokenizerFirstSets convState g)
 
 -- | Returns the disambiguated LRTable, as well as the number of conflicts
 --   (Shift/Reduce, Reduce/Reduce, etc...) reported.

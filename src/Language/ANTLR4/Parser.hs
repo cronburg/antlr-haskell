@@ -54,13 +54,13 @@ isWhitespace T_LineComment = True
 isWhitespace T_WS = True
 isWhitespace _ = False
 
--- | Cached G4 parser: partially applying glrParseInc2 to the fixed G4 grammar
--- makes the LR table construction (lr1Items, lr1Table, convGoto) a shared CAF.
--- The tables are computed once the first time any [g4|...|] splice is evaluated,
--- then reused for all subsequent splices in the same compilation.
+-- | Cached G4 parser: disambiguatedGlrParseInc2 resolves Shift/Reduce conflicts
+-- using shift preference (O(n) parsing instead of O(n^3) GLR). The tables are
+-- computed once on first call and shared (CAF) for all subsequent splices.
+-- Using disambiguation is safe: g4_codeGen always takes S.findMin on ResultSet anyway.
 {-# NOINLINE g4ParseCached #-}
 g4ParseCached :: LR.Tokenizer G4Token Char -> [Char] -> LR.GLRResult Int Char G4Token G4AST
-g4ParseCached = LR.glrParseInc2 g4Grammar event2ast
+g4ParseCached = LR.disambiguatedGlrParseInc2 g4Grammar event2ast
 
 showTime :: Integer -> Integer -> String
 showTime t0 t1 = show (fromIntegral (t1 - t0) / 1e12 :: Double) ++ "s"
