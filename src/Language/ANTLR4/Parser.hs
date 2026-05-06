@@ -54,12 +54,15 @@ isWhitespace T_LineComment = True
 isWhitespace T_WS = True
 isWhitespace _ = False
 
--- | Cached G4 parser: glrParseInc2 with error-pruned GLR (concatSets in
--- glrParseInc' now discards dead error branches early). Tables are computed
--- once and shared as a CAF across all [g4|...|] splices in a compilation.
+-- | Cached G4 parser: uses disambiguatedGlrParseInc2 (greedy disambiguation —
+-- Shift over Reduce, longer RHS for Reduce/Reduce conflicts) for O(n) parsing.
+-- Tables computed once as a CAF; reused for all [g4|...|] splices in a build.
+-- Greedy Reduce/Reduce strategy is correct for the G4 regex grammar: unit
+-- productions (regex1 -> unionR) should only be taken when no longer reduction
+-- (unionR -> regex '|' unionR) is applicable in the same state.
 {-# NOINLINE g4ParseCached #-}
 g4ParseCached :: LR.Tokenizer G4Token Char -> [Char] -> LR.GLRResult Int Char G4Token G4AST
-g4ParseCached = LR.glrParseInc2 g4Grammar event2ast
+g4ParseCached = LR.disambiguatedGlrParseInc2 g4Grammar event2ast
 
 showTime :: Integer -> Integer -> String
 showTime t0 t1 = show (fromIntegral (t1 - t0) / 1e12 :: Double) ++ "s"
