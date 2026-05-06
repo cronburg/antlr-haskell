@@ -2,105 +2,112 @@
 
 Branch: `swift-perf-investigation`
 
-## ROOT CAUSE FOUND AND FIXED (2026-05-05)
+## Summary of fixes implemented (2026-05-05 through 2026-05-06)
+
+### Fix 1: G4 LR table CAF caching — DONE (commit 38133a9)
+- **Problem**: `glrParseInc2 g4Grammar` rebuilt G4 LR tables on every splice (~6.5s).
+- **Fix**: `{-# NOINLINE #-} g4ParseCached` top-level CAF shares tables across splices.
+- **Verified**: 2nd splice drops 6.5s → 1.3ms (5000× faster).
+
+### Fix 2: `-O0` for swift test suite — DONE (in package.yaml)
+- **Mitigation**: Skips Simplifier passes on the generated SwiftNT ADT.
+- **Status**: Applied; contribution measured when swift build completes.
 
 ### Fix 3: removeEpsilonsAST exponential algorithm — DONE (commit 625fbb2)
-- **Problem**: `removeEpsilonsAST` has an exponential algorithm. Grammars with `*`/`+`
-  annotations create self-referential expansion rules (`r_star : r r_star | r | ε`).
-  The `rDF` function in `removeEpsilonsAST` branches on EVERY occurrence of a nullable
-  NT, creating `2^k` variants for `k` occurrences. As nullable NTs cascade through
-  mutual references, the number of intermediate productions explodes exponentially.
-  With BenchStar's 30 self-referential `_star` NTs: 9+ minute stall.
-  With Swift's 963 NTs from 309 annotations: 30+ minute stall.
+- **Problem**: `removeEpsilonsAST` had O(2^k) complexity for k nullable NTs from
+  `*`/`+` annotations. BenchStar (120 annotations): 9+ min stall; Swift: 30+ min.
 - **Fix**: Remove `removeEpsilonsAST` from the `genTermAnnotProds` expansion path.
-  The epsilon alternatives in `_star`/`_plus` rules are semantically correct for GLR
-  and must be preserved. Applied after expansion, `removeEpsilonsAST` was wrong AND slow.
-- **Verified**: BenchStar `g4_decls` TH evaluation: 9+ minutes → 7ms (70,000× faster).
-  All 6 smoke suites pass.
-- **Files changed**: `src/Language/ANTLR4/Boot/Quote.hs`
+- **Verified**: BenchStar `g4_decls` TH evaluation: 9+ minutes → 7ms (70,000×).
 
-## What we know (confirmed by profiling)
+### Fix 4: `lr1Closure` FIRST-set memoization — DONE (commit 7cda3f7)
+- **Problem**: `LL.first g` called O(|states| × |items| × |iterations|) times.
+- **Fix**: `computeFirstMap` precomputes FIRST(NT x) for all NTs once via fixed-point.
+  `lr1Closure g` returns a closure with the precomputed map, shared across calls.
+- **Effect**: LR table construction is faster for all grammars.
 
-### Fix 1: G4 LR table CAF caching — DONE
-- **Problem**: `glrParseInc2 g4Grammar` rebuilt the G4 grammar's LR1 items, action table,
-  and goto function on every `[g4|...|]` invocation (~6.5s fixed cost per splice).
-- **Fix**: `g4ParseCached = LR.glrParseInc2 g4Grammar event2ast` top-level CAF in
-  `Language.ANTLR4.Parser`. First splice pays the cost once; all subsequent splices
-  in the same compilation reuse cached tables.
-- **Verified**: Second splice drops 6.5s → 1.3ms (5000× speedup).
-- **Files changed**: `src/Language/ANTLR4/Parser.hs`
+### Fix 5: GLR error-pruned `concatSets` — DONE (commit 31d5ffc)
+- **Problem**: `glrParseInc'` accumulated ALL parse results including dead error branches.
+  Wrong paths (from conflicts) were kept alive, compounding O(n³) complexity.
+- **Fix**: `concatSets` now discards `ErrorNoAction`/`ErrorTable` results immediately.
+  Wrong paths fail quickly and are pruned before they compound.
+- **Also fixed**: `0 -> undefined` replaced with graceful `ErrorNoAction` fallback.
 
-### Fix 2: `-O0` for swift test suite — DONE (mitigation)
-- **Problem**: `genTermAnnotProds` expands `*`/`+`/`?` annotations into NT constructors.
-  Swift has 309 annotations → ~963 NT constructors. GHC type-checking + running multiple
-  Simplifier passes over this ADT (× 9 derived classes) takes 30+ minutes.
-- **Mitigation**: `-O0` in swift test suite ghc-options skips Simplifier, FloatOut,
-  SpecConstr, etc. Type-checking still runs, but should be much faster overall.
-- **Files changed**: `package.yaml`
-- **Status**: NOT YET MEASURED — need to run the swift build with -O0 to verify speedup.
+### Fix 6: Token caching through Reduce chains — DONE (commit 9259139)
+- **Problem**: `lr (s, cs)` re-tokenized `cs` at the start of EVERY call, including
+  recursive Reduce calls that don't consume input. With ~10 Reduces per Shift and
+  5000 tokens in Swift.g4, this caused ~50,000 tokenizer calls instead of ~5,000.
+- **Fix**: `lr` now accepts `Maybe (t, [c])` for a pre-computed token. Reduce calls
+  pass `Just (a, ws)`; Shift calls reset to `Nothing` (re-tokenize from `ws`).
 
-## Next steps
+### Fix 7: Remove `Generic` derive; `Hashable via fromEnum` — DONE (commit d26e083)
+- **Problem**: `deriving Generic` for 963-constructor `SwiftNT` generates a deeply
+  nested `:+:` representation type that GHC must elaborate and typecheck.
+- **Fix**: Remove `Generic` from `symbolDerives`; generate manual
+  `instance Hashable T where hashWithSalt n x = hashWithSalt n (fromEnum x)`.
 
-### Step A: Measure -O0 speedup (high priority)
-Run `time stack build antlr-haskell:test:swift` and record wall time. Compare to the
-30+ minute baseline. If -O0 reduces to <5 minutes, this is a good interim fix.
+### Fix 8: `disambiguatedGlrParseInc2` + `greedyDisambiguate` — DONE (commit 765b857)
+- Added `disambiguatedGlrParseInc2` for O(n) parsing when disambiguation is safe.
+- Added `greedyDisambiguate` (Shift preference, longer RHS for Reduce/Reduce) as
+  an improvement over `S.findMin` disambiguation.
+- **Note**: Neither disambiguation approach is correct for the full Swift grammar
+  due to remaining G4 grammar ambiguities beyond the regex sub-grammar.
 
-### Step B: Understand genTermAnnotProds (the real fix)
-File: `src/Language/ANTLR4/Boot/Quote.hs`, function `genTermAnnotProds` (~line 305).
+### Fix 9: Left-recursive `unionR` in G4 regex grammar — DONE (commit e7408dc)
+- **Problem**: Right-recursive `unionR : regex '|' regex | regex '|' unionR` created
+  Reduce/Reduce conflict: when `unionR` on stack + lookahead starts a regex, parser
+  couldn't distinguish "reduce to regex1" vs "build longer union". Full GLR explored
+  2^K branches for K such conflicts → O(n³) for large inputs.
+- **Fix**: Change second alternative to `unionR '|' regex` (left-recursive).
+  Left-recursion converts Reduce/Reduce to Shift/Reduce (or eliminates it); GLR
+  branching is dramatically reduced.
+- **Measured**: glrParse for Swift.g4 dropped from 81.7s (wrong disambiguation) to
+  31.5s with left-recursive grammar. Full GLR with left-recursive grammar: TBD.
 
-Current behavior: for each `r1*` in a grammar rule, generates new NT rules like:
-  `r1_star : r1 r1_star | ;`
-This creates 2 new NT constructors per annotation. With 309 annotations in Swift,
-the `SwiftNT` ADT grows from 345 → ~963 constructors.
+## Current status (awaiting swift build completion)
 
-**Option B1**: Keep genTermAnnotProds but reduce derived instances on the expanded types.
-  - `Data` is only needed by `disambiguate` (in experimental `mkLRParser` path).
-  - `Lift` might not be needed on NT/T types (the `lift ast` in g4_decls lifts `[G4S.G4]`,
-    not the generated NT type). CAUTION: removing `Lift` caused GHC-76037 errors in testing —
-    needs more investigation before proceeding.
-  - `Bounded`/`Enum` ARE needed (used in `[minBound..maxBound]` in grammar value construction).
+The definitive measurement is running: left-recursive G4 grammar + error-pruned
+GLR (`glrParseInc2`). Monitor via `/tmp/swift-lr-glr.log`.
 
-**Option B2**: Change genTermAnnotProds to not generate new NT constructors.
-  Instead of `NT_r1_star`, use a wrapper `NT_Star NT_r1` in the grammar value.
-  This requires changing how the Grammar type represents expansion rules, which is
-  a significant refactor but would keep the NT ADT at the expected size.
+Expected breakdown:
+1. `glrParse` of Swift.g4 (37046 chars): should be much less than 9+ hours
+2. `g4_decls` TH code generation: ~few ms (fixed by removeEpsilonsAST)
+3. GHC type-checking SwiftNT (963 constructors, 7 derives, -O0): TBD
 
-**Option B3**: Split the generated grammar across multiple modules.
-  Compile NT definitions and grammar value in one module; parsers/DFAs in another.
-  GHC handles smaller modules faster. Complex to implement.
+## Remaining work
 
-### Step C: Memoize LL.first in lr1Closure (runtime perf, separate issue)
-File: `src/Text/ANTLR/LR.hs`, function `lr1Closure` (~line 234).
+### Option B2: Redesign genTermAnnotProds (long-term)
+The fundamental issue: 963 NT constructors from 309 `*`/`+`/`?` annotations. Even
+with all the above fixes, GHC typechecking this many constructors takes significant
+time. Long-term fix: change `genTermAnnotProds` to NOT generate flat NT constructors
+for annotations. Instead, use a wrapper type like `NT_Star NT_r1` in the grammar
+value. This keeps the NT ADT at the expected ~345 constructors. Significant refactor.
 
-`LL.first g (β ++ tokenToProdElem a)` is called without memoization on every item in
-every closure iteration. For large grammars at runtime (when glrParse is called by user
-code), this makes LR table construction slow.
+### Remaining G4 grammar conflicts
+The G4 grammar still has Shift/Reduce and possibly other Reduce/Reduce conflicts
+beyond `unionR`. These affect disambiguation approaches but are handled correctly
+by full GLR. Audit the full conflict list from `greedyDisambiguate` output to
+identify any remaining fixable grammar issues.
 
-Fix: precompute `firstMap :: Map [ProdElem nts sts] (Set (Icon sts))` before the closure
-fixpoint, then do map lookups instead of recursive computation. This would make
-`glrParse swiftGrammar` faster at runtime (currently also slow due to same issue).
-
-### Step D: Runtime profiling (separate from compile time)
-Once swift builds, run:
+### Runtime profiling (once swift builds)
 ```bash
 stack test antlr-haskell:swift --profile -- +RTS -p -RTS
 ```
 The `.prof` file will show where runtime time goes (LR table construction vs parsing).
 
-## Key files for next agent
+## Key files
 
 | File | Relevance |
 |------|-----------|
-| `src/Language/ANTLR4/Parser.hs` | g4ParseCached CAF fix + timing instrumentation |
-| `src/Language/ANTLR4/Boot/Quote.hs` | symbolDerives, genTermAnnotProds (the real problem) |
-| `src/Text/ANTLR/LR.hs` | lr1Closure, lr1Items, glrParseInc2 (runtime perf) |
-| `src/Text/ANTLR/LL1.hs` | first/follow — no memoization (runtime perf root cause) |
-| `test/bench/` | Synthetic benchmark suite for measuring compile time |
-| `profiling/timing-summary.md` | All measured data and root cause analysis |
+| `src/Language/ANTLR4/G4.hs` | G4 grammar definition — the `unionR` fix is here |
+| `src/Language/ANTLR4/Parser.hs` | g4ParseCached CAF + timing instrumentation |
+| `src/Language/ANTLR4/Boot/Quote.hs` | symbolDerives, genTermAnnotProds |
+| `src/Text/ANTLR/LR.hs` | lr1Closure, glrParseInc', disambiguate functions |
+| `test/bench/` | Synthetic benchmark suite |
+| `profiling/timing-summary.md` | All measured data |
 
 ## Tooling setup (on this machine)
 - GHCup at `~/.ghcup/env` — source before running stack
 - GHC 9.6.7, Stack 3.7.1 installed
-- `stack build antlr-haskell:test:bench` — runs the benchmark suite (fast, ~30s)
-- `-ddump-timings` flag shows per-phase GHC timing
-- `[g4 timing]` output in build log shows instrumented TH timing
+- `stack build antlr-haskell:test:bench` — benchmark suite (~2 min to build, ~30s to run)
+- `-ddump-timings` shows per-phase GHC timing
+- `[g4 timing]` output shows instrumented TH timing

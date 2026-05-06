@@ -8,7 +8,7 @@
 
 Build command: `stack build antlr-haskell:test:bench --ghc-options="-ddump-timings"`
 
-## Phase timing results
+## Phase timing results (session 2026-05-05, pre-fix baseline)
 
 | Grammar | Rules | Chars | glrParse (CPU) | g4_decls (CPU) | Renamer/TC total |
 |---------|-------|-------|----------------|----------------|-----------------|
@@ -43,49 +43,67 @@ NT grammar rules. Each annotation generates ~2 extra NT constructors. The Swift 
 | BenchStar | 30            | 120                    | ~270                 |
 | Swift     | 345           | 309                    | ~963                 |
 
-BenchStar (120 annotations, ~270 NT constructors): glrParse 0.61s, then GHC stalled
-12+ minutes on type-checking the generated ADT.
+## Feature benchmark results (session 2026-05-06, after all fixes)
 
-Swift (309 annotations, ~963 NT constructors) → the 30-minute build.
+After: CAF caching + error-pruned GLR + token caching + left-recursive G4 grammar.
 
-## Three-component model (corrected)
+| Feature    | Description                          | glrParse (2nd splice) |
+|------------|--------------------------------------|----------------------|
+| BenchBase  | 30 rules, no annotations             | 8.6s (1st splice baseline) |
+| BenchLexer | Complex lexer rules only             | 0.095s |
+| BenchLits  | 30 rules + 2 string literals/rule    | 0.54s |
+| BenchOpt   | 30 rules + `?` annotations           | 0.53s |
+| BenchStar  | 30 rules + `*`/`+` annotations       | 0.57s |
+| BenchWide  | 30 rules + 8 alternatives/rule       | 1.24s |
 
-```
-total [g4|...|] compile time ≈
-    glrParse_cost             (fixed 6.5s for 1st splice, ~1ms for subsequent)
-  + g4_decls_cost             (always ~1-5ms — negligible)
-  + GHC_typecheck_cost        (dominates for grammars with many annotations)
+## Swift grammar glrParse timing history
 
-NT constructors = explicit_rules + 2 × star_plus_question_annotations
+| Approach                           | glrParse time | Parse correct? |
+|------------------------------------|---------------|----------------|
+| Original (full GLR, no fixes)      | 9+ hours      | Yes (eventually) |
+| + CAF caching + removeEpsilonsAST  | still 9+ hours| Yes            |
+| + disambiguation (S.findMin)       | 81.7s         | No — failed at `~[...]` |
+| + greedy disambiguation (longer RHS)| 31.5s         | No — failed at `'grammar'` |
+| + left-recursive G4 + glrParseInc2 | TBD           | TBD            |
 
-GHC_typecheck_cost scales super-linearly with NT constructor count:
-  BenchBase (~30 NT): fast (<0.5s)
-  BenchStar (~270 NT): 12+ minutes (observed)
-  Swift     (~963 NT): 30+ minutes (observed)
-```
+## Root cause summary — all components
 
-## Feature benchmark results (glrParse after first-splice caching)
+**Component 1 (FIXED)**: G4 LR table CAF caching.
+- Was: 6.5s per splice for building G4 LR tables from scratch.
+- Fix: `g4ParseCached` NOINLINE CAF in `Language.ANTLR4.Parser`.
 
-| Feature    | Description                          | glrParse |
-|------------|--------------------------------------|----------|
-| BenchBase  | 30 rules, no annotations             | baseline (first splice, 8s) |
-| BenchLexer | Complex lexer rules only             | 0.07-0.14s |
-| BenchLits  | 30 rules + 2 string literals/rule    | 0.45-0.81s |
-| BenchOpt   | 30 rules + `?` annotations           | 0.60-0.73s |
-| BenchStar  | 30 rules + `*`/`+` annotations       | 0.54-0.87s |
-| BenchWide  | 30 rules + 8 alternatives/rule       | (stalled — same issue as BenchStar) |
+**Component 2 (FIXED)**: `removeEpsilonsAST` exponential algorithm in `g4_decls`.
+- Was: `2^k` variants created for k nullable NTs in `*`/`+` expansion rules.
+- Fix: remove `removeEpsilonsAST` from the `genTermAnnotProds` expansion path.
 
-None of these features dramatically slow `glrParse` — the slowness is in GHC type-checking
-the NT ADT after TH evaluation, not in the parsing phase.
+**Component 3 (FIXED)**: Redundant tokenization in Reduce chains.
+- Was: tokenizer called O(reductions_per_shift) × n times.
+- Fix: cache `(a, ws)` through Reduce chains; re-tokenize only after Shifts.
 
-## Root cause summary
+**Component 4 (FIXED)**: Generic derive generating large Rep type for NT/T ADTs.
+- Was: `deriving Generic` for 963-constructor `SwiftNT` created a deeply nested
+  type-level `:+:` tree that GHC had to elaborate.
+- Fix: remove `Generic` from `symbolDerives`; generate manual `Hashable via fromEnum`.
 
-The Swift [g4|...|] compile bottleneck has two confirmed components:
+**Component 5 (FIXED)**: GHC Simplifier passes on generated ADTs.
+- Mitigation: `-O0` on swift test suite skips Simplifier.
 
-**Component 1 (fixed)**: G4 LR table construction (6.5s fixed cost per module).
-Fix: `g4ParseCached` CAF in `Language.ANTLR4.Parser`.
+**Component 6 (FIXED)**: Reduce/Reduce conflicts in G4 regex grammar (glrParse).
+- Was: right-recursive `unionR : regex '|' regex | regex '|' unionR` created
+  Reduce/Reduce conflict when `unionR` was on stack and lookahead started a regex.
+  Full GLR explored 2^K branches for K conflicts → O(n³) complexity.
+- Fix: change to left-recursive `unionR : regex '|' regex | unionR '|' regex`.
+  Left-recursion converts Reduce/Reduce to Shift/Reduce (or no conflict); GLR
+  branching is reduced dramatically.
 
-**Component 2 (pending)**: GHC type-checking `SwiftNT` (~963 constructors from
-genTermAnnotProds expansion) × 9 derived classes.
-Immediate mitigation: `-O0` on swift test suite (skips multiple Simplifier passes).
-Proper fix: redesign genTermAnnotProds to avoid NT constructor explosion.
+**Component 7 (PARTIALLY FIXED)**: `lr1Closure` FIRST-set recomputation.
+- Was: `LL.first g` called O(|states| × |items| × |iterations|) times during LR
+  table construction.
+- Fix: precompute `firstMap` once via `computeFirstMap` using iterative fixed-point;
+  share across the returned closure function.
+
+**Remaining bottleneck (pending)**: GHC type-checking 963-constructor `SwiftNT` ADT.
+Even with all the above fixes, GHC still needs to typecheck ~963 constructors × 7
+derived classes. This is a fundamentally O(N^k) problem for large grammars.
+Long-term fix: redesign `genTermAnnotProds` to not generate flat NT constructors for
+`*`/`+`/`?` annotations (Option B2 in next-steps.md).
