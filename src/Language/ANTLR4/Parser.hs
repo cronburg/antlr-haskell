@@ -38,6 +38,8 @@ import qualified Language.ANTLR4.Boot.Quote   as G4Q
 import Language.ANTLR4.G4
 
 import Debug.Trace as D
+import System.CPUTime (getCPUTime)
+import Control.Exception (evaluate)
 
 -- Splice the parsers for the grammar we defined in Language.ANTLR4.G4
 $(g4_parsers g4AST g4Grammar)
@@ -51,16 +53,33 @@ isWhitespace T_LineComment = True
 isWhitespace T_WS = True
 isWhitespace _ = False
 
+-- | Cached G4 parser: partially applying glrParseInc2 to the fixed G4 grammar
+-- makes the LR table construction (lr1Items, lr1Table, convGoto) a shared CAF.
+-- The tables are computed once the first time any [g4|...|] splice is evaluated,
+-- then reused for all subsequent splices in the same compilation.
+{-# NOINLINE g4ParseCached #-}
+g4ParseCached :: LR.Tokenizer G4Token Char -> [Char] -> LR.GLRResult Int Char G4Token G4AST
+g4ParseCached = LR.glrParseInc2 g4Grammar event2ast
+
+timed :: String -> TH.Q a -> TH.Q a
+timed label action = do
+  t0 <- TH.runIO getCPUTime
+  result <- action
+  t1 <- TH.runIO getCPUTime
+  TH.runIO $ putStrLn $ "[g4 timing] " ++ label ++ ": "
+    ++ show (fromIntegral (t1 - t0) / 1e12 :: Double) ++ "s"
+  return result
+
 g4_codeGen :: String -> TH.Q [TH.Dec]
 g4_codeGen input = do
   loc <- TH.location
   let fileName = TH.loc_filename loc
   let (line,column) = TH.loc_start loc
-
-  {- case allstarParse (filter (not . isWhitespace . stripEOF . getSymbol) (tokenize input)) of
-    Left err -> error err
-    Right ast -> codeGen ast -}
-  case glrParse isWhitespace input of
+  TH.runIO $ putStrLn $ "[g4 timing] --- " ++ fileName ++ ":" ++ show line
+    ++ " (" ++ show (length input) ++ " chars)"
+  parsed <- timed "glrParse" $ TH.runIO $ evaluate $
+    g4ParseCached (T.tokenizeInc isWhitespace g4DFAs lexeme2value) input
+  timed "g4_decls" $ case parsed of
     (LR.ResultAccept ast) -> codeGen ast
     LR.ResultSet    s   ->
       if S.size s == 1

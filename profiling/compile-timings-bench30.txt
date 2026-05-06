@@ -1,0 +1,293 @@
+antlr-haskell-0.1.0.2: unregistering (components added: test:bench)
+antlr-haskell> configure (lib + test)
+Configuring antlr-haskell-0.1.0.2...
+*** systool:cc:
+systool:cc: alloc=205704 time=1.380
+antlr-haskell> build (lib + test) with ghc-9.6.6
+Preprocessing library for antlr-haskell-0.1.0.2..
+Building library for antlr-haskell-0.1.0.2..
+*** initializing unit database:
+initializing unit database: alloc=4379560 time=13.016
+*** Chasing dependencies:
+*** systool:cpp:
+systool:cpp: alloc=204600 time=0.768
+Chasing dependencies: alloc=49124224 time=149.300
+[28 of 29] Compiling Language.ANTLR4.Parser [Source file changed]
+*** Parser [Language.ANTLR4.Parser]:
+Parser [Language.ANTLR4.Parser]: alloc=1996600 time=2.783
+*** Renamer/typechecker [Language.ANTLR4.Parser]:
+*** Simplify [expr]:
+Simplify [expr]: alloc=84400 time=0.285
+*** CorePrep [expr]:
+CorePrep [expr]: alloc=15288 time=0.050
+*** GHC.StgToByteCode [Ghci1]:
+GHC.StgToByteCode [Ghci1]: alloc=32096 time=0.141
+*** systool:linker:
+systool:linker: alloc=44456 time=0.529
+*** systool:linker:
+systool:linker: alloc=42480 time=0.515
+*** systool:linker:
+systool:linker: alloc=42552 time=0.545
+*** systool:linker:
+systool:linker: alloc=1520104 time=9.963
+Renamer/typechecker [Language.ANTLR4.Parser]: alloc=70128904 time=199.918
+*** Desugar [Language.ANTLR4.Parser]:
+Desugar [Language.ANTLR4.Parser]: alloc=5783016 time=19.586
+*** Simplifier [Language.ANTLR4.Parser]:
+Simplifier [Language.ANTLR4.Parser]: alloc=80476408 time=195.040
+*** Specialise [Language.ANTLR4.Parser]:
+Specialise [Language.ANTLR4.Parser]: alloc=8323400 time=25.186
+*** Float out(FOS {Lam = Just 0,
+                   Consts = True,
+                   OverSatApps = False}) [Language.ANTLR4.Parser]:
+Float out(FOS {Lam = Just 0, Consts = True, OverSatApps = False}) [Language.ANTLR4.Parser]: alloc=12143440 time=13.074
+*** Simplifier [Language.ANTLR4.Parser]:
+Simplifier [Language.ANTLR4.Parser]: alloc=93985024 time=202.796
+*** Simplifier [Language.ANTLR4.Parser]:
+Simplifier [Language.ANTLR4.Parser]: alloc=118099488 time=221.903
+*** Simplifier [Language.ANTLR4.Parser]:
+Simplifier [Language.ANTLR4.Parser]: alloc=25131832 time=53.269
+*** Float inwards [Language.ANTLR4.Parser]:
+Float inwards [Language.ANTLR4.Parser]: alloc=25416 time=0.027
+*** Called arity analysis [Language.ANTLR4.Parser]:
+Called arity analysis [Language.ANTLR4.Parser]: alloc=27104 time=0.056
+*** Simplifier [Language.ANTLR4.Parser]:
+Simplifier [Language.ANTLR4.Parser]: alloc=63617224 time=232.663
+*** Demand analysis (including Boxity) [Language.ANTLR4.Parser]:
+Demand analysis (including Boxity) [Language.ANTLR4.Parser]: alloc=9293040 time=11.757
+*** Constructed Product Result analysis [Language.ANTLR4.Parser]:
+Constructed Product Result analysis [Language.ANTLR4.Parser]: alloc=14307064 time=17.200
+*** Worker Wrapper binds [Language.ANTLR4.Parser]:
+Worker Wrapper binds [Language.ANTLR4.Parser]: alloc=689800 time=1.416
+*** Simplifier [Language.ANTLR4.Parser]:
+Simplifier [Language.ANTLR4.Parser]: alloc=102209192 time=175.206
+*** Exitification transformation [Language.ANTLR4.Parser]:
+Exitification transformation [Language.ANTLR4.Parser]: alloc=28576 time=0.028
+*** Float out(FOS {Lam = Just 0,
+                   Consts = True,
+                   OverSatApps = True}) [Language.ANTLR4.Parser]:
+Float out(FOS {Lam = Just 0, Consts = True, OverSatApps = True}) [Language.ANTLR4.Parser]: alloc=28453760 time=27.021
+*** Common sub-expression [Language.ANTLR4.Parser]:
+Common sub-expression [Language.ANTLR4.Parser]: alloc=27080 time=0.049
+*** Float inwards [Language.ANTLR4.Parser]:
+Float inwards [Language.ANTLR4.Parser]: alloc=25400 time=0.035
+*** Simplifier [Language.ANTLR4.Parser]:
+Simplifier [Language.ANTLR4.Parser]: alloc=42844896 time=76.070
+*** Demand analysis [Language.ANTLR4.Parser]:
+Demand analysis [Language.ANTLR4.Parser]: alloc=5923616 time=8.984
+*** CoreTidy [Language.ANTLR4.Parser]:
+CoreTidy [Language.ANTLR4.Parser]: alloc=4978240 time=8.666
+*** CorePrep [Language.ANTLR4.Parser]:
+CorePrep [Language.ANTLR4.Parser]: alloc=2469840 time=3.666
+*** CoreToStg [Language.ANTLR4.Parser]:
+CoreToStg [Language.ANTLR4.Parser]: alloc=11398168 time=29.865
+*** CodeGen [Language.ANTLR4.Parser]:
+CodeGen [Language.ANTLR4.Parser]: alloc=247715040 time=332.540
+*** WriteIface [.stack-work/dist/x86_64-linux/ghc-9.6.6/build/Language/ANTLR4/Parser.hi]:
+WriteIface [.stack-work/dist/x86_64-linux/ghc-9.6.6/build/Language/ANTLR4/Parser.hi]: alloc=1276464 time=1.780
+*** systool:as:
+systool:as: alloc=103584 time=0.494
+CorePrep [Language.ANTLR4.Parser]: alloc=2464320 time=1.631
+*** CorePrep [Language.ANTLR4.Parser]:
+*** CoreToStg [Language.ANTLR4.Parser]:
+CoreToStg [Language.ANTLR4.Parser]: alloc=11382688 time=11.212
+*** CodeGen [Language.ANTLR4.Parser]:
+CodeGen [Language.ANTLR4.Parser]: alloc=254502768 time=351.600
+*** WriteIface [.stack-work/dist/x86_64-linux/ghc-9.6.6/build/Language/ANTLR4/Parser.dyn_hi]:
+WriteIface [.stack-work/dist/x86_64-linux/ghc-9.6.6/build/Language/ANTLR4/Parser.dyn_hi]: alloc=1277440 time=1.043
+*** systool:as:
+systool:as: alloc=101400 time=0.675
+[29 of 29] Compiling Language.ANTLR4 [Language.ANTLR4.Parser changed]
+*** Parser [Language.ANTLR4]:
+Parser [Language.ANTLR4]: alloc=997232 time=0.859
+*** Renamer/typechecker [Language.ANTLR4]:
+Renamer/typechecker [Language.ANTLR4]: alloc=2153504 time=4.691
+*** Desugar [Language.ANTLR4]:
+Desugar [Language.ANTLR4]: alloc=632520 time=1.058
+*** Simplifier [Language.ANTLR4]:
+Simplifier [Language.ANTLR4]: alloc=89472 time=0.351
+*** Specialise [Language.ANTLR4]:
+Specialise [Language.ANTLR4]: alloc=37416 time=0.105
+*** Float out(FOS {Lam = Just 0,
+                   Consts = True,
+                   OverSatApps = False}) [Language.ANTLR4]:
+Float out(FOS {Lam = Just 0, Consts = True, OverSatApps = False}) [Language.ANTLR4]: alloc=64056 time=0.148
+*** Simplifier [Language.ANTLR4]:
+Simplifier [Language.ANTLR4]: alloc=65752 time=0.217
+*** Simplifier [Language.ANTLR4]:
+Simplifier [Language.ANTLR4]: alloc=64856 time=0.157
+*** Simplifier [Language.ANTLR4]:
+Simplifier [Language.ANTLR4]: alloc=64856 time=0.146
+*** Float inwards [Language.ANTLR4]:
+Float inwards [Language.ANTLR4]: alloc=23272 time=0.046
+*** Called arity analysis [Language.ANTLR4]:
+Called arity analysis [Language.ANTLR4]: alloc=24984 time=0.041
+*** Simplifier [Language.ANTLR4]:
+Simplifier [Language.ANTLR4]: alloc=76568 time=0.189
+*** Demand analysis (including Boxity) [Language.ANTLR4]:
+Demand analysis (including Boxity) [Language.ANTLR4]: alloc=40112 time=0.100
+*** Constructed Product Result analysis [Language.ANTLR4]:
+Constructed Product Result analysis [Language.ANTLR4]: alloc=30088 time=0.093
+*** Worker Wrapper binds [Language.ANTLR4]:
+Worker Wrapper binds [Language.ANTLR4]: alloc=26248 time=0.057
+*** Simplifier [Language.ANTLR4]:
+Simplifier [Language.ANTLR4]: alloc=66552 time=0.140
+*** Exitification transformation [Language.ANTLR4]:
+Exitification transformation [Language.ANTLR4]: alloc=26440 time=0.043
+*** Float out(FOS {Lam = Just 0,
+                   Consts = True,
+                   OverSatApps = True}) [Language.ANTLR4]:
+Float out(FOS {Lam = Just 0, Consts = True, OverSatApps = True}) [Language.ANTLR4]: alloc=63424 time=0.125
+*** Common sub-expression [Language.ANTLR4]:
+Common sub-expression [Language.ANTLR4]: alloc=24968 time=0.064
+*** Float inwards [Language.ANTLR4]:
+Float inwards [Language.ANTLR4]: alloc=23272 time=0.045
+*** Simplifier [Language.ANTLR4]:
+Simplifier [Language.ANTLR4]: alloc=84384 time=0.207
+*** Demand analysis [Language.ANTLR4]:
+Demand analysis [Language.ANTLR4]: alloc=36192 time=0.097
+*** CoreTidy [Language.ANTLR4]:
+CoreTidy [Language.ANTLR4]: alloc=53096 time=0.192
+*** CorePrep [Language.ANTLR4]:
+CorePrep [Language.ANTLR4]: alloc=28328 time=0.079
+*** CoreToStg [Language.ANTLR4]:
+CoreToStg [Language.ANTLR4]: alloc=40120 time=0.145
+*** CodeGen [Language.ANTLR4]:
+CodeGen [Language.ANTLR4]: alloc=557048 time=1.371
+*** WriteIface [.stack-work/dist/x86_64-linux/ghc-9.6.6/build/Language/ANTLR4.hi]:
+WriteIface [.stack-work/dist/x86_64-linux/ghc-9.6.6/build/Language/ANTLR4.hi]: alloc=1343176 time=1.142
+*** systool:as:
+systool:as: alloc=100352 time=0.586
+CorePrep [Language.ANTLR4]: alloc=28328 time=0.094
+CoreToStg [Language.ANTLR4]: alloc=40200 time=0.136
+*** CorePrep [Language.ANTLR4]:
+*** CoreToStg [Language.ANTLR4]:
+*** CodeGen [Language.ANTLR4]:
+CodeGen [Language.ANTLR4]: alloc=554216 time=1.286
+*** WriteIface [.stack-work/dist/x86_64-linux/ghc-9.6.6/build/Language/ANTLR4.dyn_hi]:
+WriteIface [.stack-work/dist/x86_64-linux/ghc-9.6.6/build/Language/ANTLR4.dyn_hi]: alloc=1344520 time=1.380
+*** systool:as:
+systool:as: alloc=100648 time=0.643
+*** systool:linker:
+systool:linker: alloc=1601424 time=8.628
+Preprocessing test suite 'bench' for antlr-haskell-0.1.0.2..
+Building test suite 'bench' for antlr-haskell-0.1.0.2..
+*** initializing unit database:
+initializing unit database: alloc=4484464 time=41.500
+*** Chasing dependencies:
+*** systool:cpp:
+systool:cpp: alloc=208208 time=0.988
+Chasing dependencies: alloc=12695160 time=20.221
+[1 of 3] Compiling Grammar
+Parser [Grammar]: alloc=445976 time=0.403
+*** Parser [Grammar]:
+*** Renamer/typechecker [Grammar]:
+*** Simplify [expr]:
+Simplify [expr]: alloc=1170192 time=1.830
+*** CorePrep [expr]:
+CorePrep [expr]: alloc=17264 time=0.066
+*** GHC.StgToByteCode [Ghci1]:
+GHC.StgToByteCode [Ghci1]: alloc=51288 time=0.174
+*** systool:linker:
+systool:linker: alloc=44448 time=0.436
+*** systool:linker:
+systool:linker: alloc=42472 time=0.363
+*** systool:linker:
+systool:linker: alloc=42544 time=0.485
+[g4 timing] --- test/bench/Grammar.hs:7 (824 chars)
+[g4 timing] glrParse: 6.513949997s
+[g4 timing] g4_decls: 1.09356e-3s
+Renamer/typechecker [Grammar]: alloc=107711680 time=6915.328
+
+/home/karl/w/antlr-haskell/test/bench/Grammar.hs:7:5: error: [GHC-76037]
+    Not in scope: data constructor ‘V_WS’
+    Suggested fix: Perhaps use ‘T_WS’ (line 7)
+  |
+7 | [g4|
+  |     ^...
+
+/home/karl/w/antlr-haskell/test/bench/Grammar.hs:7:5: error: [GHC-76037]
+    Not in scope: data constructor ‘V_B’
+    Suggested fix: Perhaps use ‘T_B’ (line 7)
+  |
+7 | [g4|
+  |     ^...
+
+/home/karl/w/antlr-haskell/test/bench/Grammar.hs:7:5: error: [GHC-76037]
+    Not in scope: data constructor ‘V_A’
+    Suggested fix: Perhaps use ‘T_A’ (line 7)
+  |
+7 | [g4|
+  |     ^...
+[3 of 3] Compiling Paths_antlr_haskell
+*** Parser [Paths_antlr_haskell]:
+Parser [Paths_antlr_haskell]: alloc=4505944 time=2.111
+*** Renamer/typechecker [Paths_antlr_haskell]:
+Renamer/typechecker [Paths_antlr_haskell]: alloc=9943536 time=18.825
+*** Desugar [Paths_antlr_haskell]:
+Desugar [Paths_antlr_haskell]: alloc=478136 time=1.006
+*** Simplifier [Paths_antlr_haskell]:
+Simplifier [Paths_antlr_haskell]: alloc=11764568 time=33.413
+*** Specialise [Paths_antlr_haskell]:
+Specialise [Paths_antlr_haskell]: alloc=607416 time=0.848
+*** Float out(FOS {Lam = Just 0,
+                   Consts = True,
+                   OverSatApps = False}) [Paths_antlr_haskell]:
+Float out(FOS {Lam = Just 0, Consts = True, OverSatApps = False}) [Paths_antlr_haskell]: alloc=1079816 time=1.875
+*** Simplifier [Paths_antlr_haskell]:
+Simplifier [Paths_antlr_haskell]: alloc=8323104 time=10.425
+*** Simplifier [Paths_antlr_haskell]:
+Simplifier [Paths_antlr_haskell]: alloc=4925992 time=11.542
+*** Simplifier [Paths_antlr_haskell]:
+Simplifier [Paths_antlr_haskell]: alloc=3014248 time=2.925
+*** Float inwards [Paths_antlr_haskell]:
+Float inwards [Paths_antlr_haskell]: alloc=24480 time=0.024
+*** Called arity analysis [Paths_antlr_haskell]:
+Called arity analysis [Paths_antlr_haskell]: alloc=26192 time=0.020
+*** Simplifier [Paths_antlr_haskell]:
+Simplifier [Paths_antlr_haskell]: alloc=2435528 time=2.211
+*** Demand analysis (including Boxity) [Paths_antlr_haskell]:
+Demand analysis (including Boxity) [Paths_antlr_haskell]: alloc=524016 time=0.544
+*** Constructed Product Result analysis [Paths_antlr_haskell]:
+Constructed Product Result analysis [Paths_antlr_haskell]: alloc=126264 time=0.137
+*** Worker Wrapper binds [Paths_antlr_haskell]:
+Worker Wrapper binds [Paths_antlr_haskell]: alloc=85384 time=0.087
+*** Simplifier [Paths_antlr_haskell]:
+Simplifier [Paths_antlr_haskell]: alloc=976368 time=0.958
+*** Exitification transformation [Paths_antlr_haskell]:
+Exitification transformation [Paths_antlr_haskell]: alloc=27640 time=0.023
+*** Float out(FOS {Lam = Just 0,
+                   Consts = True,
+                   OverSatApps = True}) [Paths_antlr_haskell]:
+Float out(FOS {Lam = Just 0, Consts = True, OverSatApps = True}) [Paths_antlr_haskell]: alloc=1063192 time=0.861
+*** Common sub-expression [Paths_antlr_haskell]:
+Common sub-expression [Paths_antlr_haskell]: alloc=26168 time=0.022
+*** Float inwards [Paths_antlr_haskell]:
+Float inwards [Paths_antlr_haskell]: alloc=24480 time=0.016
+*** Simplifier [Paths_antlr_haskell]:
+Simplifier [Paths_antlr_haskell]: alloc=3838208 time=3.165
+*** Demand analysis [Paths_antlr_haskell]:
+Demand analysis [Paths_antlr_haskell]: alloc=609784 time=0.609
+*** CoreTidy [Paths_antlr_haskell]:
+CoreTidy [Paths_antlr_haskell]: alloc=1056344 time=1.065
+*** CorePrep [Paths_antlr_haskell]:
+CorePrep [Paths_antlr_haskell]: alloc=379968 time=0.269
+*** CoreToStg [Paths_antlr_haskell]:
+CoreToStg [Paths_antlr_haskell]: alloc=1037496 time=0.935
+*** CodeGen [Paths_antlr_haskell]:
+CodeGen [Paths_antlr_haskell]: alloc=15978592 time=26.152
+*** WriteIface [.stack-work/dist/x86_64-linux/ghc-9.6.6/build/bench/bench-tmp/Paths_antlr_haskell.hi]:
+WriteIface [.stack-work/dist/x86_64-linux/ghc-9.6.6/build/bench/bench-tmp/Paths_antlr_haskell.hi]: alloc=1235744 time=1.003
+*** systool:as:
+systool:as: alloc=112176 time=0.614
+
+Error: [S-7282]
+       Stack failed to execute the build plan.
+       
+       While executing the build plan, Stack encountered the error:
+       
+       [S-7011]
+       While building package antlr-haskell-0.1.0.2 (scroll up to its section to see the error)
+       using:
+       /home/karl/.stack/setup-exe-cache/x86_64-linux/Cabal-simple_w2MFVN35_3.10.3.0_ghc-9.6.6 --verbose=1 --builddir=.stack-work/dist/x86_64-linux/ghc-9.6.6 build lib:antlr-haskell test:bench --ghc-options ""
+       Process exited with code: ExitFailure 1 
