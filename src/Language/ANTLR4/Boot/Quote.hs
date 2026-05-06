@@ -244,7 +244,7 @@ getNTs G4S.Prod{G4S.pName = pName, G4S.patterns = ps} = pName : concatMap (justN
 getNTs _ = []
 
 symbolDerives = derivClause Nothing $ map (conT . mkName)
-  [ "Eq", "Ord", "Show", "Hashable", "Generic", "Bounded", "Enum", "Data", "Lift"]
+  [ "Eq", "Ord", "Show", "Hashable", "Generic", "Bounded", "Enum", "Lift"]
 
 -- Nonterminal symbol data type (enum) for this grammar:
 ntDataDeclQ :: G4AST -> DecQ
@@ -954,7 +954,11 @@ g4_decls ast' =
   -- variables. In order to achieve the same type variable you need to run one
   -- in the Q monad first then pass the resulting type to other parts of the
   -- code that need it (thus capturing the type variable).
-  do  let ast       = removeEpsilonsAST $ map wipeOutAnnots (ast' ++ genTermAnnotProds ast') -- Order of '++' matters here
+  do  let ast       = map wipeOutAnnots (ast' ++ genTermAnnotProds ast') -- Order of '++' matters here
+          -- NOTE: removeEpsilonsAST intentionally omitted here. The epsilon alternatives
+          -- in _star/_plus expansion rules are semantically correct for GLR and must be
+          -- preserved. Applying removeEpsilonsAST after genTermAnnotProds is exponential
+          -- in the number of nullable NTs created by * annotations (Issue #41 root cause).
 
           tokVal    = mkName "TokenValue"
           tokName   = mkName "TokenName"
@@ -966,7 +970,7 @@ g4_decls ast' =
           name      = mkName $ mkLower (gName ast ++ "Grammar'")
           nameUnit  = mkName $ mkLower (gName ast ++ "Grammar")
           lowerASTName = mkName (mkLower $ gName ast ++ "AST")
-      
+
       --D.traceM $ "AST=" ++ pshowList' ast
 
       prettyTFncnName <- newName "prettifyT"
@@ -1008,7 +1012,7 @@ g4_decls ast' =
 
       prettyTFncn <- prettyTFncnQ ast prettyTFncnName
       prettyVFncn <- prettyVFncnQ ast prettyValueFncnName
-      
+
       the_ast <- funD lowerASTName [clause [] (normalB $ lift ast) []] -- [d| $(lowerASTName) = $(lift ast) |]
 
       return $

@@ -314,12 +314,6 @@ allProdElems g =
       map NT (S.toList $ ns g)
   ++  map T  (S.toList $ ts g)
 
-allProdElems' :: forall nts ts. (Bounded nts, Bounded ts, Enum nts, Enum ts)
-  => [ProdElem nts ts]
-allProdElems' =
-      map NT ([minBound .. maxBound] :: [nts])
-  ++  map T  ([minBound .. maxBound] :: [ts])
-
 -- | Compute the set of states we would go to by traversing the
 --   given nonterminal symbol @_X@.
 goto :: ( CanParse' nts sts, Ord a, Hashable a )
@@ -679,12 +673,15 @@ glrParseInc2 g = let
 -- | Returns the disambiguated LRTable, as well as the number of conflicts
 --   (Shift/Reduce, Reduce/Reduce, etc...) reported.
 disambiguate ::
-  ( IsState lrstate, Tabular nts, Tabular sts
-  , Data lrstate, Data nts, Data sts)
+  ( IsState lrstate, Tabular nts, Tabular sts )
   => LRTable nts sts lrstate -> (LRTable' nts sts lrstate, Int)
 disambiguate tbl = let
 
-    mkConflict s = concatWith "/" $ map (show . toConstr) $ S.toList s
+    actionName (Shift _)  = "Shift"
+    actionName (Reduce _) = "Reduce"
+    actionName Accept     = "Accept"
+    actionName Error      = "Error"
+    mkConflict s = concatWith "/" $ map actionName $ S.toList s
 
     mkSingle st icon s
       | S.size s == 1 = (S.findMin s, 0)

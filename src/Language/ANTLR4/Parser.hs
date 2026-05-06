@@ -40,6 +40,7 @@ import Language.ANTLR4.G4
 import Debug.Trace as D
 import System.CPUTime (getCPUTime)
 import Control.Exception (evaluate)
+import System.IO (hFlush, stdout)
 
 -- Splice the parsers for the grammar we defined in Language.ANTLR4.G4
 $(g4_parsers g4AST g4Grammar)
@@ -61,14 +62,18 @@ isWhitespace _ = False
 g4ParseCached :: LR.Tokenizer G4Token Char -> [Char] -> LR.GLRResult Int Char G4Token G4AST
 g4ParseCached = LR.glrParseInc2 g4Grammar event2ast
 
+showTime :: Integer -> Integer -> String
+showTime t0 t1 = show (fromIntegral (t1 - t0) / 1e12 :: Double) ++ "s"
+
 timed :: String -> TH.Q a -> TH.Q a
 timed label action = do
   t0 <- TH.runIO getCPUTime
   result <- action
   t1 <- TH.runIO getCPUTime
-  TH.runIO $ putStrLn $ "[g4 timing] " ++ label ++ ": "
-    ++ show (fromIntegral (t1 - t0) / 1e12 :: Double) ++ "s"
+  TH.runIO $ putStrLn $ "[g4 timing] " ++ label ++ ": " ++ showTime t0 t1
+  TH.runIO $ hFlush stdout
   return result
+
 
 g4_codeGen :: String -> TH.Q [TH.Dec]
 g4_codeGen input = do
@@ -77,6 +82,7 @@ g4_codeGen input = do
   let (line,column) = TH.loc_start loc
   TH.runIO $ putStrLn $ "[g4 timing] --- " ++ fileName ++ ":" ++ show line
     ++ " (" ++ show (length input) ++ " chars)"
+  TH.runIO $ hFlush stdout
   parsed <- timed "glrParse" $ TH.runIO $ evaluate $
     g4ParseCached (T.tokenizeInc isWhitespace g4DFAs lexeme2value) input
   timed "g4_decls" $ case parsed of
