@@ -8,49 +8,84 @@
 
 Build command: `stack build antlr-haskell:test:bench --ghc-options="-ddump-timings"`
 
-## Results
+## Phase timing results
 
-| Grammar | Rules | Chars | glrParse (CPU) | g4_decls (CPU) |
-|---------|-------|-------|----------------|----------------|
-| Bench10 | 10    | 304   | 7.16s          | 0.62ms         |
-| Bench30 | 30    | 824   | 6.51s          | 1.09ms         |
+| Grammar | Rules | Chars | glrParse (CPU) | g4_decls (CPU) | Renamer/TC total |
+|---------|-------|-------|----------------|----------------|-----------------|
+| Bench10 | 10    | 304   | 7.16s          | 0.62ms         | 7.97s           |
+| Bench30 | 30    | 824   | 6.51s          | 1.09ms         | —               |
+| Bench60 | 60    | 1604  | 10.52s         | 3.67ms         | 11.11s          |
 
-## Key finding: two splices in same compilation
+**Key finding**: `Renamer/typechecker` ≈ `glrParse` for small grammars — post-TH
+type-checking adds only 0.35s (10 rules) to 0.59s (60 rules). Derived instances are
+NOT the bottleneck for simple grammars.
+
+## CAF caching result: two splices in same compilation
 
 | Splice  | Grammar | Chars | glrParse (CPU) |
 |---------|---------|-------|----------------|
 | 1st     | Bench10 | 304   | 6.63s          |
 | 2nd     | Tiny    | 59    | 1.32ms (~5000× faster) |
 
-## Interpretation
+**Fix implemented**: `{-# NOINLINE #-} g4ParseCached = LR.glrParseInc2 g4Grammar event2ast`
+as a top-level CAF shares G4 LR tables across all splices in a compilation. First splice
+pays the fixed cost once; all subsequent splices reuse the cached tables.
 
-**`glrParse` cost is dominated by G4 grammar LR table construction, not input parsing.**
+## The hidden multiplier: genTermAnnotProds
 
-Evidence: Bench10 (304 chars) ≈ Bench30 (824 chars) in time despite 3× input size.
-The G4 grammar (17 parser rules + 8 lexer rules) LR table construction is fixed at ~6.5s
-per module load inside GHC's bytecode interpreter.
+`genTermAnnotProds` in `Boot/Quote.hs` silently expands `*`/`+`/`?` annotations into extra
+NT grammar rules. Each annotation generates ~2 extra NT constructors. The Swift grammar has
+**309 such annotations**, inflating the NT type from 345 → **~963 constructors**.
 
-**Caching works**: adding `{-# NOINLINE #-} g4ParseCached = LR.glrParseInc2 g4Grammar event2ast`
-as a top-level CAF causes the LR tables to be shared. The second `[g4|...|]` splice is
-5000× faster because the tables are already computed.
+| Grammar  | Explicit rules | `*`/`+`/`?` annotations | Approx NT constructors |
+|----------|---------------|------------------------|----------------------|
+| BenchBase | 30            | 0                      | ~30                  |
+| BenchStar | 30            | 120                    | ~270                 |
+| Swift     | 345           | 309                    | ~963                 |
 
-## Two-component model of compile time
+BenchStar (120 annotations, ~270 NT constructors): glrParse 0.61s, then GHC stalled
+12+ minutes on type-checking the generated ADT.
 
-For a grammar with N rules:
+Swift (309 annotations, ~963 NT constructors) → the 30-minute build.
+
+## Three-component model (corrected)
 
 ```
-total compile time ≈ glrParse_cost + g4_decls_cost + GHC_typecheck_cost
+total [g4|...|] compile time ≈
+    glrParse_cost             (fixed 6.5s for 1st splice, ~1ms for subsequent)
+  + g4_decls_cost             (always ~1-5ms — negligible)
+  + GHC_typecheck_cost        (dominates for grammars with many annotations)
 
-glrParse_cost  ≈ 6.5s (fixed, first splice) or 1ms (subsequent splices)
-g4_decls_cost  ≈ 1ms (negligible)
-GHC_typecheck_cost ≈ O(N^k) — dominates for N ≥ ~50 rules
+NT constructors = explicit_rules + 2 × star_plus_question_annotations
+
+GHC_typecheck_cost scales super-linearly with NT constructor count:
+  BenchBase (~30 NT): fast (<0.5s)
+  BenchStar (~270 NT): 12+ minutes (observed)
+  Swift     (~963 NT): 30+ minutes (observed)
 ```
 
-For small grammars (N < 50): `glrParse_cost` dominates.
-For large grammars (N ≥ 50, e.g. Swift N=326): GHC type-checking dominates.
+## Feature benchmark results (glrParse after first-splice caching)
 
-The Swift grammar spent 30+ minutes in `Renamer/typechecker [Grammar]`, of which
-only ~6.5s was `glrParse`. The remainder (~29+ minutes) is GHC type-checking:
-- `Bench10NT` data type: 10 constructors × 9 derived classes
-- `Bench10T` data type: 3 constructors × 9 derived classes
-- `SwiftNT` data type: 326 constructors × 9 derived classes (Generic/Data/Lift = slow)
+| Feature    | Description                          | glrParse |
+|------------|--------------------------------------|----------|
+| BenchBase  | 30 rules, no annotations             | baseline (first splice, 8s) |
+| BenchLexer | Complex lexer rules only             | 0.07-0.14s |
+| BenchLits  | 30 rules + 2 string literals/rule    | 0.45-0.81s |
+| BenchOpt   | 30 rules + `?` annotations           | 0.60-0.73s |
+| BenchStar  | 30 rules + `*`/`+` annotations       | 0.54-0.87s |
+| BenchWide  | 30 rules + 8 alternatives/rule       | (stalled — same issue as BenchStar) |
+
+None of these features dramatically slow `glrParse` — the slowness is in GHC type-checking
+the NT ADT after TH evaluation, not in the parsing phase.
+
+## Root cause summary
+
+The Swift [g4|...|] compile bottleneck has two confirmed components:
+
+**Component 1 (fixed)**: G4 LR table construction (6.5s fixed cost per module).
+Fix: `g4ParseCached` CAF in `Language.ANTLR4.Parser`.
+
+**Component 2 (pending)**: GHC type-checking `SwiftNT` (~963 constructors from
+genTermAnnotProds expansion) × 9 derived classes.
+Immediate mitigation: `-O0` on swift test suite (skips multiple Simplifier passes).
+Proper fix: redesign genTermAnnotProds to avoid NT constructor explosion.

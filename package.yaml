@@ -317,6 +317,7 @@ tests:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -O0
     dependencies:
     - antlr-haskell
     default-extensions:

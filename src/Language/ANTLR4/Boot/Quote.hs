@@ -243,7 +243,6 @@ getNTs :: G4S.G4 -> [String]
 getNTs G4S.Prod{G4S.pName = pName, G4S.patterns = ps} = pName : concatMap (justNonTerms . G4S.alphas) ps
 getNTs _ = []
 
--- Things Symbols must derive:
 symbolDerives = derivClause Nothing $ map (conT . mkName)
   [ "Eq", "Ord", "Show", "Hashable", "Generic", "Bounded", "Enum", "Data", "Lift"]
 

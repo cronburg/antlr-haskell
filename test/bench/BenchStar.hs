@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric, TypeFamilies, QuasiQuotes
     , DataKinds, ScopedTypeVariables, OverloadedStrings, TypeSynonymInstances
     , FlexibleInstances, UndecidableInstances, TemplateHaskell #-}
-module Grammar where
+module BenchStar where
 import Language.ANTLR4
 
 [g4|
