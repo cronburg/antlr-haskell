@@ -621,33 +621,35 @@ glrParseInc' ::
   -> lrstate -> M1.Map lrstate (Set (StripEOF (Sym t))) -> Action ast nts t
   -> Tokenizer t c -> [c] -> GLRResult lrstate c t ast
 glrParseInc' g tbl goto s_0 tokenizerFirstSets act tokenizer w = let
-    
-    lr :: Config lrstate c -> [ast] -> GLRResult lrstate c t ast
-    lr (s:states, cs) asts = let
 
-        -- The set of token symbols that are feasible to be seen next given the
-        -- current grammar context - i.e. the Set of LR1LookAheads stripped from
-        -- the current state on top of the configuration stack. Luckily enough,
-        -- it just so happens that the type stuffed inside an LR1 lookahead Icon
-        -- is precisely the terminal symbol type that the tokenizer uses to name
-        -- DFAs.
+    -- lr: main parse loop. mToken is an optional cached (lookahead, rest) from
+    -- the previous call. Reduce steps do not consume input, so we pass the
+    -- cached token through Reduce chains to avoid re-tokenizing the same
+    -- position O(reductions_per_shift) times.
+    lr :: Config lrstate c -> Maybe (t, [c]) -> [ast] -> GLRResult lrstate c t ast
+    lr (s:states, cs) mToken asts = let
+
         dfaNames = fromMaybe (error $ "Failed DFA lookup: " ++ pshow' (s, tokenizerFirstSets))
           $ s `M1.lookup` tokenizerFirstSets
-        
-        (a, ws) = tokenizer dfaNames cs
-        
+
+        (a, ws) = case mToken of
+                    Just tok -> tok          -- reuse cached token from Reduce chain
+                    Nothing  -> tokenizer dfaNames cs
+
         lr' :: LR1Action nts (StripEOF (Sym t)) lrstate -> GLRResult lrstate c t ast
         lr' Accept    = case length asts of
               1 -> ResultAccept $ head asts
               _ -> ErrorAccept (s:states, cs) asts
         lr' Error     = ErrorNoAction a (s:states, cs) asts
-        lr' (Shift t) = trace ("Shift: " ++ pshow' t) $ lr (t:s:states, ws) $ act (TermE a) : asts
+        lr' (Shift t) = trace ("Shift: " ++ pshow' t) $
+              lr (t:s:states, ws) Nothing $ act (TermE a) : asts
         lr' (Reduce p@(Production _A (Prod _ β) _)) = let
               ss'@(t:_) = drop (length β) (s:states)
               result =
                 case (t, NT _A) `M1.lookup` goto of
                   Nothing -> ErrorTable (s:states, cs) asts
-                  Just s  -> lr (s : ss', cs) (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
+                  Just s  -> lr (s : ss', cs) (Just (a, ws))
+                               (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
             in trace ("Reduce: " ++ pshow' p) result
 
         lookVal = case stripEOF $ getSymbol a of
@@ -677,7 +679,7 @@ glrParseInc' g tbl goto s_0 tokenizerFirstSets act tokenizer w = let
                           1 -> S.findMin justAccepts
                           _ -> ResultSet justAccepts))
 
-  in lr ([s_0], w) []
+  in lr ([s_0], w) Nothing []
 
 -- | Mapping from parse states to which symbols can be seen next so that the
 --   incremental tokenizer can check which DFAs to try tokenizing.
