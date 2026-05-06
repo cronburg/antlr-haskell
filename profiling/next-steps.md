@@ -61,19 +61,78 @@ Branch: `swift-perf-investigation`
   Left-recursion converts Reduce/Reduce to Shift/Reduce (or eliminates it); GLR
   branching is dramatically reduced.
 - **Measured**: glrParse for Swift.g4 dropped from 81.7s (wrong disambiguation) to
-  31.5s with left-recursive grammar. Full GLR with left-recursive grammar: TBD.
+  28.5s with left-recursive grammar + disambiguation (incorrect result, see below).
+- **Current**: left-recursive `unionR` KEPT; using full error-pruned GLR (`glrParseInc2`).
+  Swift timing: TBD (building now).
 
-## Current status (awaiting swift build completion)
+## Disambiguation failure analysis (session 2026-05-06)
 
-The definitive measurement is running: left-recursive G4 grammar + error-pruned
-GLR (`glrParseInc2`). Monitor via `/tmp/swift-lr-glr.log`.
+**Attempted**: Make `prods` also left-recursive (commits de71a5c, 03c3cfb, 7f0e5b8),
+allowing O(n) `disambiguatedGlrParseInc2` via S.findMin shift preference.
 
-Expected breakdown:
-1. `glrParse` of Swift.g4 (37046 chars): should be much less than 9+ hours
+**Failure mode**: `ErrorNoAction` for `'grammar'` token at state 73 on Swift.g4 input.
+
+**Root cause**: `SplicedParser.hs` exports `g4Grammar = LL1.removeEpsilons g4Grammar'`.
+With left-recursive `prods : prods '|' prodRHS`, `prods` is nullable (via
+`prods → prodRHS → []`). `removeEpsilons` generates a spurious production
+`prods → '|' prodRHS` (substituting the nullable `prods` with ε). This bogus production
+creates LR table entries that leave state 73 with no valid action for `'grammar'`.
+
+**Why revert was correct**: The same epsilon issue exists for right-recursive prods
+(`prodRHS` is nullable → `prods → '|' prods` is generated). The only reliable fix
+requires either:
+1. Fix `removeEpsilons` to not create unreachable/invalid productions from nullable NTs
+   in sequences (hard — needs reachability analysis or positional awareness).
+2. Make `prodRHS` non-nullable (not possible: empty production RHS is valid in G4).
+3. Avoid calling `removeEpsilons` on the grammar before building the LR table;
+   `lr1Closure` handles epsilon productions natively via FIRST sets.
+
+**Reverted commits**: 7f0e5b8, 03c3cfb, de71a5c (revert commit: 2fcec9d).
+
+## Current status (session 2026-05-06 closeout)
+
+The build was killed after 47+ minutes — still exponential.
+
+**Why**: After reverting the left-recursive `prods` fix, the 6 Reduce/Reduce conflicts
+from right-recursive `prods : prodRHS '|' prods` remain. These conflicts cause full GLR
+to branch exponentially for any input with many `|` alternatives. Swift.g4 has ~345 rules
+with numerous alternatives, so the exponential branching produces O(n³) or worse behavior.
+
+The `unionR` left-recursive fix (commit e7408dc) only eliminated Reduce/Reduce conflicts
+in the regex sub-grammar, not in the `prods` / `decls` parser grammar.
+
+**Root blocker**: The disambiguation approach (O(n) parsing) requires resolving all
+conflicts at table-build time. The `prods` Reduce/Reduce conflicts cannot be correctly
+resolved by shift-preference alone. The `removeEpsilons` issue in SplicedParser.hs
+(creating bogus productions from nullable NTs) prevents left-recursive `prods` from
+being used with disambiguation. Until `removeEpsilons` is fixed or the grammar is
+restructured to avoid nullable NTs in conflict positions, the Swift grammar cannot
+be parsed in O(n) time.
+
+Expected breakdown (not yet measurable):
+1. `glrParse` of Swift.g4 (37046 chars): still exponential (hours+)
 2. `g4_decls` TH code generation: ~few ms (fixed by removeEpsilonsAST)
-3. GHC type-checking SwiftNT (963 constructors, 7 derives, -O0): TBD
+3. GHC type-checking SwiftNT (963 constructors, -O0): N/A until glrParse is fast
 
 ## Remaining work
+
+### Option A1: Fix `removeEpsilons` (medium difficulty — highest impact)
+`SplicedParser.hs` line 174: `g4Grammar = LL1.removeEpsilons g4Grammar'`.
+`removeEpsilons` eliminates ε-productions by substituting nullable NTs in all
+positions. For `prods → prods '|' prodRHS` with nullable `prods`, this creates
+`prods → '|' prodRHS` (spurious production). Same for `prodRHS '|' prods` in the
+right-recursive case (`prods → '|' prods`).
+
+Fix options:
+1. **Positional awareness**: when eliminating `A → α B β` for nullable B, only generate
+   `A → α β` if `α β` is a valid (non-empty) sequence reachable from the grammar start.
+2. **Skip `removeEpsilons` for the LR table**: `lr1Closure` handles epsilons natively.
+   `removeEpsilons` is needed for LL(1) parsers; check if Boot/Quote.hs actually needs it.
+3. **Remove epsilon from `prodRHS`**: Change G4 grammar to require at least one element
+   or an explicit `/* empty */` marker. Breaking change to grammar files.
+
+Once fixed, re-apply left-recursive `prods` (commit de71a5c) + `disambiguatedGlrParseInc2`
+(commit 03c3cfb) + SplicedParser sync (commit 7f0e5b8) for O(n) Swift parsing.
 
 ### Option B2: Redesign genTermAnnotProds (long-term)
 The fundamental issue: 963 NT constructors from 309 `*`/`+`/`?` annotations. Even

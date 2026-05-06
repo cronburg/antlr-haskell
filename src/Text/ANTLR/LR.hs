@@ -717,14 +717,13 @@ glrParseInc2 g = let
       (tokenizerFirstSets convState g)
 
 -- | Like 'glrParseInc2' but resolves conflicts deterministically:
--- Shift/Reduce → prefer Shift; Reduce/Reduce → prefer the production with the
--- LONGEST right-hand side (greedy/maximal munch). This tends to produce correct
--- results for grammars with unit productions competing with longer ones.
+-- Shift/Reduce → prefer Shift (S.findMin: Shift < Reduce by derived Ord).
+-- Reduce/Reduce → prefer S.findMin (lexicographically smaller action).
 -- O(n) parsing — safe when the caller only needs one parse result.
 disambiguatedGlrParseInc2 g = let
     is = sort $ S.toList $ lr1Items g
     convState = convStateInt is
-    (tbl', _) = greedyDisambiguate (convTableInt (lr1Table g) is)
+    (tbl', _) = disambiguate (convTableInt (lr1Table g) is)
     tbl = M.fromList' [(k, singleton v) | (k, v) <- M1.toList tbl']
   in glrParseInc' g
       tbl

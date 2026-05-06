@@ -58,13 +58,14 @@ After: CAF caching + error-pruned GLR + token caching + left-recursive G4 gramma
 
 ## Swift grammar glrParse timing history
 
-| Approach                           | glrParse time | Parse correct? |
-|------------------------------------|---------------|----------------|
-| Original (full GLR, no fixes)      | 9+ hours      | Yes (eventually) |
-| + CAF caching + removeEpsilonsAST  | still 9+ hours| Yes            |
-| + disambiguation (S.findMin)       | 81.7s         | No — failed at `~[...]` |
-| + greedy disambiguation (longer RHS)| 31.5s         | No — failed at `'grammar'` |
-| + left-recursive G4 + glrParseInc2 | TBD           | TBD            |
+| Approach                                         | glrParse time | Parse correct? |
+|--------------------------------------------------|---------------|----------------|
+| Original (full GLR, no fixes)                    | 9+ hours      | Yes (eventually) |
+| + CAF caching + removeEpsilonsAST                | still 9+ hours| Yes            |
+| + disambiguation (S.findMin)                     | 81.7s         | No — failed at `~[...]` |
+| + greedy disambiguation (longer RHS)             | 31.5s         | No — failed at `'grammar'` |
+| + left-recursive unionR + glrParseInc2           | 47+ min (killed) | N/A — still exponential |
+| + all 9 fixes (disambiguation attempt — reverted)| 28.5s         | No — `ErrorNoAction` state 73 |
 
 ## Root cause summary — all components
 
