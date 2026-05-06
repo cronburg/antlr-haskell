@@ -37,6 +37,7 @@ import Debug.Trace as D
 -- | Construct a list from a single element
 list a = [a]
 cons = (:)
+snoc xs x = xs ++ [x]
 lexemeDirective r d = G4S.LRHS r (Just d)
 lexemeNoDir     r   = G4S.LRHS r Nothing
 lexDecl = G4S.Lex Nothing
@@ -122,7 +123,7 @@ g4Grammar'
            (Production NT_decl1) ((Prod Pass) [T T_UpperID, T T_2, NT NT_lexemeRHS]) (Just ""),
            (Production NT_decl1) ((Prod Pass) [T T_3, T T_UpperID, T T_2, NT NT_lexemeRHS]) (Just ""),
            (Production NT_prods) ((Prod Pass) [NT NT_prodRHS]) (Just ""),
-           (Production NT_prods) ((Prod Pass) [NT NT_prodRHS, T T_4, NT NT_prods]) (Just ""),
+           (Production NT_prods) ((Prod Pass) [NT NT_prods, T T_4, NT NT_prodRHS]) (Just ""),
            (Production NT_lexemeRHS) ((Prod Pass) [NT NT_regexes1, T T_5, NT NT_directive]) (Just ""),
            (Production NT_lexemeRHS) ((Prod Pass) [NT NT_regexes1]) (Just ""),
            (Production NT_prodRHS) ((Prod Pass) [NT NT_alphas, T T_5, NT NT_directive]) (Just ""),
@@ -163,7 +164,7 @@ g4Grammar'
            (Production NT_regex1) ((Prod Pass) [NT NT_unionR]) (Just ""),
            (Production NT_regex1) ((Prod Pass) [T T_14]) (Just ""),
            (Production NT_unionR) ((Prod Pass) [NT NT_regex, T T_4, NT NT_regex]) (Just ""),
-           (Production NT_unionR) ((Prod Pass) [NT NT_regex, T T_4, NT NT_unionR]) (Just ""),
+           (Production NT_unionR) ((Prod Pass) [NT NT_unionR, T T_4, NT NT_regex]) (Just ""),
            (Production NT_charSet) ((Prod Pass) [NT NT_charSet1]) (Just ""),
            (Production NT_charSet) ((Prod Pass) [NT NT_charSet1, NT NT_charSet]) (Just ""),
            (Production NT_charSet1) ((Prod Pass) [T T_SetChar, T T_15, T T_SetChar]) (Just ""),
@@ -500,9 +501,9 @@ ast2prods (AST NT_prods [NT NT_prodRHS] [v0_prodRHS])
   = list (ast2prodRHS v0_prodRHS)
 ast2prods
   (AST NT_prods
-       [NT NT_prodRHS, T T_4, NT NT_prods]
-       [v0_prodRHS, _, v2_prods])
-  = (cons (ast2prodRHS v0_prodRHS)) (ast2prods v2_prods)
+       [NT NT_prods, T T_4, NT NT_prodRHS]
+       [v0_prods, _, v2_prodRHS])
+  = snoc (ast2prods v0_prods) (ast2prodRHS v2_prodRHS)
 ast2prods ast2 = error (show ast2)
 ast2regex (AST NT_regex [NT NT_regex1, T T_6] [v0_regex1, _])
   = G4S.Question (ast2regex1 v0_regex1)
@@ -549,9 +550,9 @@ ast2unionR
   = (list2 (ast2regex v0_regex)) (ast2regex v2_regex)
 ast2unionR
   (AST NT_unionR
-       [NT NT_regex, T T_4, NT NT_unionR]
-       [v0_regex, _, v2_unionR])
-  = (cons (ast2regex v0_regex)) (ast2unionR v2_unionR)
+       [NT NT_unionR, T T_4, NT NT_regex]
+       [v0_unionR, _, v2_regex])
+  = snoc (ast2unionR v0_unionR) (ast2regex v2_regex)
 ast2unionR ast2 = error (show ast2)
 
 -----------------------------------------------------------------------------
