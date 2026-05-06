@@ -49,6 +49,7 @@ import qualified Text.ANTLR.MultiMap as M
 import qualified Data.Map as M1
 import Text.ANTLR.Set (Set(..))
 import qualified Text.ANTLR.Set as Set
+import Data.Hashable (Hashable(..), hashWithSalt)
 import qualified Text.ANTLR.Lex.Regex as R
 
 --trace s = D.trace   ("[Language.ANTLR4.Boot.Quote] " ++ s)
@@ -243,8 +244,11 @@ getNTs :: G4S.G4 -> [String]
 getNTs G4S.Prod{G4S.pName = pName, G4S.patterns = ps} = pName : concatMap (justNonTerms . G4S.alphas) ps
 getNTs _ = []
 
+-- Hashable is omitted here; a manual instance using fromEnum is generated
+-- by g4_decls to avoid the large Generic representation type for ADTs with
+-- many constructors (e.g. 963 NTs for Swift → huge Rep type, slow typecheck).
 symbolDerives = derivClause Nothing $ map (conT . mkName)
-  [ "Eq", "Ord", "Show", "Hashable", "Generic", "Bounded", "Enum", "Lift"]
+  [ "Eq", "Ord", "Show", "Bounded", "Enum", "Lift"]
 
 -- Nonterminal symbol data type (enum) for this grammar:
 ntDataDeclQ :: G4AST -> DecQ
@@ -1015,8 +1019,17 @@ g4_decls ast' =
 
       the_ast <- funD lowerASTName [clause [] (normalB $ lift ast) []] -- [d| $(lowerASTName) = $(lift ast) |]
 
+      -- Manual Hashable instances using fromEnum: avoids deriving Generic (which
+      -- generates a large Rep type for ADTs with many constructors) while still
+      -- providing O(1) hashing via the enum integer index.
+      hashNT:_ <- [d| instance Hashable $(conT ntSym) where
+                        hashWithSalt n x = hashWithSalt n (fromEnum x) |]
+      hashT:_  <- [d| instance Hashable $(conT tSym) where
+                        hashWithSalt n x = hashWithSalt n (fromEnum x) |]
+
       return $
         [ ntDataDecl, tDataDecl
+        , hashNT, hashT
         , gTySig,     gFunD
         , gTySigUnit, gUnitFunD
         , tokenNameType, tokenValueType
