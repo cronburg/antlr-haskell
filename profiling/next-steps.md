@@ -2,6 +2,23 @@
 
 Branch: `swift-perf-investigation`
 
+## ROOT CAUSE FOUND AND FIXED (2026-05-05)
+
+### Fix 3: removeEpsilonsAST exponential algorithm — DONE (commit 625fbb2)
+- **Problem**: `removeEpsilonsAST` has an exponential algorithm. Grammars with `*`/`+`
+  annotations create self-referential expansion rules (`r_star : r r_star | r | ε`).
+  The `rDF` function in `removeEpsilonsAST` branches on EVERY occurrence of a nullable
+  NT, creating `2^k` variants for `k` occurrences. As nullable NTs cascade through
+  mutual references, the number of intermediate productions explodes exponentially.
+  With BenchStar's 30 self-referential `_star` NTs: 9+ minute stall.
+  With Swift's 963 NTs from 309 annotations: 30+ minute stall.
+- **Fix**: Remove `removeEpsilonsAST` from the `genTermAnnotProds` expansion path.
+  The epsilon alternatives in `_star`/`_plus` rules are semantically correct for GLR
+  and must be preserved. Applied after expansion, `removeEpsilonsAST` was wrong AND slow.
+- **Verified**: BenchStar `g4_decls` TH evaluation: 9+ minutes → 7ms (70,000× faster).
+  All 6 smoke suites pass.
+- **Files changed**: `src/Language/ANTLR4/Boot/Quote.hs`
+
 ## What we know (confirmed by profiling)
 
 ### Fix 1: G4 LR table CAF caching — DONE
