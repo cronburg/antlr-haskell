@@ -654,8 +654,14 @@ glrParseInc' g tbl goto s_0 tokenizerFirstSets act tokenizer w = let
                     Just sym -> look (s, Icon sym) tbl
                     Nothing  -> look (s, IconEOF)  tbl
 
-        concatSets (ResultSet ss) ss' = ss' `S.union` ss
-        concatSets r              ss' = r   `S.insert` ss'
+        -- Prune dead error branches early: wrong parse paths typically hit an
+        -- error within a few tokens of a conflict point. Discarding them here
+        -- prevents error branches from compounding and causing O(n^3) blowup.
+        -- Falls back to the original ErrorNoAction path when ALL paths fail.
+        concatSets (ErrorNoAction _ _ _) ss' = ss'
+        concatSets (ErrorTable    _ _)   ss' = ss'
+        concatSets (ResultSet     ss)    ss' = ss' `S.union` S.filter (not . isError) ss
+        concatSets r                     ss' = r   `S.insert` ss'
 
         parseResults = S.foldr concatSets S.empty $ S.map lr' lookVal
         justAccepts  = getAccepts parseResults
@@ -664,7 +670,7 @@ glrParseInc' g tbl goto s_0 tokenizerFirstSets act tokenizer w = let
           then ErrorNoAction a (s:states, cs) asts
           else (if S.null justAccepts
                   then (case S.size parseResults of
-                          0 -> undefined
+                          0 -> ErrorNoAction a (s:states, cs) asts  -- all branches failed
                           1 -> S.findMin parseResults
                           _ -> ResultSet parseResults)
                   else (case S.size justAccepts of
