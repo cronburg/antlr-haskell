@@ -21,7 +21,7 @@ module Text.ANTLR.LR
   , lrParse, GLRResult(..), LRResult(..), LR1Result(..), glrParse, glrParseInc, isAccept, isError
   , lr1S0, glrParseInc', glrParseInc2, disambiguatedGlrParseInc2
   , convGoto, convStateInt, convGotoStatesInt, convTableInt, tokenizerFirstSets
-  , disambiguate
+  , disambiguate, greedyDisambiguate
   , SLRClosure, SLRItem, SLRTable, Closure, LR1Item, Goto, Goto', Config, Tokenizer
   ) where
 import Text.ANTLR.Grammar
@@ -40,7 +40,7 @@ import Text.ANTLR.Common
 import qualified Data.Map as M1
 import Data.Data (Data(..))
 import Language.Haskell.TH.Lift (Lift(..))
-import Data.List (sort)
+import Data.List (sort, sortBy)
 
 import Text.ANTLR.Pretty
 import qualified Debug.Trace as D
@@ -716,20 +716,53 @@ glrParseInc2 g = let
       (convState $ lr1Closure g $ lr1S0 g)
       (tokenizerFirstSets convState g)
 
--- | Like 'glrParseInc2' but resolves Shift/Reduce and Reduce/Reduce conflicts
--- using 'disambiguate' (Shift < Reduce by derived Ord — shift preference).
--- This gives O(n) deterministic parsing instead of O(n^3) GLR exploration.
--- Safe to use when only one parse result is needed (caller takes S.findMin anyway).
+-- | Like 'glrParseInc2' but resolves conflicts deterministically:
+-- Shift/Reduce → prefer Shift; Reduce/Reduce → prefer the production with the
+-- LONGEST right-hand side (greedy/maximal munch). This tends to produce correct
+-- results for grammars with unit productions competing with longer ones.
+-- O(n) parsing — safe when the caller only needs one parse result.
 disambiguatedGlrParseInc2 g = let
     is = sort $ S.toList $ lr1Items g
     convState = convStateInt is
-    (tbl', _) = disambiguate (convTableInt (lr1Table g) is)
+    (tbl', _) = greedyDisambiguate (convTableInt (lr1Table g) is)
     tbl = M.fromList' [(k, singleton v) | (k, v) <- M1.toList tbl']
   in glrParseInc' g
       tbl
       (convGotoStatesInt (convGoto g (lr1Goto g) is) is)
       (convState $ lr1Closure g $ lr1S0 g)
       (tokenizerFirstSets convState g)
+
+-- | Disambiguate with "prefer Shift, then prefer longer RHS for Reduce/Reduce".
+greedyDisambiguate ::
+  ( IsState lrstate, Tabular nts, Tabular sts )
+  => LRTable nts sts lrstate -> (LRTable' nts sts lrstate, Int)
+greedyDisambiguate tbl = let
+    rhsLen (Reduce (Production _ (Prod _ β) _)) = length β
+    rhsLen _ = 0
+
+    actionName (Shift _) = "Shift"; actionName (Reduce _) = "Reduce"
+    actionName Accept    = "Accept"; actionName Error      = "Error"
+    mkConflict s = concatWith "/" $ map actionName $ S.toList s
+
+    mkSingle st icon s
+      | S.size s == 1 = (S.findMin s, 0)
+      | S.size s == 0 = D.trace ("Table entry " ++ pshow' (st,icon) ++ " is empty") undefined
+      | otherwise     = let
+          -- Prefer Shift over Reduce (S.findMin works: Shift < Reduce by Ord)
+          shifts  = S.filter (\a -> case a of Shift _ -> True; _ -> False) s
+          chosen  = if not (S.null shifts)
+                      then S.findMin shifts
+                      else let rs = S.toList s
+                           in head $ sortBy (\a b -> compare (rhsLen b) (rhsLen a)) rs
+        in D.trace ("Table entry " ++ pshow' (st,icon) ++ " has " ++ mkConflict s
+                    ++ " conflict — chose: " ++ actionName chosen) (chosen, 1)
+  in (M1.fromList
+    [ ((st, icon), fst (mkSingle st icon action))
+    | ((st, icon), action) <- M.toList tbl
+    ], sum
+    [ snd (mkSingle st icon action)
+    | ((st, icon), action) <- M.toList tbl
+    ])
 
 -- | Returns the disambiguated LRTable, as well as the number of conflicts
 --   (Shift/Reduce, Reduce/Reduce, etc...) reported.
