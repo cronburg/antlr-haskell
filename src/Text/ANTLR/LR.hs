@@ -29,7 +29,7 @@ import qualified Text.ANTLR.LL1 as LL
 import Text.ANTLR.Parser
 import Data.Maybe (catMaybes, mapMaybe, fromMaybe, fromJust)
 import Text.ANTLR.Set ( Set(..), fromList, empty, member, toList, size
-  , union, (\\), insert, toList, singleton
+  , union, (\\), insert, toList, singleton, delete
   )
 import qualified Text.ANTLR.Set as S
 import Text.ANTLR.Set (Hashable, Generic)
@@ -230,10 +230,48 @@ slrClosure g is' = let
 
   in closure' is'
 
+-- | Precompute FIRST(NT x) for every NT in the grammar using an iterative
+-- fixed-point. Used by 'lr1Closure' to avoid re-deriving FIRST sets on every
+-- item in every closure iteration.
+computeFirstMap :: forall nts sts dt. (Tabular nts, Tabular sts)
+  => Grammar () nts sts dt -> M1.Map nts (Set (Icon sts))
+computeFirstMap g = go (M1.fromList [(n, empty) | n <- S.toList (ns g)])
+  where
+    firstSeq :: M1.Map nts (Set (Icon sts)) -> [ProdElem nts sts] -> Set (Icon sts)
+    firstSeq _ []           = singleton IconEps
+    firstSeq _ (T t : _)    = singleton (Icon t)
+    firstSeq m (Eps : rest) = firstSeq m rest
+    firstSeq m (NT n : rest) =
+      let fn = M1.findWithDefault empty n m
+      in if IconEps `member` fn
+         then S.delete IconEps fn `union` firstSeq m rest
+         else fn
+    go m0 =
+      let m1 = M1.fromList
+                 [ (n, foldr union empty
+                       [ firstSeq m0 rhs
+                       | Production _ (Prod _ rhs) _ <- prodsFor g n ])
+                 | n <- S.toList (ns g)
+                 ]
+      in if m0 == m1 then m0 else go m1
+
 -- | Algorithm for computing an LR(1) closure.
+-- Precomputes FIRST sets for all NTs once (per grammar) rather than calling
+-- LL.first g inside the inner loop on every item × every iteration.
 lr1Closure :: forall nts sts dt. ( Tabular nts, Tabular sts )
   => Grammar () nts sts dt -> Closure (CoreLR1State nts sts)
-lr1Closure g is' = let
+lr1Closure g = let
+    firstMap = computeFirstMap g
+
+    firstSeqFast :: [ProdElem nts sts] -> Set (Icon sts)
+    firstSeqFast []           = singleton IconEps
+    firstSeqFast (T t : _)    = singleton (Icon t)
+    firstSeqFast (Eps : rest) = firstSeqFast rest
+    firstSeqFast (NT n : rest) =
+      let fn = M1.findWithDefault empty n firstMap
+      in if IconEps `member` fn
+         then S.delete IconEps fn `union` firstSeqFast rest
+         else fn
 
     tokenToProdElem (Icon a) = [T a]
     tokenToProdElem _ = []
@@ -247,13 +285,13 @@ lr1Closure g is' = let
             , not $ null rst
             , isNT pe
             , Production _ (Prod _ γ) _ <- prodsFor g _B
-            , b <- toList $ LL.first g (β ++ tokenToProdElem a)
+            , b <- toList $ firstSeqFast (β ++ tokenToProdElem a)
             ]
       in case size $ add \\ _J of
         0 -> _J `union` add
         _ -> closure' $ _J `union` add
 
-  in closure' is'
+  in closure'
 
 -- | fmap over @lrstate@s of a 'LRAction'.
 convAction :: (lrstate -> lrstate') -> LRAction nts sts lrstate -> LRAction nts sts lrstate'
@@ -669,6 +707,7 @@ glrParseInc2 g = let
       (convGotoStatesInt (convGoto g (lr1Goto g) is) is)
       (convState $ lr1Closure g $ lr1S0 g)
       (tokenizerFirstSets convState g)
+
 
 -- | Returns the disambiguated LRTable, as well as the number of conflicts
 --   (Shift/Reduce, Reduce/Reduce, etc...) reported.
