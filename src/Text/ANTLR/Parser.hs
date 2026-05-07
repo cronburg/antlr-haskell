@@ -18,6 +18,7 @@ import Text.ANTLR.Pretty
 import Text.ANTLR.Set (Generic(..))
 import Text.ANTLR.Lex.Tokenizer (Token(..))
 import Data.Data (Data(..))
+import Data.Kind (Type)
 import Language.Haskell.TH.Lift (Lift(..))
 import Text.ANTLR.Set (Hashable)
 
@@ -118,7 +119,7 @@ instance (Prettify n) => Prettify (TokenSymbol n) where
 --
 class HasEOF t where
   -- | The unwrapped type (without the EOF data constructor alternative)
-  type StripEOF t :: *
+  type StripEOF t :: Type
   -- | Whether or not the given value of type t is the EOF value
   isEOF :: t -> Bool
   -- | Take a token and try to unwrap its name (an EOF should result in Nothing)
