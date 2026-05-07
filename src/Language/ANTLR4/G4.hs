@@ -62,6 +62,7 @@ prodNoAlphas     d = G4S.PRHS [] Nothing Nothing (Just d)
 prodNothing        = G4S.PRHS [] Nothing Nothing Nothing
 
 list2 a b = [a,b]
+snoc xs x = xs ++ [x]
 range a b = [a .. b]
 
 gterm         = G4S.GTerm    G4S.NoAnnot
@@ -179,7 +180,7 @@ $( return [] )
           ;
 
   unionR  : regex '|' regex         -> list2
-          | regex '|' unionR        -> cons
+          | unionR '|' regex        -> snoc
           ;
 
   charSet : charSet1                -> id

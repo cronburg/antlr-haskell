@@ -49,6 +49,7 @@ import qualified Text.ANTLR.MultiMap as M
 import qualified Data.Map as M1
 import Text.ANTLR.Set (Set(..))
 import qualified Text.ANTLR.Set as Set
+import Data.Hashable (Hashable(..), hashWithSalt)
 import qualified Text.ANTLR.Lex.Regex as R
 
 --trace s = D.trace   ("[Language.ANTLR4.Boot.Quote] " ++ s)
@@ -243,9 +244,11 @@ getNTs :: G4S.G4 -> [String]
 getNTs G4S.Prod{G4S.pName = pName, G4S.patterns = ps} = pName : concatMap (justNonTerms . G4S.alphas) ps
 getNTs _ = []
 
--- Things Symbols must derive:
+-- Hashable is omitted here; a manual instance using fromEnum is generated
+-- by g4_decls to avoid the large Generic representation type for ADTs with
+-- many constructors (e.g. 963 NTs for Swift → huge Rep type, slow typecheck).
 symbolDerives = derivClause Nothing $ map (conT . mkName)
-  [ "Eq", "Ord", "Show", "Hashable", "Generic", "Bounded", "Enum", "Data", "Lift"]
+  [ "Eq", "Ord", "Show", "Bounded", "Enum", "Lift"]
 
 -- Nonterminal symbol data type (enum) for this grammar:
 ntDataDeclQ :: G4AST -> DecQ
@@ -955,7 +958,11 @@ g4_decls ast' =
   -- variables. In order to achieve the same type variable you need to run one
   -- in the Q monad first then pass the resulting type to other parts of the
   -- code that need it (thus capturing the type variable).
-  do  let ast       = removeEpsilonsAST $ map wipeOutAnnots (ast' ++ genTermAnnotProds ast') -- Order of '++' matters here
+  do  let ast       = map wipeOutAnnots (ast' ++ genTermAnnotProds ast') -- Order of '++' matters here
+          -- NOTE: removeEpsilonsAST intentionally omitted here. The epsilon alternatives
+          -- in _star/_plus expansion rules are semantically correct for GLR and must be
+          -- preserved. Applying removeEpsilonsAST after genTermAnnotProds is exponential
+          -- in the number of nullable NTs created by * annotations (Issue #41 root cause).
 
           tokVal    = mkName "TokenValue"
           tokName   = mkName "TokenName"
@@ -967,7 +974,7 @@ g4_decls ast' =
           name      = mkName $ mkLower (gName ast ++ "Grammar'")
           nameUnit  = mkName $ mkLower (gName ast ++ "Grammar")
           lowerASTName = mkName (mkLower $ gName ast ++ "AST")
-      
+
       --D.traceM $ "AST=" ++ pshowList' ast
 
       prettyTFncnName <- newName "prettifyT"
@@ -1009,11 +1016,20 @@ g4_decls ast' =
 
       prettyTFncn <- prettyTFncnQ ast prettyTFncnName
       prettyVFncn <- prettyVFncnQ ast prettyValueFncnName
-      
+
       the_ast <- funD lowerASTName [clause [] (normalB $ lift ast) []] -- [d| $(lowerASTName) = $(lift ast) |]
+
+      -- Manual Hashable instances using fromEnum: avoids deriving Generic (which
+      -- generates a large Rep type for ADTs with many constructors) while still
+      -- providing O(1) hashing via the enum integer index.
+      hashNT:_ <- [d| instance Hashable $(conT ntSym) where
+                        hashWithSalt n x = hashWithSalt n (fromEnum x) |]
+      hashT:_  <- [d| instance Hashable $(conT tSym) where
+                        hashWithSalt n x = hashWithSalt n (fromEnum x) |]
 
       return $
         [ ntDataDecl, tDataDecl
+        , hashNT, hashT
         , gTySig,     gFunD
         , gTySigUnit, gUnitFunD
         , tokenNameType, tokenValueType

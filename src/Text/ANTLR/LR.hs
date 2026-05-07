@@ -19,9 +19,9 @@ module Text.ANTLR.LR
   , LR1LookAhead
   , CoreLRState, CoreLR1State, CoreSLRState, LRTable, LRTable', LRAction(..)
   , lrParse, GLRResult(..), LRResult(..), LR1Result(..), glrParse, glrParseInc, isAccept, isError
-  , lr1S0, glrParseInc', glrParseInc2
+  , lr1S0, glrParseInc', glrParseInc2, disambiguatedGlrParseInc2
   , convGoto, convStateInt, convGotoStatesInt, convTableInt, tokenizerFirstSets
-  , disambiguate
+  , disambiguate, greedyDisambiguate
   , SLRClosure, SLRItem, SLRTable, Closure, LR1Item, Goto, Goto', Config, Tokenizer
   ) where
 import Text.ANTLR.Grammar
@@ -29,7 +29,7 @@ import qualified Text.ANTLR.LL1 as LL
 import Text.ANTLR.Parser
 import Data.Maybe (catMaybes, mapMaybe, fromMaybe, fromJust)
 import Text.ANTLR.Set ( Set(..), fromList, empty, member, toList, size
-  , union, (\\), insert, toList, singleton
+  , union, (\\), insert, toList, singleton, delete
   )
 import qualified Text.ANTLR.Set as S
 import Text.ANTLR.Set (Hashable, Generic)
@@ -40,7 +40,7 @@ import Text.ANTLR.Common
 import qualified Data.Map as M1
 import Data.Data (Data(..))
 import Language.Haskell.TH.Lift (Lift(..))
-import Data.List (sort)
+import Data.List (sort, sortBy)
 
 import Text.ANTLR.Pretty
 import qualified Debug.Trace as D
@@ -230,10 +230,48 @@ slrClosure g is' = let
 
   in closure' is'
 
+-- | Precompute FIRST(NT x) for every NT in the grammar using an iterative
+-- fixed-point. Used by 'lr1Closure' to avoid re-deriving FIRST sets on every
+-- item in every closure iteration.
+computeFirstMap :: forall nts sts dt. (Tabular nts, Tabular sts)
+  => Grammar () nts sts dt -> M1.Map nts (Set (Icon sts))
+computeFirstMap g = go (M1.fromList [(n, empty) | n <- S.toList (ns g)])
+  where
+    firstSeq :: M1.Map nts (Set (Icon sts)) -> [ProdElem nts sts] -> Set (Icon sts)
+    firstSeq _ []           = singleton IconEps
+    firstSeq _ (T t : _)    = singleton (Icon t)
+    firstSeq m (Eps : rest) = firstSeq m rest
+    firstSeq m (NT n : rest) =
+      let fn = M1.findWithDefault empty n m
+      in if IconEps `member` fn
+         then S.delete IconEps fn `union` firstSeq m rest
+         else fn
+    go m0 =
+      let m1 = M1.fromList
+                 [ (n, foldr union empty
+                       [ firstSeq m0 rhs
+                       | Production _ (Prod _ rhs) _ <- prodsFor g n ])
+                 | n <- S.toList (ns g)
+                 ]
+      in if m0 == m1 then m0 else go m1
+
 -- | Algorithm for computing an LR(1) closure.
+-- Precomputes FIRST sets for all NTs once (per grammar) rather than calling
+-- LL.first g inside the inner loop on every item × every iteration.
 lr1Closure :: forall nts sts dt. ( Tabular nts, Tabular sts )
   => Grammar () nts sts dt -> Closure (CoreLR1State nts sts)
-lr1Closure g is' = let
+lr1Closure g = let
+    firstMap = computeFirstMap g
+
+    firstSeqFast :: [ProdElem nts sts] -> Set (Icon sts)
+    firstSeqFast []           = singleton IconEps
+    firstSeqFast (T t : _)    = singleton (Icon t)
+    firstSeqFast (Eps : rest) = firstSeqFast rest
+    firstSeqFast (NT n : rest) =
+      let fn = M1.findWithDefault empty n firstMap
+      in if IconEps `member` fn
+         then S.delete IconEps fn `union` firstSeqFast rest
+         else fn
 
     tokenToProdElem (Icon a) = [T a]
     tokenToProdElem _ = []
@@ -247,13 +285,13 @@ lr1Closure g is' = let
             , not $ null rst
             , isNT pe
             , Production _ (Prod _ γ) _ <- prodsFor g _B
-            , b <- toList $ LL.first g (β ++ tokenToProdElem a)
+            , b <- toList $ firstSeqFast (β ++ tokenToProdElem a)
             ]
       in case size $ add \\ _J of
         0 -> _J `union` add
         _ -> closure' $ _J `union` add
 
-  in closure' is'
+  in closure'
 
 -- | fmap over @lrstate@s of a 'LRAction'.
 convAction :: (lrstate -> lrstate') -> LRAction nts sts lrstate -> LRAction nts sts lrstate'
@@ -313,12 +351,6 @@ allProdElems :: Grammar () nts ts dt -> [ProdElem nts ts]
 allProdElems g =
       map NT (S.toList $ ns g)
   ++  map T  (S.toList $ ts g)
-
-allProdElems' :: forall nts ts. (Bounded nts, Bounded ts, Enum nts, Enum ts)
-  => [ProdElem nts ts]
-allProdElems' =
-      map NT ([minBound .. maxBound] :: [nts])
-  ++  map T  ([minBound .. maxBound] :: [ts])
 
 -- | Compute the set of states we would go to by traversing the
 --   given nonterminal symbol @_X@.
@@ -589,41 +621,49 @@ glrParseInc' ::
   -> lrstate -> M1.Map lrstate (Set (StripEOF (Sym t))) -> Action ast nts t
   -> Tokenizer t c -> [c] -> GLRResult lrstate c t ast
 glrParseInc' g tbl goto s_0 tokenizerFirstSets act tokenizer w = let
-    
-    lr :: Config lrstate c -> [ast] -> GLRResult lrstate c t ast
-    lr (s:states, cs) asts = let
 
-        -- The set of token symbols that are feasible to be seen next given the
-        -- current grammar context - i.e. the Set of LR1LookAheads stripped from
-        -- the current state on top of the configuration stack. Luckily enough,
-        -- it just so happens that the type stuffed inside an LR1 lookahead Icon
-        -- is precisely the terminal symbol type that the tokenizer uses to name
-        -- DFAs.
+    -- lr: main parse loop. mToken is an optional cached (lookahead, rest) from
+    -- the previous call. Reduce steps do not consume input, so we pass the
+    -- cached token through Reduce chains to avoid re-tokenizing the same
+    -- position O(reductions_per_shift) times.
+    lr :: Config lrstate c -> Maybe (t, [c]) -> [ast] -> GLRResult lrstate c t ast
+    lr (s:states, cs) mToken asts = let
+
         dfaNames = fromMaybe (error $ "Failed DFA lookup: " ++ pshow' (s, tokenizerFirstSets))
           $ s `M1.lookup` tokenizerFirstSets
-        
-        (a, ws) = tokenizer dfaNames cs
-        
+
+        (a, ws) = case mToken of
+                    Just tok -> tok          -- reuse cached token from Reduce chain
+                    Nothing  -> tokenizer dfaNames cs
+
         lr' :: LR1Action nts (StripEOF (Sym t)) lrstate -> GLRResult lrstate c t ast
         lr' Accept    = case length asts of
               1 -> ResultAccept $ head asts
               _ -> ErrorAccept (s:states, cs) asts
         lr' Error     = ErrorNoAction a (s:states, cs) asts
-        lr' (Shift t) = trace ("Shift: " ++ pshow' t) $ lr (t:s:states, ws) $ act (TermE a) : asts
+        lr' (Shift t) = trace ("Shift: " ++ pshow' t) $
+              lr (t:s:states, ws) Nothing $ act (TermE a) : asts
         lr' (Reduce p@(Production _A (Prod _ β) _)) = let
               ss'@(t:_) = drop (length β) (s:states)
               result =
                 case (t, NT _A) `M1.lookup` goto of
                   Nothing -> ErrorTable (s:states, cs) asts
-                  Just s  -> lr (s : ss', cs) (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
+                  Just s  -> lr (s : ss', cs) (Just (a, ws))
+                               (act (NonTE (_A, β, reverse $ take (length β) asts)) : drop (length β) asts)
             in trace ("Reduce: " ++ pshow' p) result
 
         lookVal = case stripEOF $ getSymbol a of
                     Just sym -> look (s, Icon sym) tbl
                     Nothing  -> look (s, IconEOF)  tbl
 
-        concatSets (ResultSet ss) ss' = ss' `S.union` ss
-        concatSets r              ss' = r   `S.insert` ss'
+        -- Prune dead error branches early: wrong parse paths typically hit an
+        -- error within a few tokens of a conflict point. Discarding them here
+        -- prevents error branches from compounding and causing O(n^3) blowup.
+        -- Falls back to the original ErrorNoAction path when ALL paths fail.
+        concatSets (ErrorNoAction _ _ _) ss' = ss'
+        concatSets (ErrorTable    _ _)   ss' = ss'
+        concatSets (ResultSet     ss)    ss' = ss' `S.union` S.filter (not . isError) ss
+        concatSets r                     ss' = r   `S.insert` ss'
 
         parseResults = S.foldr concatSets S.empty $ S.map lr' lookVal
         justAccepts  = getAccepts parseResults
@@ -632,14 +672,14 @@ glrParseInc' g tbl goto s_0 tokenizerFirstSets act tokenizer w = let
           then ErrorNoAction a (s:states, cs) asts
           else (if S.null justAccepts
                   then (case S.size parseResults of
-                          0 -> undefined
+                          0 -> ErrorNoAction a (s:states, cs) asts  -- all branches failed
                           1 -> S.findMin parseResults
                           _ -> ResultSet parseResults)
                   else (case S.size justAccepts of
                           1 -> S.findMin justAccepts
                           _ -> ResultSet justAccepts))
 
-  in lr ([s_0], w) []
+  in lr ([s_0], w) Nothing []
 
 -- | Mapping from parse states to which symbols can be seen next so that the
 --   incremental tokenizer can check which DFAs to try tokenizing.
@@ -676,15 +716,65 @@ glrParseInc2 g = let
       (convState $ lr1Closure g $ lr1S0 g)
       (tokenizerFirstSets convState g)
 
+-- | Like 'glrParseInc2' but resolves conflicts deterministically:
+-- Shift/Reduce → prefer Shift (S.findMin: Shift < Reduce by derived Ord).
+-- Reduce/Reduce → prefer S.findMin (lexicographically smaller action).
+-- O(n) parsing — safe when the caller only needs one parse result.
+disambiguatedGlrParseInc2 g = let
+    is = sort $ S.toList $ lr1Items g
+    convState = convStateInt is
+    (tbl', _) = disambiguate (convTableInt (lr1Table g) is)
+    tbl = M.fromList' [(k, singleton v) | (k, v) <- M1.toList tbl']
+  in glrParseInc' g
+      tbl
+      (convGotoStatesInt (convGoto g (lr1Goto g) is) is)
+      (convState $ lr1Closure g $ lr1S0 g)
+      (tokenizerFirstSets convState g)
+
+-- | Disambiguate with "prefer Shift, then prefer longer RHS for Reduce/Reduce".
+greedyDisambiguate ::
+  ( IsState lrstate, Tabular nts, Tabular sts )
+  => LRTable nts sts lrstate -> (LRTable' nts sts lrstate, Int)
+greedyDisambiguate tbl = let
+    rhsLen (Reduce (Production _ (Prod _ β) _)) = length β
+    rhsLen _ = 0
+
+    actionName (Shift _) = "Shift"; actionName (Reduce _) = "Reduce"
+    actionName Accept    = "Accept"; actionName Error      = "Error"
+    mkConflict s = concatWith "/" $ map actionName $ S.toList s
+
+    mkSingle st icon s
+      | S.size s == 1 = (S.findMin s, 0)
+      | S.size s == 0 = D.trace ("Table entry " ++ pshow' (st,icon) ++ " is empty") undefined
+      | otherwise     = let
+          -- Prefer Shift over Reduce (S.findMin works: Shift < Reduce by Ord)
+          shifts  = S.filter (\a -> case a of Shift _ -> True; _ -> False) s
+          chosen  = if not (S.null shifts)
+                      then S.findMin shifts
+                      else let rs = S.toList s
+                           in head $ sortBy (\a b -> compare (rhsLen b) (rhsLen a)) rs
+        in D.trace ("Table entry " ++ pshow' (st,icon) ++ " has " ++ mkConflict s
+                    ++ " conflict — chose: " ++ actionName chosen) (chosen, 1)
+  in (M1.fromList
+    [ ((st, icon), fst (mkSingle st icon action))
+    | ((st, icon), action) <- M.toList tbl
+    ], sum
+    [ snd (mkSingle st icon action)
+    | ((st, icon), action) <- M.toList tbl
+    ])
+
 -- | Returns the disambiguated LRTable, as well as the number of conflicts
 --   (Shift/Reduce, Reduce/Reduce, etc...) reported.
 disambiguate ::
-  ( IsState lrstate, Tabular nts, Tabular sts
-  , Data lrstate, Data nts, Data sts)
+  ( IsState lrstate, Tabular nts, Tabular sts )
   => LRTable nts sts lrstate -> (LRTable' nts sts lrstate, Int)
 disambiguate tbl = let
 
-    mkConflict s = concatWith "/" $ map (show . toConstr) $ S.toList s
+    actionName (Shift _)  = "Shift"
+    actionName (Reduce _) = "Reduce"
+    actionName Accept     = "Accept"
+    actionName Error      = "Error"
+    mkConflict s = concatWith "/" $ map actionName $ S.toList s
 
     mkSingle st icon s
       | S.size s == 1 = (S.findMin s, 0)
